@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import Image from "next/image";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { TypeAnimation } from "react-type-animation";
 import { useAuth } from "@clerk/nextjs";
 
@@ -12,14 +11,16 @@ const HeroSection = () => {
   const imageRef = useRef(null);
   const { isSignedIn } = useAuth();
   const router = useRouter();
+  const [isHovered, setIsHovered] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const { scrollYProgress } = useScroll();
+  const overlayOpacity = useTransform(scrollYProgress, [0, 0.5], [0, 0.3]);
 
   useEffect(() => {
     const imageElement = imageRef.current;
-
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
       const scrollThreshold = 100;
-
       if (imageElement) {
         if (scrollPosition > scrollThreshold) {
           imageElement.classList.add("scrolled");
@@ -28,7 +29,6 @@ const HeroSection = () => {
         }
       }
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -91,12 +91,6 @@ const HeroSection = () => {
           <Button size="lg" className="px-8" onClick={handleDashboardClick}>
             Get Started
           </Button>
-
-          <a href="https://www.youtube.com/roadsidecoder" target="_blank" rel="noopener noreferrer">
-            <Button size="lg" variant="outline" className="px-8">
-              Watch Demo
-            </Button>
-          </a>
         </motion.div>
 
         <motion.div
@@ -105,16 +99,74 @@ const HeroSection = () => {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 1.1, duration: 0.6 }}
         >
-          <div ref={imageRef} className="hero-image">
-            <Image
-              src="/banner.jpeg"
-              width={1280}
-              height={720}
-              alt="Dashboard Preview"
-              className="rounded-lg shadow-2xl border mx-auto"
-              priority
+          <motion.div
+            ref={imageRef}
+            className="relative mx-auto w-full max-w-[1280px] rounded-lg shadow-2xl border perspective-1000"
+            initial={{ rotateX: 0, rotateY: 0, opacity: 0, scale: 0.95 }}
+            animate={{ rotateX: 0, rotateY: 0, opacity: 1, scale: 1 }}
+            whileHover={{ rotateX: -6, rotateY: 6 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 1.1 }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setMousePosition({
+                x: (e.clientX - rect.left) / rect.width - 0.5,
+                y: (e.clientY - rect.top) / rect.height - 0.5,
+              });
+            }}
+          >
+            {/* Video */}
+            <motion.video
+              src="/pathfinder-ai.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="rounded-lg w-full h-auto block"
+              poster="/fallback-image.jpg"
             />
-          </div>
+
+            {/* Overlay gradient that fades in as you scroll down */}
+            <motion.div
+              className="absolute inset-0 rounded-lg pointer-events-none bg-gradient-to-t from-primary/10 to-transparent mix-blend-overlay"
+              style={{
+                opacity: overlayOpacity,
+              }}
+            />
+
+            {/* Reflection on hover */}
+            <motion.div
+              className="absolute inset-0 rounded-lg pointer-events-none bg-gradient-to-b from-white/10 to-transparent"
+              animate={{ opacity: isHovered ? 0.2 : 0 }}
+              transition={{ duration: 0.3 }}
+            />
+
+            {/* Cursor-following radial glow */}
+            <motion.div
+              className="absolute inset-0 rounded-lg pointer-events-none"
+              animate={{
+                background: isHovered
+                  ? `radial-gradient(circle at ${(mousePosition.x + 0.5) * 100}% ${(mousePosition.y + 0.5) * 100}%, rgba(124,58,237,0.35) 0%, rgba(0,0,0,0) 70%)`
+                  : "none",
+                opacity: isHovered ? 1 : 0,
+              }}
+              transition={{ duration: 0.2 }}
+            />
+
+            {/* Slow pulsing ambient glow */}
+            <motion.div
+              className="absolute inset-0 rounded-lg pointer-events-none bg-primary/5"
+              animate={{
+                boxShadow: [
+                  "0 0 0 rgba(124, 58, 237, 0)",
+                  "0 0 20px rgba(124, 58, 237, 0.3)",
+                  "0 0 0 rgba(124, 58, 237, 0)",
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity, repeatType: "loop" }}
+            />
+          </motion.div>
         </motion.div>
       </motion.div>
     </section>
