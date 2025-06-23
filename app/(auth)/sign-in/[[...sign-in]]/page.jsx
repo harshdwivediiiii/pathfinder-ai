@@ -1,5 +1,11 @@
+import InteractiveBackground from "@/components/Background";
 import { SignIn } from "@clerk/nextjs";
 
 export default function Page() {
-  return <SignIn />;
+  return (
+    <>
+      <InteractiveBackground isDarkMode={false} />
+      <SignIn />
+    </>
+  );
 }
