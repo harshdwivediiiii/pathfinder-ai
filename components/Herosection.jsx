@@ -3,12 +3,15 @@
 import React, { useEffect, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { TypeAnimation } from "react-type-animation";
+import { useAuth } from "@clerk/nextjs";
 
 const HeroSection = () => {
   const imageRef = useRef(null);
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const imageElement = imageRef.current;
@@ -29,6 +32,14 @@ const HeroSection = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleDashboardClick = () => {
+    if (isSignedIn) {
+      router.push("/dashboard");
+    } else {
+      router.push("/sign-in");
+    }
+  };
 
   return (
     <section className="w-full pt-36 md:pt-48 pb-10">
@@ -77,16 +88,15 @@ const HeroSection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8, duration: 0.5 }}
         >
-          <Link href="/dashboard">
-            <Button size="lg" className="px-8">
-              Get Started
-            </Button>
-          </Link>
-          <Link href="https://www.youtube.com/roadsidecoder" target="_blank">
+          <Button size="lg" className="px-8" onClick={handleDashboardClick}>
+            Get Started
+          </Button>
+
+          <a href="https://www.youtube.com/roadsidecoder" target="_blank" rel="noopener noreferrer">
             <Button size="lg" variant="outline" className="px-8">
               Watch Demo
             </Button>
-          </Link>
+          </a>
         </motion.div>
 
         <motion.div
