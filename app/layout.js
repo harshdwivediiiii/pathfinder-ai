@@ -1,10 +1,10 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
-import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import ClerkProviderWithTheme from "@/components/Clerkprovider";
 import Footer from "@/components/Footer";
+import Header from "@/components/Header";
 
 
 const inter = Inter({ subsets: ["latin"] });
@@ -18,9 +18,6 @@ export default function RootLayout({ children }) {
   return (
     <ClerkProviderWithTheme >
       <html lang="en" suppressHydrationWarning>
-        <head>
-          <link rel="icon" href="/logo.png" sizes="any" />
-        </head>
         <body className={`${inter.className}`}>
           <ThemeProvider
             attribute="class"
