@@ -132,7 +132,7 @@ export default function Footer() {
           <div className="flex gap-4">
             {[
               {
-                href: "https://github.com/amitkumardemo/EdgeCareer",
+                href: "https://github.com/harshdwivediiiii/pathfinder-ai",
                 Icon: Github,
                 label: "GitHub",
               },
