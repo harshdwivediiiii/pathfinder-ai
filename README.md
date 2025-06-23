@@ -1,8 +1,12 @@
-<h1>Pathmentor Ai 🧠💼</h1>
+<h1>Pathfinder AI 🧠💼</h1>
 
 <p><strong>Your AI-Powered Career Coach & Resume Builder</strong></p>
 
-<p>Pathmentor Ai is an intelligent web application that helps you craft professional resumes, write tailored cover letters, and prepare for interviews — all powered by AI. Whether you're launching your career or making your next big move, Pathmentor is your personalized guide.</p>
+<p>
+  <strong>Pathfinder AI</strong> is an intelligent web application that helps you craft professional resumes,
+  write tailored cover letters, and prepare for interviews — all powered by AI.  
+  Whether you’re launching your career or making your next big move, Pathfinder is your personalized guide.
+</p>
 
 <hr />
 
@@ -25,7 +29,7 @@
   <li><strong>Authentication:</strong> Clerk.dev</li>
   <li><strong>AI Engine:</strong> Gemini API (Google AI)</li>
   <li><strong>Database:</strong> PostgreSQL with Prisma ORM</li>
-  <li><strong>Styling:</strong> TailwindCSS + ShadCN UI</li>
+  <li><strong>Styling:</strong> Tailwind CSS + ShadCN UI</li>
   <li><strong>Deployment:</strong> Vercel</li>
 </ul>
 
@@ -35,15 +39,17 @@
 
 <p>Clone the project and install dependencies:</p>
 
-<pre><code>git clone https://github.com/yourusername/pathmentor-ai.git
-cd pathmentor-ai
+<pre><code>git clone https://github.com/yourusername/pathfinder-ai.git
+cd pathfinder-ai
 npm install
 </code></pre>
 
 <p>Create a <code>.env.local</code> file and add the following environment variables:</p>
 
-<pre><code>DATABASE_URL=your_postgresql_connection_string
+<pre><code># ─── Database ───────────────────────────────────────────
+DATABASE_URL=your_postgresql_connection_string
 
+# ─── Clerk ──────────────────────────────────────────────
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
 
@@ -52,6 +58,7 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/onboarding
 NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
 
+# ─── Gemini AI ──────────────────────────────────────────
 GEMINI_API_KEY=your_gemini_api_key
 </code></pre>
 
@@ -71,13 +78,19 @@ GEMINI_API_KEY=your_gemini_api_key
 
 <h2>🔐 Authentication</h2>
 
-<p>All user accounts are managed securely using <a href="https://clerk.dev">Clerk.dev</a>. After signing in, users are routed through an onboarding flow before accessing dashboards.</p>
+<p>
+  All user accounts are managed securely using <a href="https://clerk.dev">Clerk.dev</a>.  
+  After signing in, users are routed through an onboarding flow before accessing dashboards.
+</p>
 
 <hr />
 
 <h2>🤖 AI Capabilities</h2>
 
-<p>All smart content — resume bullets, cover letters, interview questions — are powered by the <a href="https://deepmind.google/technologies/gemini/">Gemini API</a>, using prompts customized by user input, tone, and job descriptions.</p>
+<p>
+  All smart content — resume bullets, cover letters, interview questions — are powered by the
+  <a href="https://deepmind.google/technologies/gemini/">Gemini API</a>, using prompts customized by user input, tone, and job descriptions.
+</p>
 
 <hr />
 
@@ -89,16 +102,21 @@ GEMINI_API_KEY=your_gemini_api_key
 
 <h2>✉️ Contact</h2>
 
-<p>For questions, feedback, or collaborations:<br />
-📧 <a href="mailto:harshvardhandwivedi18@gmail.com">harshvardhandwivedi18@gmail.com</a></p>
+<p>
+  For questions, feedback, or collaborations:<br />
+  📧 <a href="mailto:harshvardhandwivedi18@gmail.com">harshvardhandwivedi18@gmail.com</a>
+</p>
 
 <hr />
 
 <h2>🌐 Deployment</h2>
 
-<p>Deploy instantly using <a href="https://vercel.com/new">Vercel</a>.<br />
-Need help? See the <a href="https://nextjs.org/docs/app/building-your-application/deploying">Next.js Deployment Docs</a>.</p>
+<p>
+  Deploy instantly using <a href="https://vercel.com/new">Vercel</a>.<br />
+  Need help? See the
+  <a href="https://nextjs.org/docs/app/building-your-application/deploying">Next.js Deployment Docs</a>.
+</p>
 
 <hr />
 
-<p><strong>Pathmentor Ai</strong> – <em>Smart Careers Start Here.</em></p>
+<p><strong>Pathfinder AI</strong> – <em>Smart Careers Start Here.</em></p>
