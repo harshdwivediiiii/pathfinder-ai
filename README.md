@@ -40,4 +40,83 @@
 
 <h2>⚙️ Getting Started</h2>
 
-<p>Clone the project and install dependen
+<p>Clone the project and install dependencies:</p>
+
+<pre><code>git clone https://github.com/harshdwivediiiii/pathfinder-ai.git
+cd pathfinder-ai
+npm install
+</code></pre>
+
+<p>Create a <code>.env.local</code> file and add the following environment variables:</p>
+
+<pre><code>DATABASE_URL=your_postgresql_connection_string
+
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/onboarding
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
+
+GEMINI_API_KEY=your_gemini_api_key
+</code></pre>
+
+<p>Generate the Prisma client:</p>
+
+<pre><code>npx prisma generate
+</code></pre>
+
+<p>Then run the app:</p>
+
+<pre><code>npm run dev
+</code></pre>
+
+<p>Visit <a href="http://localhost:3000">http://localhost:3000</a> to view your application.</p>
+
+<hr />
+
+<h2>🔐 Authentication</h2>
+
+<p>
+  All user accounts are managed securely using <a href="https://clerk.dev">Clerk.dev</a>. 
+  After signing in, users are routed through an onboarding flow before accessing dashboards.
+</p>
+
+<hr />
+
+<h2>🤖 AI Capabilities</h2>
+
+<p>
+  All smart content — resume bullets, cover letters, interview questions — are powered by the 
+  <a href="https://deepmind.google/technologies/gemini/">Gemini API</a>, using prompts customized by user input, tone, and job descriptions.
+</p>
+
+<hr />
+
+<h2>📄 License</h2>
+
+<p>This project is licensed under the <a href="LICENSE">MIT License</a>.</p>
+
+<hr />
+
+<h2>✉️ Contact</h2>
+
+<p>
+  For questions, feedback, or collaborations:<br />
+  📧 <a href="mailto:harshvardhandwivedi18@gmail.com">harshvardhandwivedi18@gmail.com</a>
+</p>
+
+<hr />
+
+<h2>🌐 Deployment</h2>
+
+<p>
+  Deploy instantly using <a href="https://vercel.com/new">Vercel</a>.<br />
+  Need help? See the 
+  <a href="https://nextjs.org/docs/app/building-your-application/deploying">Next.js Deployment Docs</a>.
+</p>
+
+<hr />
+
+<p><strong>Pathfinder AI</strong> – <em>Smart Careers Start Here.</em></p>
