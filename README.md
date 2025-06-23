@@ -1,8 +1,8 @@
-<h1>Pathmentor Ai 🧠💼</h1>
+<h1>PathFinder AI 🧠💼</h1>
 
 <p><strong>Your AI-Powered Career Coach & Resume Builder</strong></p>
 
-<p>Pathmentor Ai is an intelligent web application that helps you craft professional resumes, write tailored cover letters, and prepare for interviews — all powered by AI. Whether you're launching your career or making your next big move, Pathmentor is your personalized guide.</p>
+<p>PathFinder Ai is an intelligent web application that helps you craft professional resumes, write tailored cover letters, and prepare for interviews — all powered by AI. Whether you're launching your career or making your next big move, Pathmentor is your personalized guide.</p>
 
 <hr />
 
@@ -36,7 +36,7 @@
 <p>Clone the project and install dependencies:</p>
 
 <pre><code>git clone https://github.com/yourusername/pathmentor-ai.git
-cd pathmentor-ai
+cd pathfinder-ai
 npm install
 </code></pre>
 
