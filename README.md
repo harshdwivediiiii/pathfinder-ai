@@ -38,6 +38,17 @@
 
 <hr />
 
+<h2> Tech Stacks</h2>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=nextdotjs" />
+  <img src="https://img.shields.io/badge/Gemini%20API-Google%20AI-red?style=for-the-badge&logo=google" />
+  <img src="https://img.shields.io/badge/TailwindCSS-3.x-38bdf8?style=for-the-badge&logo=tailwindcss&logoColor=white" />
+  <img src="https://img.shields.io/badge/Prisma-ORM-3982CE?style=for-the-badge&logo=prisma&logoColor=white" />
+  <img src="https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" />
+
+</p>
+
 <h2>⚙️ Getting Started</h2>
 
 <p>Clone the project and install dependencies:</p>
