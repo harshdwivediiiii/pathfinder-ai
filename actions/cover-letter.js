@@ -2,8 +2,8 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
+import { generateGeminiStructuredContent } from "@/lib/gemini";
+import { buildSecurePrompt, coverLetterOutputSchema } from "@/lib/prompt-safety";
 
 /**
  * Generates a professional cover letter using Gemini AI.
@@ -39,12 +39,47 @@ export async function generateCoverLetter(data) {
 - Professional, engaging, and persuasive tone
 - Max 400 words
 - Highlight how the candidate's skills and experience match the job description
-- Use markdown formatting for readability`,
+- Return ONLY valid JSON (no markdown, no code fences) with this exact shape:
+{
+  "greeting": "Dear Hiring Manager,",
+  "body": [
+    "Paragraph one.",
+    "Paragraph two."
+  ],
+  "closing": "Sincerely, Candidate",
+  "tone": "professional"
+}`,
   });
 
   try {
-    const result = await generateGeminiContent(prompt);
-    const content = result.response.text().trim();
+    const structured = await generateGeminiStructuredContent({
+      prompt,
+      schema: coverLetterOutputSchema,
+      schemaName: "coverLetter",
+      jsonSchemaExample: `{
+  "greeting": "Dear Hiring Manager,",
+  "body": [
+    "Paragraph one.",
+    "Paragraph two."
+  ],
+  "closing": "Sincerely, Candidate",
+  "tone": "professional"
+}`,
+      correctionRules:
+        "Body must be an array of 1 to 6 substantial paragraphs. Keep total response under 400 words.",
+    });
+
+    const content = [
+      "# Cover Letter",
+      "",
+      structured.greeting,
+      "",
+      ...structured.body,
+      "",
+      structured.closing,
+    ]
+      .join("\n")
+      .trim();
 
     if (!content) throw new Error("AI response was empty.");
 

@@ -3,8 +3,8 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
+import { generateGeminiStructuredContent } from "@/lib/gemini";
+import { buildSecurePrompt, resumeBulletsOutputSchema } from "@/lib/prompt-safety";
 import { validateInput } from "@/lib/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
 
@@ -88,14 +88,38 @@ export async function improveWithAI(rawParams) {
     5. Focus on achievements over responsibilities
     6. Use industry-specific keywords
 
-    Format the response as a single paragraph without any additional text or explanations.`,
+    Return ONLY valid JSON with this shape:
+    {
+      "sectionHeading": "Work Experience",
+      "tone": "professional",
+      "bullets": [
+        "Improved API response times by 35% by optimizing database indexing and introducing query caching."
+      ],
+      "skills": ["Node.js", "PostgreSQL", "Performance Optimization"]
+    }
+
+    The bullets array must include 1 to 8 concise resume bullet points.`,
   });
 
   try {
-    const result = await generateGeminiContent(prompt);
-    const response = result.response;
-    const improvedText = response.text().trim();
-    return { success: true, data: improvedText };
+    const structured = await generateGeminiStructuredContent({
+      prompt,
+      schema: resumeBulletsOutputSchema,
+      schemaName: "resumeBullets",
+      jsonSchemaExample: `{
+  "sectionHeading": "Work Experience",
+  "tone": "professional",
+  "bullets": [
+    "Improved API response times by 35% by optimizing database indexing and introducing query caching."
+  ],
+  "skills": ["Node.js", "PostgreSQL", "Performance Optimization"]
+}`,
+      correctionRules:
+        "Ensure every bullet is specific, measurable when possible, and relevant to the provided industry.",
+    });
+
+    const improvedText = structured.bullets.map((bullet) => `- ${bullet}`).join("\n");
+    return { success: true, data: improvedText, structured };
   } catch (error) {
     console.error("Error optimizing structural field elements:", error);
     return { success: false, errors: { _form: [error?.message || "AI pipeline configuration encountered an error."] } };

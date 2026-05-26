@@ -25,7 +25,7 @@ test("getRateLimitIdentifier derives IP from forwarded header when no userId", (
   assert.equal(id.value, "203.0.113.5");
 });
 
-test("enforceRateLimit allows first request and blocks immediate second when burstCapacity=1", () => {
+test("enforceRateLimit allows first request and blocks immediate second when burstCapacity=1", async () => {
   const req = new Request("http://localhost", {
     headers: { "x-forwarded-for": "198.51.100.7" },
   });
@@ -33,10 +33,10 @@ test("enforceRateLimit allows first request and blocks immediate second when bur
   const subject = getRateLimitIdentifier(req, null);
   const endpoint = "/test/rl";
 
-  const first = enforceRateLimit({ endpoint, subject, limitPerMinute: 1, burstCapacity: 1 });
+  const first = await enforceRateLimit({ endpoint, subject, limitPerMinute: 1, burstCapacity: 1 });
   assert.equal(first.allowed, true);
 
-  const second = enforceRateLimit({ endpoint, subject, limitPerMinute: 1, burstCapacity: 1 });
+  const second = await enforceRateLimit({ endpoint, subject, limitPerMinute: 1, burstCapacity: 1 });
   assert.equal(second.allowed, false);
   assert.ok(typeof second.retryAfterSeconds === "number" && second.retryAfterSeconds >= 1);
 });
