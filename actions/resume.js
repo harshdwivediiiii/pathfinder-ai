@@ -3,10 +3,11 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { generateGeminiStructuredContent } from "@/lib/gemini";
-import { buildSecurePrompt, resumeBulletsOutputSchema } from "@/lib/prompt-safety";
-import { validateInput } from "@/lib/validate";
+import { generateGeminiContent } from "@/lib/gemini";
+import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/prompt-safety";
+import { validateInput, validateOutput } from "@/lib/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
+import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
 
 export async function saveResume(rawContent) {
   const { userId } = await auth();
@@ -74,52 +75,51 @@ export async function improveWithAI(rawParams) {
   if (!user) return { success: false, errors: { _form: ["User account match could not be checked."] } };
 
   const prompt = buildSecurePrompt({
-    task: "As an expert resume writer, improve the following description to make it more impactful, quantifiable, and aligned with industry standards.",
+    task: `As an expert resume writer, improve the following description to make it more impactful, quantifiable, and aligned with industry standards.
+
+Requirements:
+1. Use action verbs
+2. Include metrics and results only when supported by the source text
+3. Highlight relevant technical skills
+4. Keep it concise but detailed
+5. Focus on achievements over responsibilities
+6. Use industry-specific keywords
+7. Do not invent employers, dates, tools, certifications, metrics, or outcomes
+
+Respond ONLY with a valid JSON object in this exact format (no markdown, no code fences):
+{
+  "improvedContent": "<single improved paragraph>",
+  "highlights": ["<key achievement 1>", "<key achievement 2>", ...]
+}`,
     untrustedData: [
       { label: "resumeContent", value: current, maxLength: 8000 },
       { label: "type", value: type, maxLength: 200 },
       { label: "industry", value: user.industry, maxLength: 200 },
     ],
-    outputRules: `Requirements:
-    1. Use action verbs
-    2. Include metrics and results where possible
-    3. Highlight relevant technical skills
-    4. Keep it concise but detailed
-    5. Focus on achievements over responsibilities
-    6. Use industry-specific keywords
-
-    Return ONLY valid JSON with this shape:
-    {
-      "sectionHeading": "Work Experience",
-      "tone": "professional",
-      "bullets": [
-        "Improved API response times by 35% by optimizing database indexing and introducing query caching."
-      ],
-      "skills": ["Node.js", "PostgreSQL", "Performance Optimization"]
-    }
-
-    The bullets array must include 1 to 8 concise resume bullet points.`,
   });
 
+  const schemaDescription = SCHEMA_DESCRIPTIONS.resumeImprovement;
+
   try {
-    const structured = await generateGeminiStructuredContent({
+    const result = await generateWithStructuredOutput({
       prompt,
-      schema: resumeBulletsOutputSchema,
-      schemaName: "resumeBullets",
-      jsonSchemaExample: `{
-  "sectionHeading": "Work Experience",
-  "tone": "professional",
-  "bullets": [
-    "Improved API response times by 35% by optimizing database indexing and introducing query caching."
-  ],
-  "skills": ["Node.js", "PostgreSQL", "Performance Optimization"]
-}`,
-      correctionRules:
-        "Ensure every bullet is specific, measurable when possible, and relevant to the provided industry.",
+      schemaDescription,
+      schema: resumeImprovementOutputSchema,
+      generateFn: async (p) => {
+        const raw = await generateGeminiContent(p);
+        return raw.response.text().trim();
+      },
+      validateFn: validateOutput,
     });
 
-    const improvedText = structured.bullets.map((bullet) => `- ${bullet}`).join("\n");
-    return { success: true, data: improvedText, structured };
+    if (!result.success) {
+      console.error("Output validation failed:", result.errors);
+      return { success: false, errors: { _form: ["AI returned an unexpected format. Please try again."] } };
+    }
+
+    // Reassemble into plain string for backward compatibility with existing DB/UI
+    const improvedText = result.data.improvedContent;
+    return { success: true, data: improvedText };
   } catch (error) {
     console.error("Error optimizing structural field elements:", error);
     return { success: false, errors: { _form: [error?.message || "AI pipeline configuration encountered an error."] } };
