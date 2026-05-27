@@ -94,7 +94,7 @@ export default function useStreamFetch() {
           conversationId,
         }),
         signal: controller.signal,
-      });
+      };
 
       if (!response.ok) {
         const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
