@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import DownloadPdf from "@/components/download-pdf";
+import DownloadPdf from "@/components/Download-pdf";
 
 export default function QuizDetail({ assessment }) {
   const router = useRouter();

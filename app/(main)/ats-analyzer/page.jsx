@@ -17,7 +17,7 @@ export default async function ATSAnalyzerRoute() {
   if (!isOnboarded) redirect("/onboarding");
 
   // Load in parallel
-  const [initialHistory, savedResume] = await Promise.all([
+  const [historyResult, savedResume] = await Promise.all([
     getATSAnalyses(),
     getResume(),
   ]);
@@ -34,7 +34,7 @@ export default async function ATSAnalyzerRoute() {
         </p>
       </div>
       <ATSAnalyzerPage
-        initialHistory={initialHistory}
+        initialHistory={Array.isArray(historyResult?.data) ? historyResult.data : []}
         savedResumeContent={savedResume?.content || ""}
       />
     </div>

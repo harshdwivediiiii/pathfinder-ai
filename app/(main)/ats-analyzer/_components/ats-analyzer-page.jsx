@@ -10,12 +10,14 @@ import ATSHistory from "./ats-history";
 export default function ATSAnalyzerPage({ initialHistory, savedResumeContent }) {
   const [currentResult, setCurrentResult] = useState(null);
   const [activeTab, setActiveTab] = useState("analyze");
-  const [history, setHistory] = useState(initialHistory || []);
+  const [history, setHistory] = useState(
+    Array.isArray(initialHistory) ? initialHistory : []
+  );
 
   const handleAnalysisComplete = (result) => {
     setCurrentResult(result);
     // Prepend the new result to the history list
-    setHistory((prev) => [result, ...prev]);
+    setHistory((prev) => [result, ...(Array.isArray(prev) ? prev : [])]);
   };
 
   const handleAnalyzeAgain = () => {
@@ -23,7 +25,9 @@ export default function ATSAnalyzerPage({ initialHistory, savedResumeContent }) 
   };
 
   const handleDeleteFromHistory = (deletedId) => {
-    setHistory((prev) => prev.filter((item) => item.id !== deletedId));
+    setHistory((prev) =>
+      (Array.isArray(prev) ? prev : []).filter((item) => item.id !== deletedId)
+    );
   };
 
   return (

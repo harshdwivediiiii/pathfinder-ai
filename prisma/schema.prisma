@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
 
 model User {
@@ -16,29 +16,35 @@ model User {
   industry        String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+
+  // Profile fields
   bio             String?
   experience      Int?
+
+  // Settings
+  saveChatHistory Boolean          @default(true)
+
+  // Relations
   skills          String[]
   assessments     Assessment[]
   coverLetter     CoverLetter[]
-
+  conversations   Conversation[]
   resume          Resume?
   industryInsight IndustryInsight? @relation(fields: [industry], references: [industry])
-
   atsAnalyses     ATSAnalysis[]
-
+  settings        UserSettings?
 }
 
 model Assessment {
   id             String   @id @default(cuid())
   userId         String
+  user           User     @relation(fields: [userId], references: [id])
   quizScore      Float
   questions      Json[]
   category       String
   improvementTip String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -46,17 +52,18 @@ model Assessment {
 model Resume {
   id        String   @id @default(cuid())
   userId    String   @unique
-  content   String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String   @db.Text
   atsScore  Float?
   feedback  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id])
 }
 
 model CoverLetter {
   id             String   @id @default(cuid())
   userId         String
+  user           User     @relation(fields: [userId], references: [id])
   content        String
   jobDescription String?
   companyName    String
@@ -64,36 +71,14 @@ model CoverLetter {
   status         String   @default("draft")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
-
-
-
-model ATSAnalysis {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  resumeContent   String   @db.Text
-  jobDescription  String   @db.Text
-  jobTitle        String?
-  companyName     String?
-  atsScore        Float    // 0-100
-  matchedKeywords String[] // keywords found in both resume and JD
-  missingKeywords String[] // keywords in JD missing from resume
-  suggestions     Json[]   // [{category, tip}]
-  overallFeedback String?  @db.Text
-  createdAt       DateTime @default(now())
-
-  @@index([userId])
-}
-
-// Combined Industry Trends and Salary Insights
 
 model IndustryInsight {
   id                String   @id @default(cuid())
   industry          String   @unique
+  users             User[]
   salaryRanges      Json[]
   growthRate        Float
   demandLevel       String
@@ -103,7 +88,59 @@ model IndustryInsight {
   recommendedSkills String[]
   lastUpdated       DateTime @default(now())
   nextUpdate        DateTime
-  users             User[]
 
   @@index([industry])
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+model ATSAnalysis {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  resumeContent   String   @db.Text
+  jobDescription  String   @db.Text
+  jobTitle        String?
+  companyName     String?
+  atsScore        Float
+  matchedKeywords String[]
+  missingKeywords String[]
+  suggestions     Json[]
+  overallFeedback String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserSettings {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  theme           String   @default("light")
+  notifications   Boolean  @default(true)
+  emailAlerts     Boolean  @default(true)
+  dashboardLayout String   @default("default")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

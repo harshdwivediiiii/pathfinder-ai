@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
+const MAX_SSE_BUFFER_SIZE = 1024 * 1024;
+
 /**
  * Custom hook that streams AI responses from the /api/generate SSE endpoint.
  *
@@ -15,56 +17,60 @@ import { useState, useRef, useCallback, useEffect } from "react";
  */
 export default function useStreamFetch() {
   const [streamedText, setStreamedText] = useState("");
+  const [finalText, setFinalText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const isDev = process.env.NODE_ENV !== "production";
 
   const abortControllerRef = useRef(null);
-  const pendingRef = useRef("");
-  const timerRef = useRef(null);
-  const receivingRef = useRef(false);
 
-  const WORDS_PER_TICK = 2;
-  const TICK_MS = 60;
+  const parseSseEventBlock = useCallback((block) => {
+    const lines = block.split(/\r?\n/);
+    let event = "message";
+    const dataLines = [];
 
-  const startReleasing = useCallback(() => {
-    if (timerRef.current) return; 
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
 
-    timerRef.current = setInterval(() => {
-      const pending = pendingRef.current;
-      if (!pending) {
-        if (!receivingRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-          setIsLoading(false);
-        }
-        return;
+      if (!line || line.startsWith(":")) {
+        continue;
       }
 
-      const words = pending.match(/\S+\s*/g) || [];
-      const take = [];
-      let wordCount = 0;
-
-      for (const token of words) {
-        take.push(token);
-        if (token.trim()) wordCount++; 
-        if (wordCount >= WORDS_PER_TICK) break;
+      if (line.startsWith("event:")) {
+        event = line.slice(6).trim() || "message";
+        continue;
       }
 
-      const release = take.join("");
-      pendingRef.current = pending.slice(release.length);
+      if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).trimStart());
+      }
+    }
 
-      setStreamedText((prev) => prev + release);
-    }, TICK_MS);
+    return {
+      event,
+      data: dataLines.join("\n"),
+    };
   }, []);
 
-  const startStream = useCallback(async (prompt) => {
+  const failStream = useCallback(
+    async (reader, message, details, currentText) => {
+      if (isDev) {
+        console.warn("[useStreamFetch] " + message, details);
+      }
+
+      setError(message);
+      setIsLoading(false);
+      await reader.cancel();
+
+      return { status: "error", error: message, finalText: currentText };
+    },
+    [isDev]
+  );
+
+  const startStream = useCallback(async (prompt, conversationId = null) => {
     // Cancel any existing stream
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
     }
 
     const controller = new AbortController();
@@ -74,119 +80,265 @@ export default function useStreamFetch() {
       controller.abort();
     }, 60000);
 
-    pendingRef.current = "";
-    receivingRef.current = true;
     setStreamedText("");
+    setFinalText("");
     setError(null);
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/generate", {
+      const fetchOptions = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({
+          prompt,
+          conversationId,
+        }),
         signal: controller.signal,
       });
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `Request failed (${response.status})`);
+        const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
+        let parsed = {};
+
+        if (contentType.includes("text/event-stream")) {
+          const rawText = await response.text();
+          const { data } = parseSseEventBlock(rawText);
+
+          if (data) {
+            try {
+              parsed = JSON.parse(data);
+            } catch (parseError) {
+              if (isDev) {
+                console.warn("[useStreamFetch] Failed to parse SSE error payload", parseError, data);
+              }
+            }
+          }
+        } else {
+          parsed = await response.json().catch(() => ({}));
+        }
+
+        const errorMessage =
+          (typeof parsed.error === "string" && parsed.error) ||
+          (typeof parsed.message === "string" && parsed.message) ||
+          `Request failed (${response.status})`;
+
+        throw new Error(errorMessage);
       }
 
       if (!response.body) {
         throw new Error("Readable stream not supported");
       }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let accumulatedText = "";
+      let currentEvent = {
+        event: "message",
+        dataLines: [],
+      };
+
+      const resetCurrentEvent = () => {
+        currentEvent = {
+          event: "message",
+          dataLines: [],
+        };
+      };
+
+      const finalizeCurrentEvent = () => {
+        const event = currentEvent.event;
+        const data = currentEvent.dataLines.join("\n");
+
+        resetCurrentEvent();
+
+        if (event === "message" && !data) {
+          return null;
+        }
+
+        return { event, data };
+      };
+
+      const handleParsedEvent = async ({ event, data }) => {
+        let parsed = {};
+
+        if (data) {
+          try {
+            parsed = JSON.parse(data);
+          } catch (parseError) {
+            return failStream(
+              reader,
+              `Malformed SSE ${event} payload`,
+              { event, data, parseError },
+              accumulatedText
+            );
+          }
+        }
+
+        if (event === "delta") {
+          if (typeof parsed.text !== "string") {
+            return failStream(
+              reader,
+              "Malformed SSE delta payload",
+              { event, parsed },
+              accumulatedText
+            );
+          }
+
+          accumulatedText += parsed.text;
+          setStreamedText(accumulatedText);
+          return null;
+        }
+
+        if (event === "error") {
+          const message =
+            (typeof parsed.message === "string" && parsed.message) ||
+            "Stream failed";
+
+          setError(message);
+          setIsLoading(false);
+          await reader.cancel();
+          return { status: "error", error: message, finalText: accumulatedText };
+        }
+
+        if (event === "done") {
+          const completeText =
+            typeof parsed.finalText === "string" ? parsed.finalText : accumulatedText;
+
+          accumulatedText = completeText;
+          setFinalText(completeText);
+          setStreamedText(completeText);
+          setIsLoading(false);
+          await reader.cancel();
+          return { status: "done", finalText: completeText, meta: parsed };
+        }
+
+        return null;
+      };
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          if (buffer.trim()) {
+            try {
+              const completeEvent = parseSseEventBlock(buffer);
+              const result = await handleParsedEvent(completeEvent);
+
+              if (result) {
+                return result;
+              }
+            } catch (error) {
+              return failStream(
+                reader,
+                "Malformed SSE stream: incomplete event at end",
+                { buffer, error },
+                accumulatedText
+              );
+            }
+          }
+
+          const fallbackFinal = accumulatedText;
+          setFinalText(fallbackFinal);
+          setStreamedText(fallbackFinal);
+          setIsLoading(false);
+          return { status: "done", finalText: fallbackFinal };
+        }
 
         buffer += decoder.decode(value, { stream: true });
 
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() || "";
+        if (buffer.length > MAX_SSE_BUFFER_SIZE) {
+          return failStream(
+            reader,
+            "SSE buffer exceeded maximum size",
+            { bufferLength: buffer.length },
+            accumulatedText
+          );
+        }
 
-        for (const part of parts) {
-          const line = part.trim();
-          if (!line.startsWith("data: ")) continue;
-
-          const data = line.slice(6);
-
-          if (data === "[DONE]") {
-            receivingRef.current = false;
-            // Flush any remaining buffered text
-            if (pendingRef.current && !timerRef.current) {
-              startReleasing();
-            }
-            return;
+        while (true) {
+          const newlineIndex = buffer.indexOf("\n");
+          if (newlineIndex === -1) {
+            break;
           }
 
-          try {
-            const parsed = JSON.parse(data);
+          let line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
 
-            if (parsed.error) {
-              setError(parsed.error);
-              receivingRef.current = false;
-              setIsLoading(false);
-              return;
+          if (line.endsWith("\r")) {
+            line = line.slice(0, -1);
+          }
+
+          if (!line) {
+            const completeEvent = finalizeCurrentEvent();
+            if (!completeEvent) {
+              continue;
             }
 
-            if (parsed.text) {
-              pendingRef.current += parsed.text;
-              startReleasing();
+            const result = await handleParsedEvent(completeEvent);
+            if (result) {
+              return result;
             }
-          } catch {
-            
+
+            continue;
+          }
+
+          if (line.startsWith(":")) {
+            continue;
+          }
+
+          const colonIndex = line.indexOf(":");
+          const field = colonIndex === -1 ? line : line.slice(0, colonIndex);
+          let value = colonIndex === -1 ? "" : line.slice(colonIndex + 1);
+
+          if (value.startsWith(" ")) {
+            value = value.slice(1);
+          }
+
+          if (field === "event") {
+            currentEvent.event = value || "message";
+            continue;
+          }
+
+          if (field === "data") {
+            currentEvent.dataLines.push(value);
           }
         }
       }
-
-      receivingRef.current = false;
-    }catch (err) {
+    } catch (err) {
       if (err.name === "AbortError") {
-        receivingRef.current = false;
         setIsLoading(false);
-        return;
+        return { status: "aborted", finalText: "" };
       }
 
-      setError(err.message || "Stream failed");
-      receivingRef.current = false;
+      const message = err.message || "Stream failed";
+      setError(message);
       setIsLoading(false);
-    }
-    finally {
+      if (isDev) {
+        console.warn("[useStreamFetch] Stream failed", err);
+      }
+      return { status: "error", error: message, finalText: "" };
+    } finally {
       clearTimeout(timeoutId);
-}
-  }, [startReleasing]);
+      abortControllerRef.current = null;
+    }
+  }, [failStream, isDev, parseSseEventBlock]);
 
   const reset = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    pendingRef.current = "";
-    receivingRef.current = false;
     setStreamedText("");
+    setFinalText("");
     setError(null);
     setIsLoading(false);
   }, []);
   
   useEffect(() => {
-  return () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-  };
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
-  return { streamedText, isLoading, error, startStream, reset };
+  return { streamedText, finalText, isLoading, error, startStream, reset };
 }

@@ -4,9 +4,10 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { validateInput } from "@/lib/validate";
+import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/prompt-safety";
+import { validateInput, validateOutput } from "@/lib/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
+import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
 
 export async function saveResume(rawContent) {
   const { userId } = await auth();
@@ -74,27 +75,50 @@ export async function improveWithAI(rawParams) {
   if (!user) return { success: false, errors: { _form: ["User account match could not be checked."] } };
 
   const prompt = buildSecurePrompt({
-    task: "As an expert resume writer, improve the following description to make it more impactful, quantifiable, and aligned with industry standards.",
+    task: `As an expert resume writer, improve the following description to make it more impactful, quantifiable, and aligned with industry standards.
+
+Requirements:
+1. Use action verbs
+2. Include metrics and results only when supported by the source text
+3. Highlight relevant technical skills
+4. Keep it concise but detailed
+5. Focus on achievements over responsibilities
+6. Use industry-specific keywords
+7. Do not invent employers, dates, tools, certifications, metrics, or outcomes
+
+Respond ONLY with a valid JSON object in this exact format (no markdown, no code fences):
+{
+  "improvedContent": "<single improved paragraph>",
+  "highlights": ["<key achievement 1>", "<key achievement 2>", ...]
+}`,
     untrustedData: [
       { label: "resumeContent", value: current, maxLength: 8000 },
       { label: "type", value: type, maxLength: 200 },
       { label: "industry", value: user.industry, maxLength: 200 },
     ],
-    outputRules: `Requirements:
-    1. Use action verbs
-    2. Include metrics and results where possible
-    3. Highlight relevant technical skills
-    4. Keep it concise but detailed
-    5. Focus on achievements over responsibilities
-    6. Use industry-specific keywords
-
-    Format the response as a single paragraph without any additional text or explanations.`,
   });
 
+  const schemaDescription = SCHEMA_DESCRIPTIONS.resumeImprovement;
+
   try {
-    const result = await generateGeminiContent(prompt);
-    const response = result.response;
-    const improvedText = response.text().trim();
+    const result = await generateWithStructuredOutput({
+      prompt,
+      schemaDescription,
+      schema: resumeImprovementOutputSchema,
+      generateFn: async (p) => {
+        const raw = await generateGeminiContent(p);
+        return raw.response.text().trim();
+      },
+      validateFn: validateOutput,
+    });
+
+    if (!result.success) {
+      console.error("Output validation failed:", result.errors);
+      return { success: false, errors: { _form: ["AI returned an unexpected format. Please try again."] } };
+    }
+
+    // Reassemble into plain string for backward compatibility with existing DB/UI
+    const improvedText = result.data.improvedContent;
     return { success: true, data: improvedText };
   } catch (error) {
     console.error("Error optimizing structural field elements:", error);

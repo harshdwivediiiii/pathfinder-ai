@@ -12,6 +12,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { toast } from "sonner";
 import { Loader2, FileText, Briefcase, Sparkles, ClipboardPaste, FileUp, CheckCircle2 } from "lucide-react";
 
+const RESUME_MAX = 5000;
+const JD_MAX = 8000;
+
+const getQualityHint = (length, max) => {
+  if (length === 0) return null;
+  if (length > max) return { text: "🔴 Exceeds limit — please shorten", color: "text-destructive" };
+  if (length < 50) return { text: "🔴 Too short — AI needs more context", color: "text-destructive" };
+  if (length < 200) return { text: "🟡 Getting there...", color: "text-yellow-500" };
+  return { text: "🟢 Good length for AI generation", color: "text-green-500" };
+};
+
 export default function ATSForm({ savedResumeContent, onComplete }) {
   const [resumeContent, setResumeContent] = useState(savedResumeContent || "");
   const [jobDescription, setJobDescription] = useState("");
@@ -23,9 +34,12 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
   const [uploadedFileName, setUploadedFileName] = useState("");
   const fileInputRef = useRef(null);
 
+  const resumeHint = getQualityHint(resumeContent.length, RESUME_MAX);
+  const jdHint = getQualityHint(jobDescription.length, JD_MAX);
+  const isOverLimit = resumeContent.length > RESUME_MAX || jobDescription.length > JD_MAX;
+
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!resumeContent.trim()) {
       toast.error("Please paste your resume content.");
       return;
@@ -34,7 +48,10 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
       toast.error("Please paste the job description.");
       return;
     }
-
+    if (isOverLimit) {
+      toast.error("Please shorten your input — character limit exceeded.");
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await analyzeATS({
@@ -43,8 +60,22 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
           jobTitle,
           companyName,
         });
+
+        // Surface server-side validation errors or generic error
+        if (!result?.success) {
+          const errorMessage =
+            result?.errors?.resumeContent?.[0] ||
+            result?.errors?.jobDescription?.[0] ||
+            result?.errors?.jobTitle?.[0] ||
+            result?.errors?.companyName?.[0] ||
+            result?.errors?._form?.[0] ||
+            "Analysis failed. Please review your input and try again.";
+
+          toast.error(errorMessage);
+          return;
+        }
         toast.success("ATS analysis complete!");
-        onComplete(result);
+        onComplete(result.data);
       } catch (err) {
         console.error(err);
         toast.error(err.message || "Analysis failed. Please try again.");
@@ -80,7 +111,7 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
 
   const handleFileInputChange = (e) => {
     handleFile(e.target.files?.[0]);
-    e.target.value = ""; // allow re-selecting the same file
+    e.target.value = "";
   };
 
   const handleDrop = (e) => {
@@ -144,38 +175,24 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col gap-3">
-            {/* Upload zone — drag-and-drop or click to browse */}
             <div
               role="button"
               tabIndex={0}
               aria-label="Upload resume file"
-              onClick={() => {
-                if (!isPending && !isExtracting) fileInputRef.current?.click();
-              }}
+              onClick={() => { if (!isPending && !isExtracting) fileInputRef.current?.click(); }}
               onKeyDown={(e) => {
-                if (
-                  (e.key === "Enter" || e.key === " ") &&
-                  !isPending &&
-                  !isExtracting
-                ) {
+                if ((e.key === "Enter" || e.key === " ") && !isPending && !isExtracting) {
                   e.preventDefault();
                   fileInputRef.current?.click();
                 }
               }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (!isPending && !isExtracting) setIsDragging(true);
-              }}
+              onDragOver={(e) => { e.preventDefault(); if (!isPending && !isExtracting) setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               className={cn(
                 "flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-5 text-center transition-colors",
-                isDragging
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/40",
-                isPending || isExtracting
-                  ? "pointer-events-none opacity-60"
-                  : "cursor-pointer"
+                isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/40",
+                isPending || isExtracting ? "pointer-events-none opacity-60" : "cursor-pointer"
               )}
             >
               <input
@@ -196,13 +213,9 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
                   <FileUp className="h-5 w-5 text-muted-foreground" />
                   <span className="text-sm font-medium">
                     Drop your resume here, or{" "}
-                    <span className="text-primary underline underline-offset-2">
-                      browse
-                    </span>
+                    <span className="text-primary underline underline-offset-2">browse</span>
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    PDF, DOCX, TXT or MD · max 5 MB
-                  </span>
+                  <span className="text-xs text-muted-foreground">PDF, DOCX, TXT or MD · max 5 MB</span>
                 </>
               )}
             </div>
@@ -223,23 +236,40 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
 
             <Textarea
               id="resumeContent"
-              placeholder="…or paste your resume content here.&#10;&#10;Include: Work Experience, Skills, Education, Projects, Certifications."
+              placeholder="…or paste your resume content here.\n\nInclude: Work Experience, Skills, Education, Projects, Certifications."
               value={resumeContent}
               onChange={(e) => setResumeContent(e.target.value)}
-              className="flex-1 min-h-[300px] resize-none font-mono text-sm leading-relaxed"
+              className={cn(
+                "flex-1 min-h-[300px] resize-none font-mono text-sm leading-relaxed",
+                resumeContent.length > RESUME_MAX && "border-destructive focus-visible:ring-destructive"
+              )}
               disabled={isPending || isExtracting}
               required
             />
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground">
-                {resumeContent.trim().split(/\s+/).filter(Boolean).length} words
-              </p>
-              {uploadedFileName && (
-                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Imported from {uploadedFileName}
-                </span>
-              )}
+
+            {/* Character counter + quality hint */}
+            <div className="flex items-center justify-between text-xs">
+              <span className={cn(
+                "transition-colors",
+                resumeContent.length > RESUME_MAX ? "text-destructive font-medium" :
+                resumeContent.length > RESUME_MAX * 0.8 ? "text-yellow-500" :
+                "text-muted-foreground"
+              )}>
+                {resumeContent.length} / {RESUME_MAX} characters
+              </span>
+              <div className="flex items-center gap-3">
+                {resumeHint && (
+                  <span className={cn("transition-colors", resumeHint.color)}>
+                    {resumeHint.text}
+                  </span>
+                )}
+                {uploadedFileName && (
+                  <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {uploadedFileName}
+                  </span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -258,16 +288,33 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
           <CardContent className="flex-1 flex flex-col gap-3">
             <Textarea
               id="jobDescription"
-              placeholder="Paste the job description here...&#10;&#10;Include: Responsibilities, Requirements, Nice-to-haves, Tech stack."
+              placeholder="Paste the job description here...\n\nInclude: Responsibilities, Requirements, Nice-to-haves, Tech stack."
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
-              className="flex-1 min-h-[380px] resize-none font-mono text-sm leading-relaxed"
+              className={cn(
+                "flex-1 min-h-[380px] resize-none font-mono text-sm leading-relaxed",
+                jobDescription.length > JD_MAX && "border-destructive focus-visible:ring-destructive"
+              )}
               disabled={isPending}
               required
             />
-            <p className="text-xs text-muted-foreground">
-              {jobDescription.trim().split(/\s+/).filter(Boolean).length} words
-            </p>
+
+            {/* Character counter + quality hint */}
+            <div className="flex items-center justify-between text-xs">
+              <span className={cn(
+                "transition-colors",
+                jobDescription.length > JD_MAX ? "text-destructive font-medium" :
+                jobDescription.length > JD_MAX * 0.8 ? "text-yellow-500" :
+                "text-muted-foreground"
+              )}>
+                {jobDescription.length} / {JD_MAX} characters
+              </span>
+              {jdHint && (
+                <span className={cn("transition-colors", jdHint.color)}>
+                  {jdHint.text}
+                </span>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -277,7 +324,7 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
         <Button
           type="submit"
           size="lg"
-          disabled={isPending || isExtracting}
+          disabled={isPending || isExtracting || isOverLimit}
           className="min-w-[220px] h-12 text-base font-semibold flex items-center gap-2"
         >
           {isPending ? (
@@ -293,6 +340,12 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
           )}
         </Button>
       </div>
+
+      {isOverLimit && (
+        <p className="text-center text-sm text-destructive font-medium">
+          ⚠️ Please shorten your input before analyzing.
+        </p>
+      )}
 
       {isPending && (
         <p className="text-center text-sm text-muted-foreground animate-pulse">

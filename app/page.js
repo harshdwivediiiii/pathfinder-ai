@@ -62,48 +62,62 @@ const isDarkMode = resolvedTheme === "dark";
       <HeroSection />
 
       {/* ─────────────  FEATURES  ───────────── */}
-      <section className="w-full py-12 md:py-24 lg:py-32">
-        <div className="container mx-auto px-4 md:px-6">
-          <motion.h2
-            {...fadeUp()}
-            className="mb-12 text-center text-3xl font-bold tracking-tighter"
+ <section id="features" className="w-full py-12 md:py-24 lg:py-32 scroll-mt-20">
+  <div className="container mx-auto px-4 md:px-6">
+    <motion.h2
+      {...fadeUp()}
+      className="mb-12 text-center text-3xl font-bold tracking-tighter md:text-4xl"
+    >
+      Powerful Features for Your{" "}
+      <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+        Career Growth
+      </span>
+    </motion.h2>
+
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 items-stretch">
+      {features.map((f, i) => {
+        const Icon = f.icon;
+        return (
+          <motion.div
+            key={f.title}
+            {...fadeUp(i * 0.1)}
+            whileHover={{ scale: 1.03, y: -5 }}
+            className="h-full group"
           >
-            Powerful Features for Your Career Growth
-          </motion.h2>
+            <Card
+              className={`h-full min-h-[320px] border-2 border-border transition-all duration-300 ${f.borderHover} hover:shadow-2xl ${f.shadowHover} bg-card relative overflow-hidden`}
+            >
+              {/* Gradient overlay on hover */}
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${f.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}
+              />
 
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 items-stretch">
-            {features.map((f, i) => (
-              <motion.div
-                key={f.title}
-                {...fadeUp(i * 0.1)}
-                whileHover={{ scale: 1.02 }}
-                className="h-full"
-              >
-                <Card className="h-full min-h-[320px] border-2 transition-colors duration-300 hover:border-primary">
-                  <CardContent className="flex h-full flex-col items-center gap-4 pt-8 text-center">
-                    
-                    <div className="mb-2">
-                      {f.icon}
-                    </div>
+              <CardContent className="flex h-full flex-col items-center gap-4 pt-8 text-center relative z-10">
+                {/* Icon with colored background */}
+                <div
+                  className={`mb-2 p-4 rounded-2xl ${f.bgLight} ${f.bgDark} transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6`}
+                >
+                  <Icon className={`w-10 h-10 ${f.textColor}`} />
+                </div>
 
-                    <h3 className="text-xl font-bold leading-snug">
-                      {f.title}
-                    </h3>
+                <h3 className="text-xl font-bold leading-snug">
+                  {f.title}
+                </h3>
 
-                    <p className="text-muted-foreground leading-relaxed">
-                      {f.description}
-                    </p>
-
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+                <p className="text-muted-foreground leading-relaxed">
+                  {f.description}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+      })}
+    </div>
+  </div>
+</section>
 
       {/* ───────────────  STATS  ────────────── */}
-      <section className="w-full  py-12 md:py-24">
+      <section id="stats" className="w-full  py-12 md:py-24 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">
           <motion.div {...fadeUp()}>
             <HeroStats />
@@ -112,38 +126,99 @@ const isDarkMode = resolvedTheme === "dark";
       </section>
 
       {/* ────────────  HOW‑IT‑WORKS  ────────── */}
-      <section className="w-full py-12 md:py-24">
-        <div className="container mx-auto px-4 md:px-6">
-          <motion.div
-            {...fadeUp()}
-            className="mx-auto mb-12 max-w-3xl text-center"
-          >
-            <h2 className="mb-4 text-3xl font-bold">How&nbsp;It&nbsp;Works</h2>
-            <p className="text-muted-foreground">
-              Four simple steps to accelerate your career growth
-            </p>
-          </motion.div>
+      <section id="how-it-works" className="w-full py-12 md:py-24 scroll-mt-20">
+  <div className="container mx-auto px-4 md:px-6">
+    <motion.div
+      {...fadeUp()}
+      className="mx-auto mb-16 max-w-3xl text-center"
+    >
+      <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+        How It{" "}
+        <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+          Works
+        </span>
+      </h2>
+      <p className="text-muted-foreground text-lg">
+        Four simple steps to accelerate your career growth
+      </p>
+    </motion.div>
 
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-            {howItWorks.map((step, i) => (
-              <motion.div
-                key={step.title}
-                {...fadeUp(i * 0.1)}
-                className="flex flex-col items-center space-y-4 text-center"
-              >
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                  {step.icon}
+    <div className="mx-auto max-w-6xl relative">
+      {/* Connecting dotted line - desktop only */}
+      <div className="hidden lg:block absolute top-10 left-[12.5%] right-[12.5%] h-0.5 z-0">
+        <div className="w-full h-full border-t-2 border-dashed border-purple-500/30" />
+      </div>
+
+      <div className="relative grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4 z-10">
+        {howItWorks.map((step, i) => {
+          const stepColors = [
+            {
+              bg: "bg-purple-100 dark:bg-purple-500/10",
+              text: "text-purple-600 dark:text-purple-400",
+              border: "border-purple-500/30",
+              shadow: "hover:shadow-purple-500/30",
+            },
+            {
+              bg: "bg-blue-100 dark:bg-blue-500/10",
+              text: "text-blue-600 dark:text-blue-400",
+              border: "border-blue-500/30",
+              shadow: "hover:shadow-blue-500/30",
+            },
+            {
+              bg: "bg-green-100 dark:bg-green-500/10",
+              text: "text-green-600 dark:text-green-400",
+              border: "border-green-500/30",
+              shadow: "hover:shadow-green-500/30",
+            },
+            {
+              bg: "bg-orange-100 dark:bg-orange-500/10",
+              text: "text-orange-600 dark:text-orange-400",
+              border: "border-orange-500/30",
+              shadow: "hover:shadow-orange-500/30",
+            },
+          ];
+          const color = stepColors[i % 4];
+
+          return (
+            <motion.div
+              key={step.title}
+              {...fadeUp(i * 0.15)}
+              whileHover={{ y: -8 }}
+              className="group flex flex-col items-center space-y-4 text-center relative"
+            >
+              {/* Step number badge */}
+              <div className="absolute -top-3 -right-3 md:relative md:top-0 md:right-0 md:mb-2 z-20">
+                <div
+                  className={`flex h-7 w-7 items-center justify-center rounded-full bg-background border-2 ${color.border} ${color.text} text-sm font-bold shadow-md`}
+                >
+                  {i + 1}
                 </div>
-                <h3 className="text-xl font-semibold">{step.title}</h3>
-                <p className="text-muted-foreground">{step.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+              </div>
+
+              {/* Icon circle */}
+              <div
+                className={`flex h-20 w-20 items-center justify-center rounded-2xl ${color.bg} transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 group-hover:shadow-2xl ${color.shadow} relative z-10`}
+              >
+                <div className={color.text}>{step.icon}</div>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-xl font-semibold">{step.title}</h3>
+
+              {/* Description */}
+              <p className="text-muted-foreground leading-relaxed px-2">
+                {step.description}
+              </p>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* ─────────────  TESTIMONIALS  ───────────── */}
-      <section className="w-full  py-12 md:py-24">
+      <section id = "feedback" className="w-full  py-12 md:py-24">
         <div className="container mx-auto px-4 md:px-6">
           <motion.h2
             {...fadeUp()}
@@ -193,7 +268,7 @@ const isDarkMode = resolvedTheme === "dark";
       </section>
 
       {/* ───────────────  FAQ  ─────────────── */}
-      <section className="w-full py-12 md:py-24">
+      <section id = "question" className="w-full py-12 md:py-24">
         <div className="container mx-auto px-4 md:px-6">
           <motion.div
             {...fadeUp()}
@@ -237,7 +312,7 @@ const isDarkMode = resolvedTheme === "dark";
       </section>
 
       {/* ───────────────  CTA  ─────────────── */}
-      <section className="w-full">
+      <section id = "contact" className="w-full">
         <motion.div
           {...fadeUp()}
           className="gradient mx-auto rounded-lg py-24"

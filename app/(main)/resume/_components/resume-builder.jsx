@@ -1,5 +1,5 @@
 "use client";
-import { marked } from "marked";
+
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +12,9 @@ import {
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
-import MDEditor from "@uiw/react-md-editor";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -424,22 +426,40 @@ await saveResumeFn(formattedContent);
             </div>
           )}
           <div className="border rounded-lg">
-            <MDEditor
-              value={previewContent}
-              onChange={setPreviewContent}
-              height={800}
-              preview={resumeMode}
-            />
+            <div className="min-h-[800px] p-4">
+              {resumeMode === "preview" ? (
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeSanitize]}
+                  >
+                    {previewContent || ""}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <Textarea
+                  value={previewContent}
+                  onChange={(e) => setPreviewContent(e.target.value)}
+                  className="min-h-[800px] font-mono"
+                />
+              )}
+            </div>
           </div>
           <div className="hidden">
             <div id="resume-pdf">
-              <MDEditor.Markdown
-                source={previewContent}
+              <div
                 style={{
                   background: "white",
                   color: "black",
                 }}
-              />
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+                >
+                  {previewContent || ""}
+                </ReactMarkdown>
+              </div>
             </div>
           </div>
         </TabsContent>

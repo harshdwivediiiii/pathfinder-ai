@@ -7,6 +7,7 @@ import { generateGeminiContent } from "@/lib/gemini";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { validateInput } from "@/lib/validate";
 import { atsAnalysisSchema } from "@/lib/schemas/forms";
+import { normalizeAtsSuggestions } from "@/lib/ats";
 
 /**
  * Runs an ATS analysis using Gemini AI and persists the result safely.
@@ -45,7 +46,9 @@ export async function analyzeATS(rawParams) {
   "atsScore": <number between 0 and 100>,
   "matchedKeywords": [<array of keywords found in both>],
   "missingKeywords": [<array of key missing keywords>],
-  "suggestions": [<array of practical improvements>],
+  "suggestions": [
+    { "category": "Keywords", "tip": "Add missing technical terms from the job description" }
+  ],
   "overallFeedback": "string highlighting strengths and gaps"
 }
 
@@ -68,9 +71,9 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
 
     const matchedKeywords = Array.isArray(parsedAnalysis.matchedKeywords) ? parsedAnalysis.matchedKeywords.map(String) : [];
     const missingKeywords = Array.isArray(parsedAnalysis.missingKeywords) ? parsedAnalysis.missingKeywords.map(String) : [];
-    const suggestions = Array.isArray(parsedAnalysis.suggestions) ? parsedAnalysis.suggestions.map(String) : [];
+    const suggestions = normalizeAtsSuggestions(parsedAnalysis.suggestions);
 
-    const record = await db.aTSAnalysis.create({
+    const record = await db.atsAnalysis.create({
       data: {
         userId: user.id,
         jobTitle: jobTitle || "Target Position",
@@ -100,29 +103,29 @@ export async function getATSAnalyses() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return { success: false, errors: { _form: ["Unauthorized access. Sign-in required."] } };
+      return { success: false, data: [] };
     }
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
     });
     if (!user) {
-      return { success: false, errors: { _form: ["User profile not found."] } };
+      return { success: false, data: [] };
     }
 
-    const analyses = await db.aTSAnalysis.findMany({
+    const analyses = await db.atsAnalysis.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     });
-    return { success: true, data: analyses };
+    return { success: true, data: analyses || [] };
   } catch (error) {
     console.error("Failed to query ATS listings:", error);
-    return { success: false, errors: { _form: [error.message || String(error)] } };
+    return { success: false, data: [] };
   }
 }
 
 /**
- * Deletes a specific ATS analysis record (ownership-checked).
+ * Deletes a specific ATS analysis record with strict ownership validation.
  */
 export async function deleteATSAnalysis(id) {
   try {
@@ -142,9 +145,19 @@ export async function deleteATSAnalysis(id) {
       return { success: false, errors: { _form: ["User profile not found."] } };
     }
 
-    await db.aTSAnalysis.delete({
+    // Ensure the record exists and belongs to the requesting user before deleting.
+    const existing = await db.atsAnalysis.findUnique({ where: { id: id.trim() } });
+    if (!existing) {
+      return { success: false, errors: { _form: ["Analysis record not found."] } };
+    }
+
+    if (existing.userId !== user.id) {
+      return { success: false, errors: { _form: ["Unauthorized: you do not own this analysis."] } };
+    }
+
+    await db.atsAnalysis.deleteMany({
       where: {
-        id: id.trim(),
+        id: existing.id,
         userId: user.id,
       },
     });

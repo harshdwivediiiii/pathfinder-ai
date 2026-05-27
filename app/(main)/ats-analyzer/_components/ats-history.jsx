@@ -27,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
+import { normalizeAtsSuggestions } from "@/lib/ats";
 
 function ScoreBadge({ score }) {
   if (score >= 75)
@@ -40,13 +41,19 @@ function HistoryCard({ item, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const suggestions = normalizeAtsSuggestions(item.suggestions);
 
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        await deleteATSAnalysis(item.id);
-        toast.success("Analysis deleted.");
-        onDelete(item.id);
+        const result = await deleteATSAnalysis(item.id);
+        if (result && result.success) {
+          toast.success("Analysis deleted.");
+          onDelete(item.id);
+        } else {
+          const msg = result?.errors?._form?.[0] || result?.errors?.message || "Failed to delete.";
+          toast.error(msg);
+        }
       } catch (err) {
         toast.error(err.message || "Failed to delete.");
       }
@@ -148,17 +155,17 @@ function HistoryCard({ item, onDelete }) {
             </div>
 
             {/* top suggestions */}
-            {item.suggestions?.length > 0 && (
+            {suggestions.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Top Suggestions</p>
-                {(item.suggestions || []).slice(0, 3).map((s, i) => (
+                {suggestions.slice(0, 3).map((s, i) => (
                   <div key={i} className="flex gap-2 text-sm p-2 rounded-md bg-muted/40">
                     <span className="text-violet-500 font-semibold flex-shrink-0">{s.category}:</span>
                     <span className="text-muted-foreground">{s.tip}</span>
                   </div>
                 ))}
-                {item.suggestions.length > 3 && (
-                  <p className="text-xs text-muted-foreground pl-1">+{item.suggestions.length - 3} more suggestions</p>
+                {suggestions.length > 3 && (
+                  <p className="text-xs text-muted-foreground pl-1">+{suggestions.length - 3} more suggestions</p>
                 )}
               </div>
             )}
@@ -190,7 +197,9 @@ function HistoryCard({ item, onDelete }) {
 }
 
 export default function ATSHistory({ history, onDelete }) {
-  if (history.length === 0) {
+  const safeHistory = Array.isArray(history) ? history : [];
+
+  if (safeHistory.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -207,9 +216,9 @@ export default function ATSHistory({ history, onDelete }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        {history.length} {history.length === 1 ? "analysis" : "analyses"} · Sorted newest first
+        {safeHistory.length} {safeHistory.length === 1 ? "analysis" : "analyses"} · Sorted newest first
       </p>
-      {history.map((item) => (
+      {safeHistory.map((item) => (
         <HistoryCard key={item.id} item={item} onDelete={onDelete} />
       ))}
     </div>

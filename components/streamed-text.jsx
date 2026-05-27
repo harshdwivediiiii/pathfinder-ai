@@ -2,6 +2,11 @@
 
 import { AlertTriangle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import { useDebounce } from "use-debounce";
+import CitationRenderer from "@/components/chat/citation-renderer";
+import React from "react";
 
 /** Custom markdown components with extra spacing on headings */
 export const markdownComponents = {
@@ -18,8 +23,12 @@ export const markdownComponents = {
     <h4 className="text-sm font-bold mt-3 mb-1.5">{children}</h4>
   ),
   p: ({ children }) => (
-    <p className="mb-3 leading-relaxed">{children}</p>
-  ),
+  <p className="mb-3 leading-relaxed">
+    <CitationRenderer
+      text={React.Children.toArray(children).join("")}
+    />
+  </p>
+),
   ul: ({ children }) => (
     <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>
   ),
@@ -32,11 +41,27 @@ export const markdownComponents = {
   strong: ({ children }) => (
     <strong className="font-semibold">{children}</strong>
   ),
-  code: ({ children }) => (
-    <code className="bg-muted-foreground/10 px-1.5 py-0.5 rounded text-xs font-mono">
-      {children}
-    </code>
-  ),
+  code: ({ inline, className, children, ...props }) => {
+    if (inline) {
+      return (
+        <code
+          className="bg-muted-foreground/10 px-1.5 py-0.5 rounded text-xs font-mono"
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    }
+
+    return (
+      <code
+        className="text-xs font-mono"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
   pre: ({ children }) => (
     <pre className="bg-muted-foreground/10 p-3 rounded-md mb-3 overflow-x-auto text-xs font-mono">
       {children}
@@ -58,12 +83,13 @@ export const markdownComponents = {
  * @param {string}  [props.error]   — Error message to display
  * @param {string}  [props.emptyMessage] — Message shown when no text yet
  */
-export default function StreamedText({
+function StreamedText({
   text,
   isLoading,
   error,
   emptyMessage = "AI response will appear here...",
 }) {
+  const [debouncedText] = useDebounce(text, 40);
   if (error) {
     return (
       <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
@@ -84,10 +110,19 @@ export default function StreamedText({
 
   return (
     <div className="break-words text-sm leading-relaxed">
-      <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSanitize]}
+        components={markdownComponents}
+      >
+        {debouncedText}
+      </ReactMarkdown>
+
       {isLoading && (
         <span className="inline-block w-2 h-4 ml-0.5 bg-foreground animate-pulse align-text-bottom" />
       )}
     </div>
   );
 }
+export default StreamedText;
+
