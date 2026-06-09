@@ -3,22 +3,39 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/gemini";
+import { validateInput } from "@/lib/validate";
+import { buildSecurePrompt } from "@/lib/prompt-safety";
+import { salaryNegotiationChatSchema, salaryNegotiationEvaluateSchema } from "@/lib/schemas/forms";
 
 export async function chatSalaryNegotiation(history, userMessage) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
+  const validation = validateInput(salaryNegotiationChatSchema, { history, userMessage });
+  if (!validation.success) {
+    return {
+      success: false,
+      error: "Invalid input parameters.",
+    };
+  }
+
+  const { history: validatedHistory, userMessage: validatedUserMessage } = validation.data;
+
   // Format history for Gemini
-  const formattedHistory = history.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
+  const formattedHistory = validatedHistory.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
   
-  const prompt = `You are a tough, realistic HR representative at a tech company negotiating a salary offer with a candidate. 
+  const prompt = buildSecurePrompt({
+    task: `You are a tough, realistic HR representative at a tech company negotiating a salary offer with a candidate. 
 Your goal is to get the best deal for the company, but you are willing to concede if the candidate makes strong, data-backed arguments (e.g., market rate, specific skills). 
 Do NOT break character. Keep your responses concise (2-3 sentences max).
 
-Conversation so far:
-${formattedHistory}
-Candidate: ${userMessage}
-HR:`;
+Review the conversation history and the candidate's latest message below, and output your response as HR.`,
+    untrustedData: [
+      { label: "conversationHistory", value: formattedHistory, maxLength: 10000 },
+      { label: "candidateMessage", value: validatedUserMessage, maxLength: 2000 },
+    ],
+    outputRules: "Respond ONLY as HR. Do not output anything else.",
+  });
 
   try {
     const aiResult = await generateGeminiContent(prompt);
@@ -33,26 +50,38 @@ export async function evaluateNegotiation(history) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  const formattedHistory = history.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
+  const validation = validateInput(salaryNegotiationEvaluateSchema, { history });
+  if (!validation.success) {
+    return {
+      success: false,
+      error: "Invalid input parameters.",
+    };
+  }
+
+  const { history: validatedHistory } = validation.data;
+
+  const formattedHistory = validatedHistory.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
   
-  const prompt = `You are an expert career coach evaluating a salary negotiation.
-Analyze the following transcript and provide feedback in JSON format ONLY:
+  const prompt = buildSecurePrompt({
+    task: "You are an expert career coach evaluating a salary negotiation. Analyze the provided transcript and provide feedback.",
+    untrustedData: [
+      { label: "transcript", value: formattedHistory, maxLength: 15000 },
+    ],
+    outputRules: `Provide feedback in JSON format ONLY:
 {
   "score": 85,
   "strengths": ["You anchored well.", "You remained polite but firm."],
   "weaknesses": ["You accepted the first counter-offer too quickly."],
   "overallFeedback": "Good job, but you left some money on the table."
-}
-
-Transcript:
-${formattedHistory}`;
+}`,
+  });
 
   try {
     const aiResult = await generateGeminiContent(prompt);
     let rawText = aiResult.response.text();
     // remove markdown block
-    if (rawText.startsWith("\`\`\`json")) {
-      rawText = rawText.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+    if (rawText.startsWith("```json")) {
+      rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
     }
     const parsed = JSON.parse(rawText);
     return { success: true, data: parsed };
