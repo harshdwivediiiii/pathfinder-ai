@@ -169,7 +169,7 @@ export async function POST(request) {
   }
 
   if (!isFeatureEnabled("chat")) {
-    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR, "GEMINI_API_KEY is not configured");
+    return respondSseError(request, ERROR_CODES.INTERNAL_SERVER_ERROR, "GEMINI_API_KEY is not configured");
   }
 
   let prompt;
@@ -180,7 +180,7 @@ export async function POST(request) {
 
     const promptValidation = validateInput(chatPromptSchema, { prompt: body.prompt });
     if (!promptValidation.success) {
-      return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid prompt", promptValidation.errors);
+      return respondSseError(request, ERROR_CODES.VALIDATION_ERROR, "Invalid prompt", promptValidation.errors);
     }
 
     prompt = promptValidation.data.prompt;
@@ -188,12 +188,12 @@ export async function POST(request) {
     if (body.conversationId !== undefined && body.conversationId !== null && body.conversationId !== "") {
       const conversationIdValidation = validateId(body.conversationId, "conversationId");
       if (!conversationIdValidation.success) {
-        return respondError(ERROR_CODES.VALIDATION_ERROR, "Conversation ID is required", conversationIdValidation.errors);
+        return respondSseError(request, ERROR_CODES.VALIDATION_ERROR, "Conversation ID is required", conversationIdValidation.errors);
       }
       conversationId = conversationIdValidation.data;
     }
   } catch {
-    return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid request body");
+    return respondSseError(request, ERROR_CODES.VALIDATION_ERROR, "Invalid request body");
   }
 
   const validation = chatPromptSchemaStr.safeParse(prompt);
@@ -215,7 +215,7 @@ export async function POST(request) {
   });
 
   if (!user) {
-    return respondError(ERROR_CODES.USER_NOT_FOUND);
+    return respondSseError(request, ERROR_CODES.USER_NOT_FOUND);
   }
   const cacheUser = userId || request.headers.get("x-forwarded-for") || "anonymous";
 
@@ -290,11 +290,11 @@ export async function POST(request) {
       );
     } catch (error) {
       if (error?.message === "Conversation not found") {
-        return respondError(ERROR_CODES.RESOURCE_NOT_FOUND, "Conversation not found");
+        return respondSseError(request, ERROR_CODES.RESOURCE_NOT_FOUND, "Conversation not found");
       }
 
       console.error("Pre-stream conversation transaction failed:", error);
-      return respondError(ERROR_CODES.DATABASE_ERROR, "Failed to prepare conversation");
+      return respondSseError(request, ERROR_CODES.DATABASE_ERROR, "Failed to prepare conversation");
     }
   }
 
