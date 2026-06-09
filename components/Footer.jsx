@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,19 +28,24 @@ const fadeUp = {
 export default function Footer() {
   const { isSignedIn } = useAuth();
   const router = useRouter();
+  const [navigatingHref, setNavigatingHref] = useState(null);
 
   const go = async (href) => {
+    if (navigatingHref) return;
     if (!isSignedIn) {
       router.push("/sign-in");
       return;
     }
 
+    setNavigatingHref(href);
     try {
       const { isOnboarded } = await getUserOnboardingStatus();
-      router.push(isOnboarded ? href : "/onboarding");
+      await router.push(isOnboarded ? href : "/onboarding");
     } catch (err) {
       console.error("Onboarding check failed:", err);
-      router.push(href);
+      await router.push(href);
+    } finally {
+      setNavigatingHref(null);
     }
   };
 
@@ -103,9 +109,14 @@ export default function Footer() {
                 <li key={label}>
                   <button
                     onClick={() => go(href)}
-                    className="group flex items-center gap-2 text-muted-foreground dark:text-gray-300 hover:text-primary transition-colors text-sm"
+                    disabled={!!navigatingHref}
+                    className="group flex items-center gap-2 text-muted-foreground dark:text-gray-300 hover:text-primary transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Icon className="h-4 w-4 transition-transform group-hover:scale-110" />
+                    {navigatingHref === href ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    ) : (
+                      <Icon className="h-4 w-4 transition-transform group-hover:scale-110" />
+                    )}
                     {label}
                   </button>
                 </li>

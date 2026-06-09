@@ -39,6 +39,7 @@ export default function Header() {
   const pathname = usePathname();
   const [clerkKeyless, setClerkKeyless] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [navigatingHref, setNavigatingHref] = useState(null);
 
   const isHomePage = pathname === "/";
 
@@ -89,13 +90,17 @@ export default function Header() {
     mounted && resolvedTheme === "dark" ? "/white-logo.png" : "/logo.png";
 
   const go = async (href) => {
+    if (navigatingHref) return;
     if (!isSignedIn) return router.push("/sign-in");
+    setNavigatingHref(href);
     try {
       const { isOnboarded } = await getUserOnboardingStatus();
-      router.push(isOnboarded ? href : "/onboarding");
+      await router.push(isOnboarded ? href : "/onboarding");
     } catch (err) {
       console.error("Onboarding check failed:", err);
-      router.push(href);
+      await router.push(href);
+    } finally {
+      setNavigatingHref(null);
     }
   };
 
@@ -178,8 +183,13 @@ export default function Header() {
                   size="sm"
                   className="gap-2 text-muted-foreground hover:text-primary transition-all rounded-full"
                   onClick={() => go("/dashboard")}
+                  disabled={!!navigatingHref}
                 >
-                  <LayoutDashboard className="h-4 w-4" />
+                  {navigatingHref === "/dashboard" ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  ) : (
+                    <LayoutDashboard className="h-4 w-4" />
+                  )}
                   Dashboard
                 </Button>
               </SignedIn>
@@ -253,12 +263,16 @@ export default function Header() {
               <div className="flex flex-col gap-4 mt-4">
                 <SignedIn>
                   <Button
-                    className="w-full h-12 text-lg font-semibold rounded-2xl"
-                    onClick={() => {
-                      go("/dashboard");
+                    className="w-full h-12 text-lg font-semibold rounded-2xl gap-2"
+                    onClick={async () => {
+                      await go("/dashboard");
                       setIsMobileMenuOpen(false);
                     }}
+                    disabled={!!navigatingHref}
                   >
+                    {navigatingHref === "/dashboard" ? (
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : null}
                     Go to Dashboard
                   </Button>
                 </SignedIn>
