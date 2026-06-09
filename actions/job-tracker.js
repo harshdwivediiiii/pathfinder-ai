@@ -113,6 +113,9 @@ export async function updateJobApplicationInterviewDate(id, interviewDate) {
 
   try {
     const parsedDate = interviewDate ? new Date(interviewDate) : null;
+    if (parsedDate && isNaN(parsedDate.getTime())) {
+      return { success: false, errors: { _form: ["Invalid interview date format"] } };
+    }
     const job = await db.jobApplication.updateMany({
       where: {
         id,

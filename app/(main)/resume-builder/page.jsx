@@ -50,7 +50,7 @@ export default function ResumeBuilderPage() {
       const element = resumeRef.current;
       const opt = {
         margin: [0.5, 0.5, 0.5, 0.5], // top, left, bottom, right
-        filename: `${activeResume.personalInfo.name.replace(/ /g, '_')}_Resume.pdf`,
+        filename: `${(activeResume.personalInfo?.name || "Resume").replace(/ /g, '_')}_Resume.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }

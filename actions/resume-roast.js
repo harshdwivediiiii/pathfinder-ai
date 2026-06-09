@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { parseAIJson } from "@/lib/validate";
 
 export async function generateResumeRoast(resumeContent) {
   const { userId } = await auth();
@@ -34,10 +35,7 @@ export async function generateResumeRoast(resumeContent) {
   try {
     const aiResult = await generateGeminiContent(prompt);
     let rawText = aiResult.response.text();
-    if (rawText.startsWith("\`\`\`json")) {
-      rawText = rawText.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
-    }
-    const parsedData = JSON.parse(rawText);
+    const parsedData = parseAIJson(rawText);
 
     return { success: true, data: parsedData };
   } catch (error) {

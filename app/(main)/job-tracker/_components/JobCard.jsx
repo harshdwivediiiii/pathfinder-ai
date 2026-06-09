@@ -10,9 +10,11 @@ import Link from "next/link";
 export default function JobCard({ job, onDelete }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [interviewDate, setInterviewDate] = useState(
-    job.interviewDate ? new Date(job.interviewDate).toISOString().slice(0, 16) : ""
-  );
+  const [interviewDate, setInterviewDate] = useState(() => {
+    if (!job.interviewDate) return "";
+    const d = new Date(job.interviewDate);
+    return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 16);
+  });
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
 
   const handleDelete = async (e) => {
@@ -36,7 +38,10 @@ export default function JobCard({ job, onDelete }) {
     const res = await updateJobApplicationInterviewDate(job.id, interviewDate);
     if (res.success) {
       toast.success("Interview date updated");
-      job.interviewDate = interviewDate ? new Date(interviewDate) : null;
+      const newDate = interviewDate ? new Date(interviewDate) : null;
+      if (newDate && !isNaN(newDate.getTime())) {
+        job.interviewDate = newDate;
+      }
       setShowDatePicker(false);
     } else {
       toast.error("Failed to update interview date");
