@@ -90,7 +90,7 @@ Scoring guidelines:
 - 76-90: Strong match
 - 91-100: Excellent match
 
-Be specific and actionable. Include at least 5 matched keywords (if present), at least 5 missing keywords, at least 5 improvement suggestions, and at least 3 to 6 highlights mapping to exact parts of the resumeContent.
+Be specific and actionable. Include at least 5 matched keywords (if present), at least 5 missing keywords, at least 5 improvement suggestions, and at least 3 to 6 highlights mapping to exact parts of the resume.
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.`,
     });
 
@@ -208,13 +208,12 @@ export async function deleteATSAnalysis(id) {
       return { success: false, errors: { _form: ["Unauthorized: you do not own this analysis."] } };
     }
 
-    await db.aTSAnalysis.deleteMany({
-    const { count } = await db.atsAnalysis.deleteMany({
+    const { count } = await db.aTSAnalysis.deleteMany({
       where: {
         id: id.trim(),
         userId: user.id,
-        },
-      });
+      },
+    });
 
     if (count === 0) {
       return {
