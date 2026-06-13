@@ -266,10 +266,31 @@ function RoadmapStage() {
   );
 }
 
+function AtsCheckItem({ item, i, scrollYProgress }) {
+  const targetPercent = 85 + (i * 7) % 15;
+  const widthVal = useTransform(scrollYProgress, [0, 1], ["0%", `${targetPercent}%`]);
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+        <Sparkles className="h-3 w-3" />
+      </div>
+      <motion.div className="h-2 bg-muted rounded-full overflow-hidden flex-grow">
+        <motion.div
+          className="h-full bg-primary"
+          initial={{ width: "0%" }}
+          style={{ width: widthVal }}
+        />
+      </motion.div>
+    </div>
+  );
+}
+
 function ResumeStage() {
   const ref = useRef(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 80%", "center center"] });
   const displayScore = useTransform(scrollYProgress, [0, 1], [0, 95]);
+  const strokeDashoffset = useTransform(scrollYProgress, [0, 1], [175.9, 175.9 * (1 - 0.95)]);
   const [currentScore, setCurrentScore] = useState(0);
 
   useMotionValueEvent(displayScore, "change", (latest) => {
@@ -319,7 +340,7 @@ function ResumeStage() {
                     strokeWidth="4"
                     strokeDasharray="175.9"
                     initial={{ strokeDashoffset: 175.9 }}
-                    style={{ strokeDashoffset: useTransform(scrollYProgress, [0, 1], [175.9, 175.9 * (1 - 0.95)]) }}
+                    style={{ strokeDashoffset }}
                     strokeLinecap="round"
                   />
                 </svg>
@@ -329,20 +350,7 @@ function ResumeStage() {
 
             <div className="space-y-4 relative z-10">
               {["Keywords Optimized", "Format Standardized", "Action Verbs Added"].map((item, i) => (
-                <div key={item} className="flex items-center gap-3">
-                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                    <Sparkles className="h-3 w-3" />
-                  </div>
-                  <motion.div
-                    className="h-2 bg-muted rounded-full overflow-hidden flex-grow"
-                  >
-                    <motion.div
-                      className="h-full bg-primary"
-                      initial={{ width: "0%" }}
-                      style={{ width: useTransform(scrollYProgress, [0, 1], ["0%", `${85 + Math.random() * 15}%`]) }}
-                    />
-                  </motion.div>
-                </div>
+                <AtsCheckItem key={item} item={item} i={i} scrollYProgress={scrollYProgress} />
               ))}
             </div>
           </div>

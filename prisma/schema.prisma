@@ -52,7 +52,6 @@ model User {
   industryInsight IndustryInsight? @relation(fields: [industry], references: [industry])
   atsAnalyses     AtsAnalysis[]
   settings        UserSettings?
-  atsAnalyses          ATSAnalysis[]
   roadmaps             Roadmap[]
   jobApplications      JobApplication[]
   linkedinOptimizations LinkedInOptimization[]
@@ -88,7 +87,6 @@ model User {
   performanceReviews   PerformanceReview[]
   imposterSyndromes    ImposterSyndrome[]
   managerReadmes       ManagerReadme[]
-  settings             UserSettings?
 
   exportRecords ExportRecord[]
   auditLogs     AuditLog[]
@@ -309,7 +307,7 @@ model JobApplication {
   location       String?
   notes          String?      @db.Text
   atsAnalysisId  String?
-  atsAnalysis    ATSAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
+  atsAnalysis    AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
   coverLetterId  String?
   coverLetter    CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
   interviewDate  DateTime?

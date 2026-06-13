@@ -7,7 +7,7 @@ export async function GET(request) {
     return new Response(JSON.stringify({ error: "Inngest not configured" }), { status: 404 });
   }
   try {
-    const [{ getInngest }, { getGenerateIndustryInsights }, { cleanupRateLimits }, { serve }] = await Promise.all([
+    const [{ getInngest }, { getGenerateIndustryInsights }, { getCleanupRateLimits }, { serve }] = await Promise.all([
       import("@/lib/inngest/client"),
       import("@/lib/inngest/function"),
       import("@/.inngest/functions/cleanup-rate-limits"),
@@ -15,10 +15,11 @@ export async function GET(request) {
     ]);
     const client = await getInngest();
     const fn = await getGenerateIndustryInsights();
+    const cleanupFn = await getCleanupRateLimits();
     const handler = serve({
       client,
       signingKey: process.env.INNGEST_SIGNING_KEY,
-      functions: [fn, cleanupRateLimits],
+      functions: [fn, cleanupFn],
     });
     return handler.GET(request);
   } catch (error) {
@@ -32,7 +33,7 @@ export async function POST(request) {
     return new Response(JSON.stringify({ error: "Inngest not configured" }), { status: 404 });
   }
   try {
-    const [{ getInngest }, { getGenerateIndustryInsights }, { cleanupRateLimits }, { serve }] = await Promise.all([
+    const [{ getInngest }, { getGenerateIndustryInsights }, { getCleanupRateLimits }, { serve }] = await Promise.all([
       import("@/lib/inngest/client"),
       import("@/lib/inngest/function"),
       import("@/.inngest/functions/cleanup-rate-limits"),
@@ -40,10 +41,11 @@ export async function POST(request) {
     ]);
     const client = await getInngest();
     const fn = await getGenerateIndustryInsights();
+    const cleanupFn = await getCleanupRateLimits();
     const handler = serve({
       client,
       signingKey: process.env.INNGEST_SIGNING_KEY,
-      functions: [fn, cleanupRateLimits],
+      functions: [fn, cleanupFn],
     });
     return handler.POST(request);
   } catch (error) {
@@ -57,7 +59,7 @@ export async function PUT(request) {
     return new Response(JSON.stringify({ error: "Inngest not configured" }), { status: 404 });
   }
   try {
-    const [{ getInngest }, { getGenerateIndustryInsights }, { cleanupRateLimits }, { serve }] = await Promise.all([
+    const [{ getInngest }, { getGenerateIndustryInsights }, { getCleanupRateLimits }, { serve }] = await Promise.all([
       import("@/lib/inngest/client"),
       import("@/lib/inngest/function"),
       import("@/.inngest/functions/cleanup-rate-limits"),
@@ -65,10 +67,11 @@ export async function PUT(request) {
     ]);
     const client = await getInngest();
     const fn = await getGenerateIndustryInsights();
+    const cleanupFn = await getCleanupRateLimits();
     const handler = serve({
       client,
       signingKey: process.env.INNGEST_SIGNING_KEY,
-      functions: [fn, cleanupRateLimits],
+      functions: [fn, cleanupFn],
     });
     return handler.PUT(request);
   } catch (error) {

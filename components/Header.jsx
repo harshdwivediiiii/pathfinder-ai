@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
   useAuth,
-  SignedIn,
-  SignedOut,
   SignInButton,
   UserButton,
 } from "@clerk/nextjs";
@@ -22,6 +20,16 @@ import { useTheme } from "next-themes";
 import { getUserOnboardingStatus } from "@/actions/user";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+
+function SignedIn({ children }) {
+  const { isSignedIn, userId } = useAuth();
+  return (isSignedIn || !!userId) ? <>{children}</> : null;
+}
+
+function SignedOut({ children }) {
+  const { isSignedIn, userId } = useAuth();
+  return (!isSignedIn && !userId) ? <>{children}</> : null;
+}
 
 const NAV_LINKS = [
   { id: "features", label: "Features" },

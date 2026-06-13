@@ -7,7 +7,8 @@ import {
   Flame, Linkedin, Star, Video, LayoutList, Lightbulb, 
   DollarSign, Calculator, Send, ArrowRightLeft, CalendarClock,
   Coffee, ShieldAlert, Code2, HeartPulse, Rocket,
-  Home, Workflow, CalendarHeart, Globe, MapPin, Users, Flag, HandCoins, Target, LineChart, Brain, BookOpen
+  Home, Workflow, CalendarHeart, Globe, MapPin, Users, Flag, HandCoins, Target, LineChart, Brain, BookOpen, BrainCircuit,
+  TrendingUp, FileSignature, DoorOpen, Compass
 } from "lucide-react";
 
 const TOOL_CATEGORIES = [
