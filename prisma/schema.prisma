@@ -3,9 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
+
+// =============================================================================
+// Database Indexing Strategy
+// =============================================================================
+//
+// Composite indexes support common filter + sort query patterns. For example:
+//   - Message: [conversationId, createdAt] — fetch messages for a chat ordered by time
+//   - Conversation: [userId, updatedAt] — list a user's conversations by recency
+//
+// In PostgreSQL, @unique and @@unique constraints automatically create B-tree indexes.
+// Do NOT add a separate @@index on the same column(s) — it duplicates storage and
+// slows writes with no query benefit.
+//
+// Single-column indexes are kept alongside composites when they serve different
+// query shapes (e.g. simple WHERE without ORDER BY, or deleteMany by userId).
+// =============================================================================
 
 model User {
   id              String           @id @default(uuid())
@@ -18,9 +34,12 @@ model User {
   updatedAt       DateTime         @updatedAt
 
   // Profile fields
+  currentRole     String?
+  targetRole      String?
+  careerGoals     String?
   bio             String?
   experience      Int?
-
+  
   // Settings
   saveChatHistory Boolean          @default(true)
 
@@ -31,8 +50,40 @@ model User {
   conversations   Conversation[]
   resume          Resume?
   industryInsight IndustryInsight? @relation(fields: [industry], references: [industry])
-  atsAnalyses     ATSAnalysis[]
-  settings        UserSettings?
+  atsAnalyses          ATSAnalysis[]
+  roadmaps             Roadmap[]
+  jobApplications      JobApplication[]
+  linkedinOptimizations LinkedInOptimization[]
+  networkingEmails     NetworkingEmail[]
+  projectIdeas         ProjectIdea[]
+  resumeGenerations    ResumeGeneration[]
+  starStories          StarStory[]
+  recruiterEmails      RecruiterEmail[]
+  interviewCheatSheets InterviewCheatSheet[]
+  linkedinPosts        LinkedInPost[]
+  offerComparisons     OfferComparison[]
+  careerPivots         CareerPivot[]
+  onboardingPlans      OnboardingPlan[]
+  resignationLetters   ResignationLetter[]
+  promotionStrategies  PromotionStrategy[]
+  freelanceProposals   FreelanceProposal[]
+  behavioralPreps      BehavioralPrep[]
+  layoffStrategies     LayoffStrategy[]
+  coffeeChatSessions   CoffeeChatSession[]
+  equityAnalyses       EquityAnalysis[]
+  assignmentGrades     AssignmentGrade[]
+  burnoutAssessments   BurnoutAssessment[]
+  sideHustleIdeas      SideHustleIdea[]
+  remoteWorkPitches    RemoteWorkPitch[]
+  internalTransfers    InternalTransfer[]
+  careerBreakPlans     CareerBreakPlan[]
+  visaStrategies       VisaStrategy[]
+  relocationAnalyses   RelocationAnalysis[]
+  mentorOutreaches     MentorOutreach[]
+  toxicWorkplaces      ToxicWorkplaceEscape[]
+  freelanceRates       FreelanceRate[]
+  ikigaiDiscoveries    IkigaiDiscovery[]
+  settings             UserSettings?
 
   exportRecords ExportRecord[]
   auditLogs     AuditLog[]
@@ -74,10 +125,13 @@ model CoverLetter {
   status         String   @default("draft")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  jobApplications JobApplication[]
 
   @@index([userId])
 }
 
+// industry @unique already creates a B-tree index for lookups (findUnique/upsert by industry).
+// A separate @@index([industry]) was removed — it duplicated the unique constraint index.
 model IndustryInsight {
   id                String   @id @default(cuid())
   industry          String   @unique
@@ -92,24 +146,28 @@ model IndustryInsight {
   isGrounded        Boolean  @default(false)
   lastUpdated       DateTime @default(now())
   nextUpdate        DateTime
-
-  @@index([industry])
 }
 
+// @@index([userId]) — simple user lookups and deleteMany without ordering.
+// @@index([userId, updatedAt]) — list/search conversations filtered by user, ordered by recency.
 model Conversation {
   id        String    @id @default(cuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
+  type      String    @default("chat")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   messages  Message[]
 
   @@index([userId])
+  @@index([userId, updatedAt])
   exports   ExportRecord[]
   snapshots ConversationSnapshot[]
 }
 
+// @@index([conversationId]) — simple message lookups without ordering.
+// @@index([conversationId, createdAt]) — fetch messages for a conversation ordered by time.
 model Message {
   id             String       @id @default(cuid())
   conversationId String
@@ -117,8 +175,10 @@ model Message {
   role           String
   content        String       @db.Text
   createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([conversationId])
+  @@index([conversationId, createdAt])
 }
 
 model ATSAnalysis {
@@ -135,6 +195,7 @@ model ATSAnalysis {
   suggestions     Json[]
   overallFeedback String?  @db.Text
   createdAt       DateTime @default(now())
+  jobApplications JobApplication[]
 
   @@index([userId])
 }
@@ -202,4 +263,413 @@ model UserSettings {
   dashboardLayout String   @default("default")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// @@unique([userId, action, windowStart]) — exact-window upsert/lookup (rate-limit hot path).
+// @@index([userId, action]) — broader scans by user + action. No changes needed.
+model AiRateLimit {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  windowStart DateTime
+  count     Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, action, windowStart])
+  @@index([userId, action])
+  @@index([expiresAt])
+}
+
+model Roadmap {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   Json     // The full roadmap milestones JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model JobApplication {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName    String
+  jobTitle       String
+  status         String       @default("Wishlist")
+  url            String?
+  salary         String?
+  location       String?
+  notes          String?      @db.Text
+  atsAnalysisId  String?
+  atsAnalysis    ATSAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
+  coverLetterId  String?
+  coverLetter    CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
+  interviewDate  DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([userId])
+}
+
+model LinkedInOptimization {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileContent String   @db.Text
+  analysis       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model NetworkingEmail {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipientName  String?
+  company        String?
+  goal           String
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ProjectIdea {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole     String
+  skillGap       String
+  ideas          Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ResumeGeneration {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobDescription String   @db.Text
+  content        Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model StarStory {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawExperience  String   @db.Text
+  starContent    Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RecruiterEmail {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalEmail  String   @db.Text
+  goal           String
+  replyContent   String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model InterviewCheatSheet {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company        String
+  role           String
+  content        Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model LinkedInPost {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic          String   @db.Text
+  content        Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model OfferComparison {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offers         Json
+  analysis       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model CareerPivot {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentRole    String
+  targetRole     String
+  analysis       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model OnboardingPlan {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company        String
+  role           String
+  planContent    Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ResignationLetter {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circumstance   String
+  lastDay        String
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PromotionStrategy {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole     String
+  content        Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FreelanceProposal {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectDetails String   @db.Text
+  rate           String
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model BehavioralPrep {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company        String
+  assessmentType String
+  content        Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model LayoffStrategy {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  details        String   @db.Text
+  planContent    Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model CoffeeChatSession {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole     String
+  industry       String
+  chatHistory    Json
+  feedback       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model EquityAnalysis {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offerDetails   Json
+  analysis       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AssignmentGrade {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt         String   @db.Text
+  solution       String   @db.Text
+  gradeData      Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model BurnoutAssessment {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symptoms       String   @db.Text
+  workload       String   @db.Text
+  assessment     Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SideHustleIdea {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills         String   @db.Text
+  interests      String   @db.Text
+  ideasData      Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RemoteWorkPitch {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String
+  reasons        String   @db.Text
+  objections     String   @db.Text
+  pitchData      Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model InternalTransfer {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentRole    String
+  targetRole     String
+  reasons        String   @db.Text
+  transferData   Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model CareerBreakPlan {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  duration       String
+  reason         String   @db.Text
+  returnGoals    String   @db.Text
+  planData       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model VisaStrategy {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visaType       String
+  targetRole     String
+  concerns       String   @db.Text
+  strategyData   Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RelocationAnalysis {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentCity    String
+  targetCity     String
+  salary         String
+  analysisData   Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model MentorOutreach {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals          String   @db.Text
+  targetIndustry String
+  outreachData   Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ToxicWorkplaceEscape {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symptoms       String   @db.Text
+  role           String
+  escapeData     Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FreelanceRate {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills         String
+  experience     String
+  targetIncome   String
+  rateData       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model IkigaiDiscovery {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passions       String   @db.Text
+  skills         String   @db.Text
+  marketNeeds    String   @db.Text
+  ikigaiData     Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
 }

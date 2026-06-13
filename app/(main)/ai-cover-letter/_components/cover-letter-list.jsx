@@ -30,9 +30,13 @@ export default function CoverLetterList({ coverLetters }) {
 
   const handleDelete = async (id) => {
     try {
-      await deleteCoverLetter(id);
-      toast.success("Cover letter deleted successfully!");
-      router.refresh();
+      const result = await deleteCoverLetter(id);
+      if (result.success) {
+        toast.success("Cover letter deleted successfully!");
+        router.refresh();
+      } else {
+        toast.error(result.errors._form[0] || "Failed to delete cover letter");
+      }
     } catch (error) {
       toast.error(error.message || "Failed to delete cover letter");
     }

@@ -160,3 +160,18 @@ it("validateOutput rejects interview questions with wrong options count", () => 
   const result = validateOutput(interviewQuestionsOutputSchema, raw);
   expect(result.success).toBe(false);
 });
+
+it("validateOutput rejects interview questions where correctAnswer is not in options", () => {
+  const raw = JSON.stringify({
+    questions: [
+      {
+        question: "What is polymorphism?",
+        options: ["A", "B", "C", "D"],
+        correctAnswer: "E",
+        explanation: "Some explanation here.",
+      },
+    ],
+  });
+  const result = validateOutput(interviewQuestionsOutputSchema, raw);
+  expect(result.success).toBe(false);
+});

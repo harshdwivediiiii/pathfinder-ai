@@ -9,7 +9,8 @@ import GrowthToolsGrid from "./_components/GrowthToolsGrid";
 import RecentDocs from "./_components/RecentDocs";
 import TemplatesTab from "./_components/TemplatesTab";
 import DashboardView from "./_components/dashboard-view";
-import { Sparkles, LayoutDashboard, FileText, Calendar, Settings } from "lucide-react";
+import { Sparkles, LayoutDashboard, FileText, Calendar } from "lucide-react";
+import Link from "next/link";
 
 // Import actions
 import { getResume } from "@/actions/resume";
@@ -18,6 +19,7 @@ import { getAssessments } from "@/actions/interview";
 import { getUserOnboardingStatus } from "@/actions/user";
 import { getIndustryInsights } from "@/actions/dashboard";
 import { getATSAnalyses } from "@/actions/ats";
+import { getJobApplications } from "@/actions/job-tracker";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -35,6 +37,7 @@ export default function DashboardPage() {
   const [interviews, setInterviews] = useState([]);
   const [insights, setInsights] = useState(null);
   const [atsAnalyses, setATSAnalyses] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,12 +54,13 @@ export default function DashboardPage() {
           return;
         }
 
-        const [resumeData, coverLettersData, interviewsData, insightsData, atsData] = await Promise.all([
+        const [resumeData, coverLettersData, interviewsData, insightsData, atsData, jobsData] = await Promise.all([
           getResume(),
           getCoverLetters(),
           getAssessments(),
           getIndustryInsights(),
           getATSAnalyses(),
+          getJobApplications(),
         ]);
 
         setResumes(resumeData ? [resumeData] : []);
@@ -64,6 +68,7 @@ export default function DashboardPage() {
         setInterviews(interviewsData || []);
         setInsights(insightsData);
         setATSAnalyses(atsData.success ? atsData.data : []);
+        setJobs(jobsData.success ? jobsData.data : []);
       } catch (error) {
         console.error("Error loading dashboard data:", error);
       } finally {
@@ -87,6 +92,15 @@ export default function DashboardPage() {
     params.set("tab", tabId);
     router.push(`?${params.toString()}`);
   };
+
+  const upcomingInterviews = jobs.filter(job => {
+    if (job.status !== "Interviewing" || !job.interviewDate) return false;
+    const now = new Date();
+    const interviewTime = new Date(job.interviewDate);
+    const diffTime = interviewTime - now;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 3;
+  });
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -167,6 +181,45 @@ export default function DashboardPage() {
                 <TemplatesTab />
               ) : (
                 <div className="space-y-12">
+                  {upcomingInterviews.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-5 rounded-[2rem] bg-amber-500/10 border border-amber-500/20 shadow-lg backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 bg-amber-500/20 text-amber-500 rounded-2xl">
+                          <Calendar className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-foreground text-base">
+                            Upcoming Interview{upcomingInterviews.length > 1 ? "s" : ""} Scheduled!
+                          </h4>
+                          <p className="text-muted-foreground text-sm font-medium mt-0.5">
+                            You have {upcomingInterviews.length} interview{upcomingInterviews.length > 1 ? "s" : ""} coming up in the next 3 days:
+                          </p>
+                          <ul className="list-disc pl-5 mt-2 space-y-1.5 text-sm text-foreground/90 font-semibold">
+                            {upcomingInterviews.map(interview => (
+                              <li key={interview.id}>
+                                {interview.jobTitle} at {interview.companyName} on{" "}
+                                {new Date(interview.interviewDate).toLocaleString([], {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                })}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                      <Link
+                        href="/job-tracker"
+                        className="py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-sm transition-all shadow-sm shrink-0 text-center"
+                      >
+                        View Job Tracker
+                      </Link>
+                    </motion.div>
+                  )}
+
                   <StatsCards 
                     resumes={resumes} 
                     coverLetters={coverLetters} 
@@ -176,22 +229,42 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                     <div className="lg:col-span-8 space-y-12">
                       <GrowthToolsGrid />
+                    </div>
+                    
+                    <div className="lg:col-span-4 space-y-12">
                       <RecentDocs 
                         resumes={resumes} 
                         coverLetters={coverLetters} 
                         interviews={interviews} 
                       />
                     </div>
-                    
-                    <div className="lg:col-span-4 space-y-8">
-                      {insights && (
-                        <div className="glass rounded-[2.5rem] p-1 border border-white/10 overflow-hidden shadow-2xl">
-                          <div className="bg-background/40 backdrop-blur-md rounded-[2.2rem] h-full p-1">
-                            <DashboardView insights={insights} atsAnalyses={atsAnalyses} />
-                          </div>
-                        </div>
-                      )}
+                  </div>
+
+                  <div className="pt-8">
+                    <div className="flex items-center gap-2 mb-6">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground px-2">Industry Intelligence</h3>
+                      <div className="h-px bg-border flex-grow" />
                     </div>
+                    
+                    {insights ? (
+                      <div className="glass rounded-[2.5rem] p-1 border border-white/10 shadow-2xl">
+                        <div className="bg-background/40 backdrop-blur-md rounded-[2.2rem] h-full p-2 md:p-6">
+                          <DashboardView insights={insights} atsAnalyses={atsAnalyses} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-[2rem] border border-dashed border-border p-12 text-center space-y-4 bg-muted/10">
+                        <div className="mx-auto w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground">
+                          <Sparkles className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-base font-bold">Insights Processing</p>
+                          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                            We are currently gathering personalized AI insights, salary benchmarks, and market trends for your industry. Check back soon!
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

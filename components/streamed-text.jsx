@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { AlertTriangle, Terminal, Copy, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

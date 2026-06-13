@@ -5,7 +5,7 @@ export default function Page() {
     <div className="relative min-h-screen flex items-center justify-center">
       <SignUp
         fallbackRedirectUrl="/onboarding"
-        signInFallbackRedirectUrl="/onboarding"
+        signInFallbackRedirectUrl="/dashboard"
       />
     </div>
   );

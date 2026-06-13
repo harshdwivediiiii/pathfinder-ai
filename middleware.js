@@ -1,54 +1,31 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/dev/status",
-]);
-
-const isAppRoute = createRouteMatcher([
-  "/dashboard(.*)",
-  "/onboarding(.*)",
-  "/resume(.*)",
-  "/ai-cover-letter(.*)",
-  "/ai-assistant(.*)",
-  "/interview(.*)",
-  "/ats-analyzer(.*)",
-  "/settings(.*)",
-]);
-
-const isApiRoute = createRouteMatcher([
-  "/api/(.*)",
-]);
+import { getAuthDecision } from "./lib/auth/routes";
 
 export default clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth();
+  const decision = await getAuthDecision(req, auth);
 
-  if (isPublicRoute(req)) {
-    return NextResponse.next();
-  }
-
-  if (isAppRoute(req)) {
-    if (!userId) {
-      const signInUrl = new URL("/sign-in", req.url);
-      signInUrl.searchParams.set("redirect_url", req.nextUrl.pathname);
-      return NextResponse.redirect(signInUrl);
-    }
-  }
-
-  if (isApiRoute(req) && !isPublicRoute(req)) {
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  switch (decision.action) {
+    case "public":
+    case "next":
+      return NextResponse.next();
+    case "redirect":
+      return NextResponse.redirect(new URL(decision.signInUrl));
+    case "deny":
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: decision.status || 401 }
+      );
+    default:
+      return NextResponse.next();
   }
 });
 
 export const config = {
   matcher: [
-    "/((?!_next|.*\\..*).*)",
-    "/",
-    "/(api|trpc)(.*)",
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.[^?]*$).*)',
+    // Always run for API/TRPC routes
+    '/(api|trpc)(.*)',
   ],
 };

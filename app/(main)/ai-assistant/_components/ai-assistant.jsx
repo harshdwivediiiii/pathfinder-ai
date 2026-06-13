@@ -18,6 +18,8 @@ import {
   Settings,
   ChevronRight,
   Sparkles,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,7 +60,8 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,15 +75,25 @@ export default function AIAssistant() {
   const isDev = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
+    const savedState = localStorage.getItem("ai-sidebar-expanded");
+    if (savedState !== null) {
+      setIsSidebarExpanded(savedState === "true");
+    }
     const handleResize = () => {
       const mobile = window.innerWidth < 1024;
       setIsMobile(mobile);
-      setIsSidebarOpen(!mobile);
+      if (mobile) setIsMobileOpen(false);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const toggleSidebar = () => {
+    const newState = !isSidebarExpanded;
+    setIsSidebarExpanded(newState);
+    localStorage.setItem("ai-sidebar-expanded", String(newState));
+  };
 
   const fetchConversations = async () => {
     try {
@@ -158,6 +171,22 @@ export default function AIAssistant() {
     }
   };
 
+  const updateSaveChatHistory = async (newValue) => {
+    const previousValue = saveChatHistory;
+    setSaveChatHistory(newValue);
+    try {
+      const res = await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ saveChatHistory: newValue }),
+      });
+      if (!res.ok) throw new Error("Failed to save preference");
+    } catch (err) {
+      setSaveChatHistory(previousValue);
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchConversations();
     fetchPreferences();
@@ -202,12 +231,12 @@ export default function AIAssistant() {
     <div className="relative h-[calc(100vh-4rem)] flex overflow-hidden bg-background">
       {/* Sidebar Overlay */}
       <AnimatePresence>
-        {isSidebarOpen && isMobile && (
+        {isMobileOpen && isMobile && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsSidebarOpen(false)}
+            onClick={() => setIsMobileOpen(false)}
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
           />
         )}
@@ -216,112 +245,156 @@ export default function AIAssistant() {
       {/* Sidebar */}
       <motion.aside
         initial={false}
-        animate={{ width: isSidebarOpen ? 320 : 0, opacity: isSidebarOpen ? 1 : 0 }}
+        animate={{ 
+          width: isMobile ? (isMobileOpen ? 320 : 0) : (isSidebarExpanded ? 320 : 80),
+          opacity: isMobile && !isMobileOpen ? 0 : 1
+        }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
         className={cn(
-          "relative z-50 h-full flex flex-col border-r border-border bg-card/50 backdrop-blur-xl transition-all duration-300 overflow-hidden",
-          !isSidebarOpen && "border-none"
+          "relative z-50 h-full flex flex-col border-r border-border bg-card/50 backdrop-blur-xl overflow-hidden shrink-0",
+          isMobile && !isMobileOpen && "border-none absolute"
         )}
       >
-        <div className="flex flex-col h-full w-[320px]">
-          <div className="p-6 flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Chat History</h2>
-              <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
-                <X className="h-4 w-4" />
+        <motion.div 
+          animate={{ width: isMobile ? 320 : (isSidebarExpanded ? 320 : 80) }}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+          className="flex flex-col h-full"
+        >
+          <div className={cn("flex flex-col gap-6", isSidebarExpanded || isMobile ? "p-6" : "p-4 py-6 items-center")}>
+            <div className={cn("flex items-center", isSidebarExpanded || isMobile ? "justify-between" : "justify-center w-full")}>
+              {(isSidebarExpanded || isMobile) && (
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Chat History</h2>
+              )}
+              <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={toggleSidebar} title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}>
+                {isSidebarExpanded ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsMobileOpen(false)}>
+                <X className="h-5 w-5" />
               </Button>
             </div>
 
             <Button
-              className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] group"
+              className={cn(
+                "h-12 rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] group shrink-0",
+                isSidebarExpanded || isMobile ? "w-full" : "w-12 p-0 mx-auto"
+              )}
               onClick={() => {
                 setActiveConversationId(null);
                 setMessages([]);
                 reset();
+                if (isMobile) setIsMobileOpen(false);
               }}
+              title={!isSidebarExpanded && !isMobile ? "New Conversation" : undefined}
             >
-              <PlusCircle className="h-4 w-4 mr-2" />
-              New Conversation
+              <PlusCircle className={cn("h-5 w-5", (isSidebarExpanded || isMobile) && "mr-2")} />
+              {(isSidebarExpanded || isMobile) && "New Conversation"}
             </Button>
 
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
-              <input
-                type="text"
-                placeholder="Search chats..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-11 rounded-2xl bg-muted/50 border-none pl-11 pr-4 text-sm outline-none ring-0 focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-            </div>
+            {(isSidebarExpanded || isMobile) && (
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                <input
+                  type="text"
+                  placeholder="Search chats..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full h-11 rounded-2xl bg-muted/50 border-none pl-11 pr-4 text-sm outline-none ring-0 focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+            )}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 space-y-2 custom-scrollbar">
+          <div className={cn("flex-1 overflow-y-auto space-y-2 custom-scrollbar", isSidebarExpanded || isMobile ? "px-4" : "px-2")}>
             {isLoadingConversations ? (
               [...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 w-full rounded-2xl bg-muted/30 animate-pulse" />
+                <div key={i} className={cn("rounded-2xl bg-muted/30 animate-pulse", isSidebarExpanded || isMobile ? "h-16 w-full" : "h-12 w-12 mx-auto")} />
               ))
             ) : (
               conversations.map((conv) => (
                 <div
                   key={conv.id}
-                  onClick={() => loadConversation(conv.id)}
+                  onClick={() => {
+                    loadConversation(conv.id);
+                    if (isMobile) setIsMobileOpen(false);
+                  }}
+                  title={!isSidebarExpanded && !isMobile ? (conv.title || "New Chat") : undefined}
                   className={cn(
-                    "group relative p-4 rounded-2xl cursor-pointer transition-all duration-200",
+                    "group relative rounded-2xl cursor-pointer transition-all duration-200 flex items-center",
+                    isSidebarExpanded || isMobile ? "p-4" : "p-3 mx-auto w-12 h-12 justify-center",
                     activeConversationId === conv.id 
                       ? "bg-primary/10 text-primary border border-primary/20" 
-                      : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                      : "hover:bg-muted text-muted-foreground hover:text-foreground border border-transparent"
                   )}
                 >
-                  <div className="flex flex-col gap-1 min-w-0 pr-8">
-                    <p className="text-sm font-bold truncate">{conv.title || "New Chat"}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-                      {formatTime(conv.updatedAt)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteConversation(conv.id);
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {isSidebarExpanded || isMobile ? (
+                    <>
+                      <div className="flex flex-col gap-1 min-w-0 pr-8">
+                        <p className="text-sm font-bold truncate">{conv.title || "New Chat"}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                          {formatTime(conv.updatedAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteConversation(conv.id);
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <MessageSquare className="h-5 w-5 shrink-0" />
+                  )}
                 </div>
               ))
             )}
           </div>
 
-          <div className="p-6 border-t border-border">
-            <div className="p-4 rounded-2xl bg-muted/30 border border-border flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-bold text-foreground">Save History</span>
+          <div className={cn("border-t border-border mt-auto", isSidebarExpanded || isMobile ? "p-6" : "p-4 flex justify-center")}>
+            {isSidebarExpanded || isMobile ? (
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-bold text-foreground">Save History</span>
+                </div>
+                <div 
+                  onClick={() => updateSaveChatHistory(!saveChatHistory)}
+                  className={cn(
+                    "w-10 h-5 rounded-full transition-colors cursor-pointer relative p-0.5",
+                    saveChatHistory ? "bg-primary" : "bg-border"
+                  )}
+                >
+                  <div className={cn(
+                    "h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                    saveChatHistory ? "translate-x-5" : "translate-x-0"
+                  )} />
+                </div>
               </div>
+            ) : (
               <div 
-                onClick={() => setSaveChatHistory(!saveChatHistory)}
+                onClick={() => updateSaveChatHistory(!saveChatHistory)}
                 className={cn(
-                  "w-10 h-5 rounded-full transition-colors cursor-pointer relative p-0.5",
-                  saveChatHistory ? "bg-primary" : "bg-border"
+                  "w-12 h-12 rounded-2xl flex items-center justify-center cursor-pointer transition-colors hover:bg-muted",
+                  saveChatHistory ? "text-primary" : "text-muted-foreground"
                 )}
+                title={saveChatHistory ? "History Saved: ON" : "History Saved: OFF"}
               >
-                <div className={cn(
-                  "h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-                  saveChatHistory ? "translate-x-5" : "translate-x-0"
-                )} />
+                <Settings className="h-5 w-5" />
               </div>
-            </div>
+            )}
           </div>
-        </div>
+        </motion.div>
       </motion.aside>
 
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col min-w-0 relative">
         {/* Chat Header */}
-        <header className="h-16 px-6 border-b border-border flex items-center justify-between bg-background/50 backdrop-blur-md z-10">
+        <header className="h-16 px-6 border-b border-border flex items-center justify-between bg-background/50 backdrop-blur-md z-10 shrink-0">
           <div className="flex items-center gap-4">
-            {!isSidebarOpen && (
-              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
+            {isMobile && !isMobileOpen && (
+              <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(true)} className="lg:hidden">
                 <Menu className="h-5 w-5" />
               </Button>
             )}

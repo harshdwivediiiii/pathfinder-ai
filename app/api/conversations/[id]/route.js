@@ -86,7 +86,10 @@ export async function DELETE(request, context) {
     });
 
     if (count === 0) {
-      return respondError(ERROR_CODES.RESOURCE_NOT_FOUND, "Conversation not found");
+      return respondError(
+        ERROR_CODES.RESOURCE_NOT_FOUND,
+        "Conversation not found"
+      );
     }
 
     return Response.json({ success: true });

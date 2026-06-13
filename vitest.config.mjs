@@ -21,5 +21,8 @@ export default defineConfig({
     restoreMocks: true,
     clearMocks: true,
     mockReset: true,
+    env: {
+      NODE_ENV: "test",
+    },
   },
 });

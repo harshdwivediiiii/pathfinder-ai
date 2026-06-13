@@ -10,6 +10,7 @@ import { buildUserProfileContext } from "@/lib/ai-context";
 import { validateInput, validateOutput } from "@/lib/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
 import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function saveResume(rawContent) {
   const { userId } = await auth();
@@ -44,24 +45,39 @@ export async function saveResume(rawContent) {
 }
 
 export async function getResume() {
-  const { userId } = await auth();
-  if (!userId) return null;
+  try {
+    const { userId } = await auth();
+    if (!userId) return null;
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-  if (!user) return null;
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) return null;
 
-  return await db.resume.findUnique({
-    where: {
-      userId: user.id,
-    },
-  });
+    return await db.resume.findUnique({
+      where: {
+        userId: user.id,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching resume:", error);
+    return null;
+  }
 }
 
 export async function improveWithAI(rawParams) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Sign-in expired. Please authenticate again."] } };
+
+  const limit = await checkRateLimit(userId, "resume");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Resume improvement limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const validation = validateInput(resumeImprovementSchema, rawParams);
   if (!validation.success) return { success: false, errors: validation.errors };
@@ -97,7 +113,6 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     untrustedData: [
       { label: "resumeContent", value: current, maxLength: 8000 },
       { label: "type", value: type, maxLength: 200 },
-      { label: "industry", value: user.industry, maxLength: 200 },
     ],
   });
 
@@ -126,7 +141,10 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     }
 
     // Reassemble into plain string for backward compatibility with existing DB/UI
-    const improvedText = result.data.improvedContent;
+    const highlightsText = result.data.highlights && result.data.highlights.length > 0
+      ? "\n\n" + result.data.highlights.map((h) => `- ${h}`).join("\n")
+      : "";
+    const improvedText = `${result.data.improvedContent}${highlightsText}`;
     return { success: true, data: improvedText };
   } catch (error) {
     console.error("Error optimizing structural field elements:", error);

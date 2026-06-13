@@ -97,8 +97,11 @@ By contributing to PathFinder AI, you agree that your contributions will be lice
    NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
 
    GEMINI_API_KEY=your_gemini_api_key
+   REDIS_URL=your_redis_connection_string
+   RATE_LIMIT_STORE=auto
    ```
 
+   > **Rate limiting note:** Production deployments must use a Redis-backed limiter. Set `REDIS_URL` and keep `RATE_LIMIT_STORE` as `auto` (or set it to `redis`).
    > **💡 No Clerk keys?** The app runs in keyless mode locally — auth routes redirect safely and protected dashboards won't crash. Perfect for rapid frontend development.
 
 3. **Set up Prisma:**
@@ -118,8 +121,11 @@ npx prisma generate
 ```
 
 This repository's CI also enforces migration parity: the workflow will fail if `prisma/schema.prisma` is changed without a corresponding migration file under `prisma/migrations`. If you see a CI failure mentioning pending migrations, run the commands above, commit the generated migration, and push again.
+<<<<<<< HEAD
+=======
 
 
+>>>>>>> upstream/main
 4. **Start the dev server:**
 
    ```bash

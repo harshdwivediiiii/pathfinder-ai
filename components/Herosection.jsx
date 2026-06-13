@@ -32,7 +32,7 @@ const HeroSection = () => {
   };
 
   return (
-    <section id="home" className="relative w-full pt-32 md:pt-48 pb-20 overflow-hidden">
+    <section id="home" className="relative w-full pt-24 sm:pt-28 md:pt-40 lg:pt-48 pb-16 md:pb-20 overflow-hidden">
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full -z-10 opacity-30 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] animate-pulse-slow" />
@@ -67,12 +67,12 @@ const HeroSection = () => {
             transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="space-y-4"
           >
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] text-foreground">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] text-foreground">
               Your Professional Future, <br />
               <span className="text-gradient-primary">Reimagined with AI.</span>
             </h1>
             
-            <p className="mx-auto max-w-2xl text-lg md:text-xl text-muted-foreground leading-relaxed">
+            <p className="mx-auto max-w-2xl text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed">
               Unlock your true potential with PathFinder AI. Get personalized career coaching, 
               precision-engineered resumes, and expert-level interview preparation.
             </p>
@@ -114,7 +114,7 @@ const HeroSection = () => {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-20 relative group"
+          className="mt-12 sm:mt-16 md:mt-20 relative group"
         >
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl opacity-50 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
           
@@ -134,8 +134,7 @@ const HeroSection = () => {
               rotateY: isHovered ? mousePosition.x * 10 : 0,
               transformStyle: "preserve-3d",
             }}
-            className="relative mx-auto max-w-5xl rounded-2xl overflow-hidden glass border border-white/20 dark:border-white/10 shadow-2xl transition-all duration-200"
-          >
+className="relative mx-auto max-w-5xl rounded-2xl glass border border-white/20 dark:border-white/10 shadow-2xl transition-all duration-200 overflow-visible"          >
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-transparent z-10 pointer-events-none" />
             
             <video

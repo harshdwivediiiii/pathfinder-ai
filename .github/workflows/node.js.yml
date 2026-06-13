@@ -32,12 +32,24 @@ jobs:
         DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
         SHADOW_DATABASE_URL: ${{ secrets.CI_SHADOW_DATABASE_URL }}
       run: |
-        # Fail if schema.prisma differs from migrations on disk
-        npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url $SHADOW_DATABASE_URL --exit-code
-
+        if [ -z "$SHADOW_DATABASE_URL" ]; then
+          echo "SHADOW_DATABASE_URL is not set. Skipping migration check."
+        else
+          # Fail if schema.prisma differs from migrations on disk
+          npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+        fi
     - name: Generate Prisma client
       run: npx prisma generate
     - run: npx playwright install --with-deps chromium
-    - run: npm run test:unit
+    - name: Run tests
+      run: npm run test:unit
+      env:
+        NODE_ENV: test
     - run: npm run build --if-present
+      env:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
+        CLERK_SECRET_KEY: sk_test_dummy
     - run: npm run test:e2e
+      env:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
+        CLERK_SECRET_KEY: sk_test_dummy

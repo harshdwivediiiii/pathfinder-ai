@@ -4,24 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import {
-  Github,
-  Linkedin,
-  Mail,
-  LayoutDashboard,
-  FileText,
-  Bot,
-  PenBox,
-  ChevronRight,
-} from "lucide-react";
-import { Input } from "./ui/input";
+import { Github, Linkedin, Mail, LayoutDashboard, FileText, Bot, PenBox, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { motion } from "framer-motion";
-import { getUserOnboardingStatus } from "@/actions/user";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
 };
 
 export default function Footer() {
@@ -29,50 +18,45 @@ export default function Footer() {
   const router = useRouter();
 
   const go = async (href) => {
-    if (!isSignedIn) {
-      router.push("/sign-in");
-      return;
-    }
-
+    if (!isSignedIn) { router.push("/sign-in"); return; }
     try {
+      const { getUserOnboardingStatus } = await import("@/actions/user");
       const { isOnboarded } = await getUserOnboardingStatus();
       router.push(isOnboarded ? href : "/onboarding");
-    } catch (err) {
-      console.error("Onboarding check failed:", err);
+    } catch {
       router.push(href);
     }
   };
 
   return (
-    <footer className="relative z-10 border-t border-border bg-background/50 backdrop-blur-sm pt-20 pb-10">
+    <footer className="relative z-10 border-t border-border/50 pt-20 pb-8">
       <div className="container mx-auto px-4 md:px-6">
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 mb-16"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 lg:gap-8 mb-16"
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          variants={{ show: { transition: { staggerChildren: 0.1 } } }}
+          variants={{ show: { transition: { staggerChildren: 0.05 } } }}
         >
-          {/* Brand Section */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-6">
-            <Link href="/" className="flex items-center gap-2 group w-fit">
-              <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+          <motion.div variants={fadeUp} className="col-span-2 md:col-span-2 lg:col-span-2 flex flex-col gap-5">
+            <Link href="/" className="flex items-center gap-2.5 group w-fit">
+              <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-all ring-1 ring-primary/10 group-hover:ring-primary/30">
                 <Image
                   src="/logo.png"
                   alt="Pathfinder AI Logo"
                   width={32}
                   height={32}
-                  className="h-8 w-8 object-contain transition-transform duration-500 group-hover:scale-110"
+                  className="h-7 w-7 object-contain transition-transform duration-500 group-hover:scale-110"
                 />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-foreground">
-                Pathfinder <span className="text-primary ml-1">AI</span>
+              <span className="text-xl font-bold tracking-tight text-foreground">
+                Pathfinder <span className="text-primary">AI</span>
               </span>
             </Link>
-            <p className="text-muted-foreground dark:text-gray-300 leading-relaxed max-w-xs">
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
               Elevate your career with AI-powered insights, professional resume tools, and personalized interview preparation.
             </p>
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               {[
                 { href: "https://github.com", Icon: Github, label: "GitHub" },
                 { href: "https://linkedin.com", Icon: Linkedin, label: "LinkedIn" },
@@ -82,29 +66,19 @@ export default function Footer() {
                   key={label}
                   href={href}
                   target="_blank"
-                  className="h-10 w-10 rounded-full border border-border flex items-center justify-center text-muted-foreground dark:text-gray-300 hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all"
+                  className="h-9 w-9 rounded-full border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4" />
                 </Link>
               ))}
             </div>
           </motion.div>
 
-          {/* Quick Links */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-foreground">Explore</h3>
-            <ul className="grid gap-3">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => router.push("/dashboard")}
-                  className="group flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-sm"
-                >
-                  <LayoutDashboard className="h-4 w-4 transition-transform group-hover:scale-110" />
-                  Dashboard
-                </button>
-              </li>
+          <motion.div variants={fadeUp} className="flex flex-col gap-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Product</h3>
+            <ul className="space-y-3">
               {[
+                { label: "Dashboard", href: "/dashboard", Icon: LayoutDashboard },
                 { label: "Resume Builder", href: "/resume", Icon: FileText },
                 { label: "Mock Interviews", href: "/interview", Icon: Bot },
                 { label: "AI Cover Letter", href: "/ai-cover-letter", Icon: PenBox },
@@ -112,9 +86,9 @@ export default function Footer() {
                 <li key={label}>
                   <button
                     onClick={() => go(href)}
-                    className="group flex items-center gap-2 text-muted-foreground dark:text-gray-300 hover:text-primary transition-colors text-sm"
+                    className="group flex items-center gap-2 text-sm text-muted-foreground/80 hover:text-primary transition-colors"
                   >
-                    <Icon className="h-4 w-4 transition-transform group-hover:scale-110" />
+                    <Icon className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
                     {label}
                   </button>
                 </li>
@@ -122,40 +96,32 @@ export default function Footer() {
             </ul>
           </motion.div>
 
-          {/* Support */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-foreground">Platform</h3>
-            <ul className="grid gap-3 text-sm">
-              <li><Link href="#features" className="text-muted-foreground dark:text-gray-300 hover:text-primary transition-colors">Features</Link></li>
-              <li><Link href="#how-it-works" className="text-muted-foreground dark:text-gray-300 hover:text-primary transition-colors">How it Works</Link></li>
-              <li><Link href="#stats" className="text-muted-foreground dark:text-gray-300 hover:text-primary transition-colors">Success Stories</Link></li>
-              <li><Link href="#question" className="text-muted-foreground dark:text-gray-300 hover:text-primary transition-colors">Help & FAQ</Link></li>
+          <motion.div variants={fadeUp} className="flex flex-col gap-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Platform</h3>
+            <ul className="space-y-3 text-sm">
+              <li><Link href="#features" className="text-muted-foreground/80 hover:text-primary transition-colors">Features</Link></li>
+              <li><Link href="#how-it-works" className="text-muted-foreground/80 hover:text-primary transition-colors">How it Works</Link></li>
+              <li><Link href="#stats" className="text-muted-foreground/80 hover:text-primary transition-colors">Success Stories</Link></li>
+               <li><Link href="/help" className="text-muted-foreground/80 hover:text-primary transition-colors">Help</Link></li>
+              <li><Link href="#question" className="text-muted-foreground/80 hover:text-primary transition-colors">FAQ</Link></li>
             </ul>
           </motion.div>
 
-          {/* Newsletter */}
-          <motion.div variants={fadeUp} className="flex flex-col gap-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-foreground">Stay Updated</h3>
-            <p className="text-sm text-muted-foreground dark:text-gray-300">Subscribe to our newsletter for the latest career tips and AI features.</p>
-            <div className="flex flex-col gap-2">
-              <Input
-                placeholder="Enter your email"
-                className="rounded-xl border-border bg-background focus:ring-primary/20"
-              />
-              <Button className="rounded-xl font-semibold group">
-                Subscribe
-                <ChevronRight className="h-4 w-4 ml-1 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </div>
+          <motion.div variants={fadeUp} className="flex flex-col gap-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Legal</h3>
+            <ul className="space-y-3 text-sm">
+              <li><Link href="/privacy-policy" className="text-muted-foreground/80 hover:text-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms-of-service" className="text-muted-foreground/80 hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link href="/cookies" className="text-muted-foreground/80 hover:text-primary transition-colors">Cookies</Link></li>
+            </ul>
           </motion.div>
         </motion.div>
 
-        {/* Bottom Bar */}
-        <div className="pt-10 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground dark:text-gray-300">
-          <p>© {new Date().getFullYear()} Pathfinder AI. All rights reserved.</p>
+        <div className="pt-8 border-t border-border/40 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground/60">
+          <p>&copy; {new Date().getFullYear()} Pathfinder AI. All rights reserved.</p>
           <div className="flex gap-6">
-            <Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-            <Link href="/terms-of-service" className="hover:text-primary transition-colors">Terms of Service</Link>
+            <Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy</Link>
+            <Link href="/terms-of-service" className="hover:text-primary transition-colors">Terms</Link>
             <Link href="/cookies" className="hover:text-primary transition-colors">Cookies</Link>
           </div>
         </div>

@@ -25,9 +25,6 @@ export async function GET() {
       where: {
         userId: user.id,
       },
-      include: {
-        messages: true,
-      },
       orderBy: {
         updatedAt: "desc",
       },

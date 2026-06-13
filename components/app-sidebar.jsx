@@ -14,13 +14,45 @@ import {
   Copy,
   ScanSearch,
   Briefcase,
+  Map,
   Settings,
   Menu,
   X,
   ChevronLeft,
   ChevronRight,
   Diamond,
-  Sparkles
+  Sparkles,
+  Lightbulb,
+  DollarSign,
+  Video,
+  Flame,
+  Star,
+  Send,
+  Linkedin,
+  FileSearch,
+  Calculator,
+  ArrowRightLeft,
+  CalendarClock,
+  DoorOpen,
+  TrendingUp,
+  FileSignature,
+  BrainCircuit,
+  LayoutList,
+  Coffee,
+  ShieldAlert,
+  Compass,
+  Code2,
+  HeartPulse,
+  Rocket,
+  Home,
+  Workflow,
+  CalendarHeart,
+  Globe,
+  MapPin,
+  Users,
+  Flag,
+  HandCoins,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,17 +62,67 @@ const MENU_GROUPS = [
     title: "Intelligence",
     items: [
       { href: "/dashboard", label: "Overview", icon: <LayoutDashboard className="h-4 w-4" /> },
-      { href: "/ai-assistant", label: "AI Assistant", icon: <Bot className="h-4 w-4" /> },
-      { href: "/ats-analyzer", label: "ATS Analyzer", icon: <ScanSearch className="h-4 w-4" /> },
+      { href: "/ats-analyzer", label: "ATS Analyzer", icon: <ScanSearch className="h-4 w-4 text-blue-500" /> },
+      { href: "/dashboard?tab=templates", label: "Templates", icon: <Copy className="h-4 w-4" /> },
     ]
   },
   {
-    title: "Career Tools",
+    title: "Resumes & Branding",
     items: [
-      { href: "/resume", label: "Resumes", icon: <FileText className="h-4 w-4" /> },
-      { href: "/ai-cover-letter", label: "Cover Letters", icon: <Mail className="h-4 w-4" /> },
-      { href: "/interview", label: "Mock Interviews", icon: <Mic className="h-4 w-4" /> },
-      { href: "/dashboard?tab=templates", label: "Templates", icon: <Copy className="h-4 w-4" /> },
+      { href: "/resume-builder", label: "Resume Builder", icon: <FileText className="h-4 w-4 text-amber-500" /> },
+      { href: "/resume-roast", label: "Resume Roast", icon: <Flame className="h-4 w-4 text-red-500" /> },
+      { href: "/ai-cover-letter", label: "Cover Letters", icon: <Mail className="h-4 w-4 text-rose-500" /> },
+      { href: "/linkedin-optimizer", label: "LinkedIn Optimizer", icon: <ScanSearch className="h-4 w-4 text-[#0A66C2]" /> },
+      { href: "/linkedin-post", label: "LinkedIn Posts", icon: <Linkedin className="h-4 w-4 text-[#0A66C2]" /> },
+    ]
+  },
+  {
+    title: "Interview Prep",
+    items: [
+      { href: "/interview", label: "Mock Interviews", icon: <Briefcase className="h-4 w-4 text-indigo-500" /> },
+      { href: "/interview/voice-coach", label: "Voice Coach", icon: <Mic className="h-4 w-4 text-emerald-500" /> },
+      { href: "/interview/video-coach", label: "Video Coach", icon: <Video className="h-4 w-4 text-blue-500" /> },
+      { href: "/interview/star-builder", label: "STAR Builder", icon: <Star className="h-4 w-4 text-yellow-500" /> },
+      { href: "/interview/cheat-sheet", label: "Cheat Sheet", icon: <FileSearch className="h-4 w-4 text-zinc-500" /> },
+      { href: "/behavioral-prep", label: "Behavioral Prep", icon: <BrainCircuit className="h-4 w-4 text-rose-500" /> },
+      { href: "/coffee-chat", label: "Coffee Chat", icon: <Coffee className="h-4 w-4 text-amber-500" /> },
+      { href: "/assignment-grader", label: "Take-Home Grader", icon: <Code2 className="h-4 w-4 text-violet-500" /> },
+    ]
+  },
+  {
+    title: "Search & Offers",
+    items: [
+      { href: "/job-tracker", label: "Job Tracker", icon: <LayoutList className="h-4 w-4 text-green-500" /> },
+      { href: "/salary-negotiation", label: "Salary Coach", icon: <DollarSign className="h-4 w-4 text-emerald-500" /> },
+      { href: "/offer-comparer", label: "Offer Comparer", icon: <Calculator className="h-4 w-4 text-teal-500" /> },
+      { href: "/networking", label: "Networking", icon: <Send className="h-4 w-4 text-blue-500" /> },
+      { href: "/email-assistant", label: "Email Assistant", icon: <Mail className="h-4 w-4 text-violet-500" /> },
+      { href: "/equity-decoder", label: "Equity Decoder", icon: <Calculator className="h-4 w-4 text-indigo-500" /> },
+      { href: "/project-ideas", label: "Portfolio Ideas", icon: <Lightbulb className="h-4 w-4 text-amber-500" /> },
+    ]
+  },
+  {
+    title: "Career Growth",
+    items: [
+      { href: "/promotion-negotiator", label: "Promotion Coach", icon: <TrendingUp className="h-4 w-4 text-purple-500" /> },
+      { href: "/career-pivot", label: "Career Pivot", icon: <ArrowRightLeft className="h-4 w-4 text-orange-500" /> },
+      { href: "/onboarding-plan", label: "30-60-90 Plan", icon: <CalendarClock className="h-4 w-4 text-indigo-500" /> },
+      { href: "/freelance-proposal", label: "Freelance Proposals", icon: <FileSignature className="h-4 w-4 text-teal-500" /> },
+      { href: "/explore", label: "Explore Careers", icon: <Compass className="h-4 w-4 text-cyan-500" /> },
+      { href: "/roadmap", label: "Career Roadmap", icon: <Map className="h-4 w-4 text-amber-500" /> },
+      { href: "/resignation-letter", label: "Resignation Letter", icon: <DoorOpen className="h-4 w-4 text-red-500" /> },
+      { href: "/layoff-strategist", label: "Layoff Strategist", icon: <ShieldAlert className="h-4 w-4 text-blue-500" /> },
+      { href: "/burnout-coach", label: "Burnout Coach", icon: <HeartPulse className="h-4 w-4 text-rose-500" /> },
+      { href: "/side-hustle", label: "Side Hustle Ideas", icon: <Rocket className="h-4 w-4 text-cyan-500" /> },
+      { href: "/remote-work", label: "Remote Work Negotiator", icon: <Home className="h-4 w-4 text-emerald-500" /> },
+      { href: "/internal-transfer", label: "Internal Transfer", icon: <Workflow className="h-4 w-4 text-blue-500" /> },
+      { href: "/career-break", label: "Sabbatical Planner", icon: <CalendarHeart className="h-4 w-4 text-violet-500" /> },
+      { href: "/visa-guide", label: "Visa & Immigration", icon: <Globe className="h-4 w-4 text-indigo-500" /> },
+      { href: "/relocation", label: "Relocation Analyzer", icon: <MapPin className="h-4 w-4 text-orange-500" /> },
+      { href: "/mentor-matcher", label: "Mentor Matcher", icon: <Users className="h-4 w-4 text-cyan-500" /> },
+      { href: "/toxic-workplace", label: "Toxic Workplace Escape", icon: <Flag className="h-4 w-4 text-red-500" /> },
+      { href: "/freelance-rate", label: "Freelance Rate Calculator", icon: <HandCoins className="h-4 w-4 text-emerald-500" /> },
+      { href: "/ikigai", label: "Ikigai Builder", icon: <Target className="h-4 w-4 text-violet-500" /> },
     ]
   },
   {
@@ -192,8 +274,8 @@ export default function AppSidebar() {
               animate={{ opacity: 1, x: 0 }}
               className="flex flex-col flex-1 min-w-0"
             >
-              <span className="text-xs font-black text-foreground truncate leading-tight">{user?.firstName || 'User Account'}</span>
-              <span className="text-[10px] font-bold text-muted-foreground truncate uppercase tracking-widest mt-0.5">Pro Member</span>
+              <span className="text-xs font-black text-foreground truncate leading-tight">{user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress || 'User Account'}</span>
+              <span className="text-[10px] font-bold text-muted-foreground truncate uppercase tracking-widest mt-0.5">{user?.publicMetadata?.plan ? `${user.publicMetadata.plan} Member` : 'Free Member'}</span>
             </motion.div>
           )}
         </div>

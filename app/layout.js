@@ -7,11 +7,11 @@ import { Providers } from "@/components/providers";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import { BackgroundEngine } from "@/components/backgrounds";
+import { CursorGlow } from "@/components/ui/CursorGlow";
+import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { getEnv } from "@/lib/env";
 
 const inter = Inter({ subsets: ["latin"] });
-
-getEnv();
 
 export const metadata = {
   title: "PathFinder AI",
@@ -33,7 +33,7 @@ export default function RootLayout(props) {
     <ClerkProvider
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      signInFallbackRedirectUrl="/onboarding"
+      signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/onboarding"
       afterSignOutUrl="/"
     >
@@ -41,6 +41,8 @@ export default function RootLayout(props) {
         <body className={inter.className}>
           <Providers>
             <BackgroundEngine />
+            <ScrollProgress />
+            <CursorGlow />
             <Header />
             <main className="min-h-screen">{children}</main>
             <Toaster richColors />

@@ -17,6 +17,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, MapPin, Clock3, Link2, Sparkles, BarChart3, Target } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export default function DashboardView({ insights, atsAnalyses = [] }) {
   const isGrounded = Boolean(insights?.isGrounded);
