@@ -585,16 +585,13 @@ export async function saveQuizResult(questions, answers, score, category = "Tech
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  const validation = validateInput(quizResultSaveSchema, { questions, answers, category });
+  const validation = validateInput(quizResultSaveSchema, { questions, answers, score, category });
   if (!validation.success) return { success: false, errors: validation.errors };
 
   const feedbackLimit = await checkRateLimit(userId, "quizFeedback");
   if (!feedbackLimit.allowed) {
     throw new Error(`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`);
   }
-
-  const validation = validateInput(quizResultSaveSchema, { questions, answers, score, category });
-  if (!validation.success) return { success: false, errors: validation.errors };
 
   const {
     questions: validatedQuestions,
