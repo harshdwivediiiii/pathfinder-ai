@@ -27,12 +27,12 @@ export default async function CoverLetterPage() {
               </p>
             </div>
             
-            <Link href="/ai-cover-letter/new">
-              <Button size="lg" className="h-14 px-8 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-105 transition-all group">
+            <Button asChild size="lg" className="h-14 px-8 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-105 transition-all group">
+              <Link href="/ai-cover-letter/new">
                 <Plus className="h-5 w-5 mr-2 transition-transform group-hover:rotate-90" />
                 Create New Letter
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
 

@@ -1,0 +1,82 @@
+# Ignore everything in the root, then re-include necessary files.
+**
+
+# Directory entries required for traversal
+!prisma
+!public
+
+# Prisma schema + migrations
+!prisma/**
+!public/**
+
+# Dependencies
+!package.json
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+
+# Source code
+!**/*.js
+!**/*.jsx
+!**/*.ts
+!**/*.tsx
+!**/*.mjs
+!**/*.mts
+!**/*.cjs
+!**/*.cts
+!**/*.css
+!**/*.json
+
+# Configuration files
+!next.config.mjs
+!postcss.config.mjs
+!tailwind.config.ts
+!tsconfig.json
+!jsconfig.json
+!eslint.config.mjs
+!components.json
+
+# Docker related files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Git
+.git
+.gitignore
+
+# node_modules
+node_modules
+
+# Next.js build output
+.next
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs
+*.log
+
+# Editor/IDE specific files
+.vscode
+.idea
+
+# Test files and related outputs
+test_output.txt
+*.test.*
+*.spec.*
+
+# Vercel specific files
+.vercel
+
+# CI/CD specific files
+.github
+
+# Temporary files
+tmp/
+dist/
+build/

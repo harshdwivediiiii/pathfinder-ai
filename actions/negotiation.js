@@ -6,6 +6,7 @@ import { generateGeminiContent } from "@/lib/gemini";
 import { validateInput } from "@/lib/validate";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { salaryNegotiationChatSchema, salaryNegotiationEvaluateSchema } from "@/lib/schemas/forms";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function chatSalaryNegotiation(history, userMessage) {
   const { userId } = await auth();
@@ -21,20 +22,24 @@ export async function chatSalaryNegotiation(history, userMessage) {
 
   const { history: validatedHistory, userMessage: validatedUserMessage } = validation.data;
 
+  const limit = await checkRateLimit(userId, "negotiation");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      error: `Salary negotiation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`,
+    };
+  }
   // Format history for Gemini
   const formattedHistory = validatedHistory.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
   
   const prompt = buildSecurePrompt({
-    task: `You are a tough, realistic HR representative at a tech company negotiating a salary offer with a candidate. 
-Your goal is to get the best deal for the company, but you are willing to concede if the candidate makes strong, data-backed arguments (e.g., market rate, specific skills). 
-Do NOT break character. Keep your responses concise (2-3 sentences max).
-
-Review the conversation history and the candidate's latest message below, and output your response as HR.`,
+    context: "You are a tough, realistic HR representative at a tech company negotiating a salary offer with a candidate. Your goal is to get the best deal for the company, but you are willing to concede if the candidate makes strong, data-backed arguments (e.g., market rate, specific skills).",
+    task: "Continue the salary negotiation. Do NOT break character.",
     untrustedData: [
-      { label: "conversationHistory", value: formattedHistory, maxLength: 10000 },
-      { label: "candidateMessage", value: validatedUserMessage, maxLength: 2000 },
+      { label: "conversationHistory", value: formattedHistory, maxLength: 8000 },
+      { label: "candidateMessage", value: validatedUserMessage, maxLength: 1000 },
     ],
-    outputRules: "Respond ONLY as HR. Do not output anything else.",
+    outputRules: "Keep your response concise (2-3 sentences max). Respond only as HR. Do not output JSON or markdown.",
   });
 
   try {
@@ -60,20 +65,29 @@ export async function evaluateNegotiation(history) {
 
   const { history: validatedHistory } = validation.data;
 
+  const limit = await checkRateLimit(userId, "negotiation");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      error: `Salary negotiation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`,
+    };
+  }
+
   const formattedHistory = validatedHistory.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
   
   const prompt = buildSecurePrompt({
-    task: "You are an expert career coach evaluating a salary negotiation. Analyze the provided transcript and provide feedback.",
+    context: "You are an expert career coach evaluating a salary negotiation transcript.",
+    task: "Analyze the transcript and provide structured feedback.",
     untrustedData: [
-      { label: "transcript", value: formattedHistory, maxLength: 15000 },
+      { label: "transcript", value: formattedHistory, maxLength: 10000 },
     ],
-    outputRules: `Provide feedback in JSON format ONLY:
-{
-  "score": 85,
-  "strengths": ["You anchored well.", "You remained polite but firm."],
-  "weaknesses": ["You accepted the first counter-offer too quickly."],
-  "overallFeedback": "Good job, but you left some money on the table."
-}`,
+    outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+  {
+    "score": 85,
+    "strengths": ["You anchored well.", "You remained polite but firm."],
+    "weaknesses": ["You accepted the first counter-offer too quickly."],
+    "overallFeedback": "Good job, but you left some money on the table."
+  }`,
   });
 
   try {

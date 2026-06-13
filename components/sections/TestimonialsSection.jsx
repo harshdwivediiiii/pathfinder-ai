@@ -8,10 +8,13 @@ import { testimonial } from "@/data/testimonial";
 
 export function TestimonialsSection() {
   return (
-    <section id="stats" className="relative py-32 md:py-48 overflow-hidden">
+<section
+  id="stats"
+  className="relative py-20 sm:py-24 md:py-32 lg:py-40 overflow-hidden"
+>
       <div className="container mx-auto px-4 md:px-6">
         <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
-          <h2 className="text-3xl md:text-6xl font-bold tracking-tight text-foreground">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
             Trusted by{" "}
             <span className="text-gradient-primary">Professionals</span>
           </h2>
@@ -28,7 +31,7 @@ export function TestimonialsSection() {
                 transition={{ type: "spring", stiffness: 200, damping: 20 }}
                 className="group relative h-full"
               >
-                <div className="relative h-full p-8 rounded-2xl glass border border-border/40 hover:border-primary/30 transition-all duration-500 flex flex-col">
+                <div className="relative h-full p-5 sm:p-6 md:p-8 rounded-2xl glass border border-border/40 hover:border-primary/30 transition-all duration-500 flex flex-col">
                   <Quote className="h-8 w-8 text-primary/20 mb-4" />
                   <p className="text-sm text-muted-foreground leading-relaxed flex-grow italic">
                     &ldquo;{t.quote}&rdquo;

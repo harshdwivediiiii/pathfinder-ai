@@ -144,23 +144,30 @@ const generatePDF = async () => {
   setIsGenerating(true);
 
   try {
-    const { jsPDF } = await import("jspdf");
+    const { default: html2pdf } = await import("html2pdf.js");
+    const element = document.getElementById("resume-pdf");
 
-    const doc = new jsPDF();
+    if (!element) {
+      toast.error("Resume content not found for PDF generation.");
+      return;
+    }
 
-    const text = previewContent || "Resume";
+    const opt = {
+      margin: [15, 15],
+      filename: user?.fullName
+        ? `${user.fullName.replace(/\s+/g, "_")}_Resume.pdf`
+        : "resume.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+    };
 
-    const lines = doc.splitTextToSize(text, 180);
-
-    doc.text(lines, 10, 10);
-
-    doc.save("resume.pdf");
-
+    await html2pdf().set(opt).from(element).save();
+    toast.success("PDF generated successfully!");
   } catch (error) {
     console.error("FULL PDF ERROR:", error);
-
     toast.error("Failed to generate PDF. Please try again.");
-
   } finally {
     setIsGenerating(false);
   }
@@ -445,21 +452,14 @@ await saveResumeFn(formattedContent);
               )}
             </div>
           </div>
-          <div className="hidden">
-            <div id="resume-pdf">
-              <div
-                style={{
-                  background: "white",
-                  color: "black",
-                }}
+          <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "794px" }}>
+            <div id="resume-pdf" className="p-8 bg-white text-black prose prose-sm max-w-none" style={{ fontFamily: "Arial, sans-serif" }}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
               >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeSanitize]}
-                >
-                  {previewContent || ""}
-                </ReactMarkdown>
-              </div>
+                {previewContent || ""}
+              </ReactMarkdown>
             </div>
           </div>
         </TabsContent>

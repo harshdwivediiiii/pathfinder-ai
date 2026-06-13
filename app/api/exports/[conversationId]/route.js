@@ -6,6 +6,16 @@ import { getOwnedConversation } from "@/lib/conversation/getConversation";
 import { validateId } from "@/lib/validate";
 
 
+/**
+ * GET handler for exporting a conversation by its ID.
+ * Supports exporting in JSON and Markdown formats.
+ * Records the export event in ExportRecord and AuditLog tables.
+ *
+ * @param {Request} request - The incoming HTTP request.
+ * @param {object} context - Context containing route params.
+ * @param {object} context.params - Route parameters.
+ * @returns {Promise<Response>} HTTP Response containing the exported file data.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const idValidation = validateId(params.conversationId, "conversationId");
@@ -78,9 +88,9 @@ export async function GET(request, context) {
     ]);
 
     console.log("Conversation exported", {
-    userId: user.id,
-    conversationId: conversation.id,
-    format,
+      userId: user.id,
+      conversationId: conversation.id,
+      format,
     });
 
     return new Response(exportData, {

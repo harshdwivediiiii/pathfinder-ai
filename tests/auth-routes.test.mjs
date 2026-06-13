@@ -39,6 +39,15 @@ describe("Auth Route Matchers", () => {
       expect(isAuthedAppRoute(createMockRequest("/settings"))).toBe(true);
     });
 
+    it("matches new feature routes that require authentication", () => {
+      expect(isAuthedAppRoute(createMockRequest("/roadmap"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/roadmap/generate"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/job-tracker"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/linkedin-optimizer"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/project-ideas"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/networking"))).toBe(true);
+    });
+
     it("does not match other routes", () => {
       expect(isAuthedAppRoute(createMockRequest("/"))).toBe(false);
       expect(isAuthedAppRoute(createMockRequest("/sign-in"))).toBe(false);
@@ -106,5 +115,12 @@ describe("getAuthDecision", () => {
     const req = createMockRequest("/some-random-route");
     const res = await getAuthDecision(req, unauthed);
     expect(res).toEqual({ action: "next" });
+  });
+  it("redirects unauthenticated user from /roadmap to /sign-in", async () => {
+    const req = createMockRequest("/roadmap");
+    const res = await getAuthDecision(req, unauthed);
+    expect(res.action).toBe("redirect");
+    expect(res.signInUrl).toContain("/sign-in");
+    expect(res.signInUrl).toContain("redirect_url=%2Froadmap");
   });
 });

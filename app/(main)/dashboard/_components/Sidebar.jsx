@@ -12,7 +12,8 @@ import {
   ScanSearch, 
   Bot, 
   Briefcase, 
-  Settings 
+  Settings,
+  Compass
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ const GROWTH_TOOLS = [
   { name: "ATS Analyzer", icon: ScanSearch, href: "/ats-analyzer" },
   { name: "Mock Interview", icon: Mic, href: "/interview/mock" },
   { name: "Career Coaching", icon: Briefcase, href: "/ai-assistant" },
+  { name: "Explore Careers", icon: Compass, href: "/explore" },
 ];
 
 export default function Sidebar() {

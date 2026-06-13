@@ -308,7 +308,7 @@ describe("generateCareerRoadmap", () => {
     await expect(generateCareerRoadmap()).rejects.toThrow("Roadmap generation limit reached");
   });
 
-  it("falls back gracefully when AI generation fails", async () => {
+  it("throws when AI generation fails", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
@@ -327,19 +327,8 @@ describe("generateCareerRoadmap", () => {
         bio: "A passionate developer.",
       });
     actionMocks.generateGeminiContent.mockRejectedValue(new Error("AI service unavailable"));
-    actionMocks.upsert.mockResolvedValue({
-      id: "roadmap-2",
-      content: {
-        milestones: [],
-        totalEstimatedTime: "12-18 months",
-        summary: "A personalized roadmap...",
-      },
-    });
 
-    const result = await generateCareerRoadmap();
-
-    expect(result._errorCode).toBe("UNKNOWN");
-    expect(actionMocks.upsert).toHaveBeenCalled();
+    await expect(generateCareerRoadmap()).rejects.toThrow("AI returned an unexpected format.");
   });
 });
 

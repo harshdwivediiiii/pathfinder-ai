@@ -229,22 +229,42 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                     <div className="lg:col-span-8 space-y-12">
                       <GrowthToolsGrid />
+                    </div>
+                    
+                    <div className="lg:col-span-4 space-y-12">
                       <RecentDocs 
                         resumes={resumes} 
                         coverLetters={coverLetters} 
                         interviews={interviews} 
                       />
                     </div>
-                    
-                    <div className="lg:col-span-4 space-y-8">
-                      {insights && (
-                        <div className="glass rounded-[2.5rem] p-1 border border-white/10 overflow-hidden shadow-2xl">
-                          <div className="bg-background/40 backdrop-blur-md rounded-[2.2rem] h-full p-1">
-                            <DashboardView insights={insights} atsAnalyses={atsAnalyses} />
-                          </div>
-                        </div>
-                      )}
+                  </div>
+
+                  <div className="pt-8">
+                    <div className="flex items-center gap-2 mb-6">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground px-2">Industry Intelligence</h3>
+                      <div className="h-px bg-border flex-grow" />
                     </div>
+                    
+                    {insights ? (
+                      <div className="glass rounded-[2.5rem] p-1 border border-white/10 shadow-2xl">
+                        <div className="bg-background/40 backdrop-blur-md rounded-[2.2rem] h-full p-2 md:p-6">
+                          <DashboardView insights={insights} atsAnalyses={atsAnalyses} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-[2rem] border border-dashed border-border p-12 text-center space-y-4 bg-muted/10">
+                        <div className="mx-auto w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground">
+                          <Sparkles className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-base font-bold">Insights Processing</p>
+                          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                            We are currently gathering personalized AI insights, salary benchmarks, and market trends for your industry. Check back soon!
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

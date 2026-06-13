@@ -45,19 +45,24 @@ export async function saveResume(rawContent) {
 }
 
 export async function getResume() {
-  const { userId } = await auth();
-  if (!userId) return null;
+  try {
+    const { userId } = await auth();
+    if (!userId) return null;
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-  if (!user) return null;
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) return null;
 
-  return await db.resume.findUnique({
-    where: {
-      userId: user.id,
-    },
-  });
+    return await db.resume.findUnique({
+      where: {
+        userId: user.id,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching resume:", error);
+    return null;
+  }
 }
 
 export async function improveWithAI(rawParams) {
@@ -136,7 +141,10 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     }
 
     // Reassemble into plain string for backward compatibility with existing DB/UI
-    const improvedText = result.data.improvedContent;
+    const highlightsText = result.data.highlights && result.data.highlights.length > 0
+      ? "\n\n" + result.data.highlights.map((h) => `- ${h}`).join("\n")
+      : "";
+    const improvedText = `${result.data.improvedContent}${highlightsText}`;
     return { success: true, data: improvedText };
   } catch (error) {
     console.error("Error optimizing structural field elements:", error);

@@ -107,38 +107,48 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
  * Fetches all cover letters for the signed-in user, newest first.
  */
 export async function getCoverLetters() {
-  const { userId } = await auth();
-  if (!userId) return [];
+  try {
+    const { userId } = await auth();
+    if (!userId) return [];
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-  if (!user) return [];
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) return [];
 
-  return db.coverLetter.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-  });
+    return db.coverLetter.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.error("Error fetching cover letters:", error);
+    return [];
+  }
 }
 
 /**
  * Fetches a single cover letter by ID (ownership-checked).
  */
 export async function getCoverLetter(id) {
-  const { userId } = await auth();
-  if (!userId) return null;
+  try {
+    const { userId } = await auth();
+    if (!userId) return null;
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-  if (!user) return null;
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) return null;
 
-  return db.coverLetter.findFirst({
-    where: {
-      id,
-      userId: user.id,
-    },
-  });
+    return db.coverLetter.findFirst({
+      where: {
+        id,
+        userId: user.id,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching cover letter:", error);
+    return null;
+  }
 }
 
 /**

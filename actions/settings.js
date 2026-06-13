@@ -39,14 +39,14 @@ function normalizeSettingsInput(data) {
 }
 
 export async function getUserSettings() {
-  const { userId: authenticatedUserId } = await auth();
+  const { userId } = await auth();
 
-  if (!authenticatedUserId) {
+  if (!userId) {
     throw new Error("Unauthorized");
   }
 
   try {
-    const user = await getUserByClerkId(authenticatedUserId);
+    const user = await getUserByClerkId(userId);
 
     const existingSettings = await db.userSettings.findUnique({
       where: { userId: user.id },
@@ -60,9 +60,9 @@ export async function getUserSettings() {
 }
 
 export async function updateUserSettings(data) {
-  const { userId: authenticatedUserId } = await auth();
+  const { userId } = await auth();
 
-  if (!authenticatedUserId) {
+  if (!userId) {
     throw new Error("Unauthorized");
   }
 
@@ -73,7 +73,7 @@ export async function updateUserSettings(data) {
       return { success: false, errors: validation.errors };
     }
 
-    const user = await getUserByClerkId(authenticatedUserId);
+    const user = await getUserByClerkId(userId);
     const settingsData = validation.data;
 
     const settings = await db.userSettings.upsert({

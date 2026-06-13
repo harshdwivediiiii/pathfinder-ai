@@ -101,17 +101,28 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
 
 /**
  * Fetches the signed-in user's saved roadmap.
+ * Returns an object with { roadmap, error } for proper error handling.
  */
 export async function getRoadmap() {
-  const { userId } = await auth();
-  if (!userId) return null;
+  try {
+    const { userId } = await auth();
+    if (!userId) return { roadmap: null, error: null };
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-  if (!user) return null;
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) return { roadmap: null, error: null };
 
-  return db.roadmap.findUnique({
-    where: { userId: user.id },
-  });
+    const roadmap = await db.roadmap.findUnique({
+      where: { userId: user.id },
+    });
+    
+    return { roadmap: roadmap || null, error: null };
+  } catch (error) {
+    console.error("Error fetching roadmap:", error);
+    return { 
+      roadmap: null, 
+      error: error.message || "Failed to load roadmap. Please try again." 
+    };
+  }
 }
