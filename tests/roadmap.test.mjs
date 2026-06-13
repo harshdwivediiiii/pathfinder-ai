@@ -308,7 +308,7 @@ describe("generateCareerRoadmap", () => {
     await expect(generateCareerRoadmap()).rejects.toThrow("Roadmap generation limit reached");
   });
 
-  it("throws when AI generation fails", async () => {
+  it("throws an error when AI generation fails", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
@@ -329,6 +329,7 @@ describe("generateCareerRoadmap", () => {
     actionMocks.generateGeminiContent.mockRejectedValue(new Error("AI service unavailable"));
 
     await expect(generateCareerRoadmap()).rejects.toThrow("AI returned an unexpected format.");
+    expect(actionMocks.upsert).not.toHaveBeenCalled();
   });
 });
 
@@ -354,25 +355,27 @@ describe("getRoadmap", () => {
     expect(actionMocks.roadmapFindUnique).toHaveBeenCalledWith({
       where: { userId: "db-user-1" },
     });
-    expect(result.id).toBe("roadmap-1");
+    expect(result.roadmap.id).toBe("roadmap-1");
   });
 
-  it("returns null when user is not authenticated", async () => {
+  it("returns null roadmap when user is not authenticated", async () => {
     const { getRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: null });
 
     const result = await getRoadmap();
-    expect(result).toBeNull();
+    expect(result.roadmap).toBeNull();
+    expect(result.error).toBeNull();
   });
 
-  it("returns null when user is not found in DB", async () => {
+  it("returns null roadmap when user is not found in DB", async () => {
     const { getRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
     actionMocks.findUnique.mockResolvedValue(null);
 
     const result = await getRoadmap();
-    expect(result).toBeNull();
+    expect(result.roadmap).toBeNull();
+    expect(result.error).toBeNull();
   });
 });
