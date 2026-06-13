@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Trash2, ExternalLink, FileText, ScanSearch, MapPin, DollarSign, Calendar, Clock } from "lucide-react";
+import { Trash2, ExternalLink, FileText, ScanSearch, MapPin, DollarSign, Calendar, Clock, AlertCircle, Wand2 } from "lucide-react";
 import { deleteJobApplication, updateJobApplicationInterviewDate } from "@/actions/job-tracker";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -10,9 +10,11 @@ import Link from "next/link";
 export default function JobCard({ job, onDelete }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [interviewDate, setInterviewDate] = useState(
-    job.interviewDate ? new Date(job.interviewDate).toISOString().slice(0, 16) : ""
-  );
+  const [interviewDate, setInterviewDate] = useState(() => {
+    if (!job.interviewDate) return "";
+    const d = new Date(job.interviewDate);
+    return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 16);
+  });
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
 
   const handleDelete = async (e) => {
@@ -36,7 +38,10 @@ export default function JobCard({ job, onDelete }) {
     const res = await updateJobApplicationInterviewDate(job.id, interviewDate);
     if (res.success) {
       toast.success("Interview date updated");
-      job.interviewDate = interviewDate ? new Date(interviewDate) : null;
+      const newDate = interviewDate ? new Date(interviewDate) : null;
+      if (newDate && !isNaN(newDate.getTime())) {
+        job.interviewDate = newDate;
+      }
       setShowDatePicker(false);
     } else {
       toast.error("Failed to update interview date");
@@ -57,6 +62,11 @@ export default function JobCard({ job, onDelete }) {
     
     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatDate(start)}/${formatDate(end)}&details=${encodeURIComponent(details)}`;
   };
+
+  const updateDate = new Date(job.updatedAt);
+  const isValidDate = !isNaN(updateDate.getTime());
+  const daysSinceUpdate = isValidDate ? Math.floor((new Date() - updateDate) / (1000 * 60 * 60 * 24)) : 0;
+  const needsFollowUp = job.status === "Applied" && isValidDate && daysSinceUpdate >= 7;
 
   return (
     <div className="group relative bg-background border border-border p-4 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300">
@@ -80,6 +90,13 @@ export default function JobCard({ job, onDelete }) {
         </p>
       </div>
 
+      {needsFollowUp && (
+        <div className="mb-3 px-2 py-1 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold rounded-lg flex items-center gap-1.5 w-fit">
+          <AlertCircle className="h-3 w-3" />
+          Follow-up Required ({daysSinceUpdate} days)
+        </div>
+      )}
+
       <div className="space-y-2 mb-4">
         {job.location && (
           <div className="flex items-center text-xs text-muted-foreground gap-1.5">
@@ -101,7 +118,7 @@ export default function JobCard({ job, onDelete }) {
         </p>
       )}
 
-      {job.status === "Interviewing" && (
+      {job.status === "Interview" && (
         <>
           {job.interviewDate ? (
             <div className="mt-3 p-2.5 bg-amber-500/5 rounded-xl border border-amber-500/20 text-xs flex flex-col gap-1.5">
@@ -177,55 +194,76 @@ export default function JobCard({ job, onDelete }) {
         </form>
       )}
 
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
-        <div className="flex items-center gap-2">
-          {job.url && (
-            <a 
-              href={job.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
-              title="Job Posting URL"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          )}
-          
-          <Link 
-            href="/resume"
-            className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1"
-            title="View Resume"
-          >
-            <FileText className="h-3.5 w-3.5 text-blue-500" />
-          </Link>
-
-          {job.coverLetterId && (
-            <Link 
-              href={`/ai-cover-letter?id=${job.coverLetterId}`}
-              className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1"
-              title="View Cover Letter"
-            >
-              <FileText className="h-3.5 w-3.5 text-purple-500" />
-            </Link>
-          )}
-
-          {job.atsAnalysisId && (
-            <Link 
-              href={`/ats-analyzer?id=${job.atsAnalysisId}`}
-              className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1"
-              title="View ATS Analysis"
-            >
-              <ScanSearch className="h-3.5 w-3.5 text-green-500" />
-              {job.atsAnalysis?.atsScore && (
-                <span className="text-[10px] font-bold text-green-500">{job.atsAnalysis.atsScore}</span>
-              )}
-            </Link>
-          )}
-        </div>
+      <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border/50">
         
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          {formatDistanceToNow(new Date(job.updatedAt), { addSuffix: true })}
-        </span>
+        {/* Tailored Generation Buttons */}
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <Link
+            href={`/resume-builder?jobTitle=${encodeURIComponent(job.jobTitle || 'unknown')}&company=${encodeURIComponent(job.companyName || 'unknown')}`}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 border border-blue-500/20 rounded-lg text-[10px] font-bold transition-colors"
+          >
+            <Wand2 className="h-3 w-3" />
+            Tailor Resume
+          </Link>
+          <Link
+            href={`/ai-cover-letter?jobTitle=${encodeURIComponent(job.jobTitle || 'unknown')}&company=${encodeURIComponent(job.companyName || 'unknown')}`}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border border-purple-500/20 rounded-lg text-[10px] font-bold transition-colors"
+          >
+            <Wand2 className="h-3 w-3" />
+            Write Letter
+          </Link>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {job.url && (
+              <a 
+                href={job.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
+                title="Job Posting URL"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            
+            <Link 
+              href="/resume"
+              className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1"
+              title="View Resume"
+            >
+              <FileText className="h-3.5 w-3.5 text-blue-500" />
+            </Link>
+
+            {job.coverLetterId && (
+              <Link 
+                href={`/ai-cover-letter?id=${job.coverLetterId}`}
+                className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1"
+                title="View Linked Cover Letter"
+              >
+                <FileText className="h-3.5 w-3.5 text-purple-500" />
+              </Link>
+            )}
+
+            {job.atsAnalysisId && (
+              <Link 
+                href={`/ats-analyzer?id=${job.atsAnalysisId}`}
+                className="p-1.5 bg-muted text-muted-foreground rounded-lg hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1"
+                title="View ATS Analysis"
+              >
+                <ScanSearch className="h-3.5 w-3.5 text-green-500" />
+                {job.atsAnalysis?.atsScore && (
+                  <span className="text-[10px] font-bold text-green-500">{job.atsAnalysis.atsScore}</span>
+                )}
+              </Link>
+            )}
+          </div>
+          
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            {isValidDate ? formatDistanceToNow(updateDate, { addSuffix: true }) : "—"}
+          </span>
+        </div>
       </div>
     </div>
   );

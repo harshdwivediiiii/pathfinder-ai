@@ -1,22 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { ArrowRight, Sparkles, ChevronRight, FileText, Target, Briefcase, Star } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { ArrowRight, Sparkles, ChevronRight, FileText, Target, Star, CheckCircle, TrendingUp, BarChart2, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import HeroStats from "@/components/HeroStats";
+import { GlobalScrollTracker } from "@/components/GlobalScrollTracker";
 import { ScrollStory } from "@/components/sections/ScrollStory";
-import { CareerRoadmapSection } from "@/components/sections/CareerRoadmapSection";
-import { ResumeShowcase } from "@/components/sections/ResumeShowcase";
-import { InterviewCoachShowcase } from "@/components/sections/InterviewCoachShowcase";
-import { SkillGapSection } from "@/components/sections/SkillGapSection";
+
 import { TestimonialsSection } from "@/components/sections/TestimonialsSection";
 import { PricingSection } from "@/components/sections/PricingSection";
 import { CTASection } from "@/components/sections/CTASection";
 import { OpenSourceCommunity } from "@/components/sections/OpenSourceCommunity";
-import { FadeUp, StaggerContainer, StaggerItem, RevealText } from "@/components/motion";
+import { FadeUp, StaggerContainer, StaggerItem } from "@/components/motion";
 import { MagneticButton } from "@/components/motion/magnetic-button";
 import { TiltCard } from "@/components/motion/tilt-card";
 import { features } from "@/data/features";
@@ -43,8 +40,10 @@ export default function LandingPage() {
 
   return (
     <div className="relative overflow-hidden">
+      <GlobalScrollTracker />
+      
       {/* ───────────── HERO SECTION ───────────── */}
-      <section className="relative min-h-screen flex items-center pt-24 md:pt-28 pb-20 overflow-hidden">
+      <section id="hero" className="relative min-h-[100vh] flex flex-col justify-center pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[900px] bg-primary/5 rounded-full blur-[180px]" />
           <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[120px]" />
@@ -100,7 +99,7 @@ export default function LandingPage() {
                   transition={{ delay: 0.45, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                   className="flex flex-col sm:flex-row items-start gap-4"
                 >
-                  <MagneticButton>
+                  <MagneticButton asChild>
                     <Button
                       size="lg"
                       onClick={handleDashboard}
@@ -145,99 +144,120 @@ export default function LandingPage() {
               </div>
 
               {/* Right Column - Interactive Dashboard Preview */}
-              <div className="relative h-[500px] lg:h-[600px] hidden lg:block">
+              <div className="relative w-full h-[500px] lg:h-[600px] mt-8 lg:mt-0">
                 <motion.div
                   initial={{ opacity: 0, x: 40 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute top-0 right-0 w-full h-full"
+                  className="absolute inset-0 w-full h-full flex items-center justify-center"
                 >
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-primary/10 rounded-full blur-[100px]" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
 
-                  {/* Main dashboard card */}
-                  <TiltCard tiltDegree={8} className="absolute top-[8%] right-[8%] w-72">
-                    <motion.div
-                      animate={{ y: [0, -8, 0] }}
-                      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                      className="p-6 glass rounded-2xl border border-border/50 shadow-xl"
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-500">
-                          <FileText className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resume Score</p>
-                          <p className="text-2xl font-black text-foreground">94%</p>
+                  {/* Dashboard Container */}
+                  <div className="relative w-full max-w-[600px] h-full max-h-[550px] rounded-2xl border border-white/10 bg-background/40 backdrop-blur-2xl shadow-2xl overflow-hidden flex flex-col">
+                    {/* Mac-style Header */}
+                    <div className="h-12 border-b border-white/10 bg-white/5 flex items-center px-4 gap-4 shrink-0">
+                      <div className="flex gap-2">
+                        <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+                        <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                        <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                      </div>
+                      <div className="flex-1 flex justify-center">
+                        <div className="h-6 w-48 bg-white/5 rounded-md flex items-center px-3 gap-2">
+                          <Activity className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-[10px] text-muted-foreground font-medium">pathfinder.ai / dashboard</span>
                         </div>
                       </div>
-                      <div className="h-2 rounded-full bg-muted/50 overflow-hidden">
-                        <motion.div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                          initial={{ width: "0%" }}
-                          animate={{ width: "94%" }}
-                          transition={{ duration: 1.5, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-2 font-medium">ATS Optimized</p>
-                    </motion.div>
-                  </TiltCard>
+                    </div>
 
-                  {/* Career readiness */}
-                  <TiltCard tiltDegree={6} className="absolute top-[3%] right-[2%] w-48">
-                    <motion.div
-                      animate={{ y: [0, 10, 0] }}
-                      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                      className="p-5 glass rounded-2xl border border-border/50 shadow-xl"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-500">
-                          <Target className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Readiness</p>
-                          <p className="text-lg font-black text-foreground">92%</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </TiltCard>
+                    {/* Dashboard Grid */}
+                    <div className="flex-1 p-4 sm:p-6 flex flex-col gap-4 overflow-hidden">
+                      {/* Top Row: Resume & ATS */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.5 }}
+                          className="p-4 rounded-xl border border-white/5 bg-white/5 shadow-inner"
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="h-8 w-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                              <FileText className="h-4 w-4" />
+                            </div>
+                            <span className="text-2xl font-black text-foreground tracking-tight">94<span className="text-sm text-muted-foreground">%</span></span>
+                          </div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Resume Score</p>
+                          <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                            <motion.div className="h-full rounded-full bg-emerald-500" initial={{ width: "0%" }} animate={{ width: "94%" }} transition={{ duration: 1.5, delay: 1 }} />
+                          </div>
+                        </motion.div>
 
-                  {/* Interview status */}
-                  <TiltCard tiltDegree={7} className="absolute bottom-[18%] left-[2%] w-52">
-                    <motion.div
-                      animate={{ y: [0, -6, 0] }}
-                      transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                      className="p-5 glass rounded-2xl border border-border/50 shadow-xl"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-500">
-                          <Briefcase className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Interviews</p>
-                          <p className="text-lg font-black text-foreground">Ready</p>
-                        </div>
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.5 }}
+                          className="p-4 rounded-xl border border-white/5 bg-white/5 shadow-inner"
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="h-8 w-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">
+                              <CheckCircle className="h-4 w-4" />
+                            </div>
+                            <span className="text-2xl font-black text-foreground tracking-tight">88<span className="text-sm text-muted-foreground">%</span></span>
+                          </div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">ATS Match</p>
+                          <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                            <motion.div className="h-full rounded-full bg-blue-500" initial={{ width: "0%" }} animate={{ width: "88%" }} transition={{ duration: 1.5, delay: 1.1 }} />
+                          </div>
+                        </motion.div>
                       </div>
-                    </motion.div>
-                  </TiltCard>
 
-                  {/* Job match */}
-                  <TiltCard tiltDegree={5} className="absolute bottom-[35%] right-[25%] w-44">
-                    <motion.div
-                      animate={{ y: [0, 12, 0] }}
-                      transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                      className="p-5 glass rounded-2xl border border-border/50 shadow-xl"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-orange-500/15 flex items-center justify-center text-orange-500">
-                          <Star className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Match</p>
-                          <p className="text-lg font-black text-foreground">95%</p>
-                        </div>
+                      {/* Middle Row: Readiness, Gap, Match */}
+                      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                        {[
+                          { title: "Readiness", val: "High", icon: Target, color: "text-purple-500", bg: "bg-purple-500/20", delay: 0.8 },
+                          { title: "Skill Gap", val: "Minor", icon: BarChart2, color: "text-amber-500", bg: "bg-amber-500/20", delay: 0.9 },
+                          { title: "Job Match", val: "95%", icon: Star, color: "text-orange-500", bg: "bg-orange-500/20", delay: 1.0 },
+                        ].map((item, i) => (
+                          <motion.div 
+                            key={i}
+                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: item.delay, duration: 0.5 }}
+                            className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/5 shadow-inner flex flex-col items-center text-center justify-center"
+                          >
+                            <div className={`h-8 w-8 rounded-lg ${item.bg} flex items-center justify-center ${item.color} mb-2`}>
+                              <item.icon className="h-4 w-4" />
+                            </div>
+                            <p className="text-xs sm:text-sm font-bold text-foreground">{item.val}</p>
+                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5 hidden sm:block">{item.title}</p>
+                          </motion.div>
+                        ))}
                       </div>
-                    </motion.div>
-                  </TiltCard>
+
+                      {/* Bottom Row: Career Chart */}
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1, duration: 0.5 }}
+                        className="flex-1 min-h-[120px] rounded-xl border border-white/5 bg-white/5 shadow-inner p-4 flex flex-col relative overflow-hidden"
+                      >
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-primary" />
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Career Progress</p>
+                          </div>
+                          <span className="text-xs font-bold text-primary">+24% MoM</span>
+                        </div>
+                        
+                        {/* Mock Chart Area */}
+                        <div className="flex-1 flex items-end gap-2 sm:gap-3 px-2 pt-4">
+                          {[30, 45, 35, 60, 50, 75, 90, 100].map((height, i) => (
+                            <div key={i} className="flex-1 bg-primary/10 rounded-t-sm relative group h-full flex items-end">
+                              <motion.div 
+                                className="w-full bg-gradient-to-t from-primary/40 to-primary rounded-t-sm"
+                                initial={{ height: "0%" }}
+                                animate={{ height: `${height}%` }}
+                                transition={{ duration: 1, delay: 1.2 + (i * 0.1), ease: "easeOut" }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+
+                    </div>
+                  </div>
                 </motion.div>
               </div>
             </div>
@@ -249,7 +269,7 @@ export default function LandingPage() {
       <ScrollStory />
 
       {/* ───────────── FEATURES SECTION ───────────── */}
-      <section id="features" className="relative py-32 md:py-48 scroll-mt-20">
+      <section id="features" className="relative py-8 md:py-12 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-widest text-primary">
@@ -294,20 +314,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ───────────── CAREER ROADMAP SECTION ───────────── */}
-      <CareerRoadmapSection />
-
-      {/* ───────────── RESUME SHOWCASE ───────────── */}
-      <ResumeShowcase />
-
-      {/* ───────────── INTERVIEW COACH ───────────── */}
-      <InterviewCoachShowcase />
-
-      {/* ───────────── SKILL GAP ───────────── */}
-      <SkillGapSection />
+      {/* The individual feature sections (Roadmap, Resume, Interview, SkillGap) have been unified into the ScrollStory component above. */}
 
       {/* ───────────── STATS SECTION ───────────── */}
-      <section className="relative py-32 md:py-48 bg-muted/30 overflow-hidden">
+      <section className="relative py-8 md:py-12 bg-muted/30 overflow-hidden">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp>
             <HeroStats />
@@ -316,7 +326,7 @@ export default function LandingPage() {
       </section>
 
       {/* ───────────── HOW IT WORKS ───────────── */}
-      <section id="how-it-works" className="relative py-32 md:py-48 scroll-mt-20">
+      <section id="how-it-works" className="relative py-8 md:py-12 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-widest text-primary">
@@ -359,7 +369,7 @@ export default function LandingPage() {
       <PricingSection />
 
       {/* ───────────── FAQ ───────────── */}
-      <section id="question" className="relative py-32 md:py-48 scroll-mt-20">
+      <section id="question" className="relative py-8 md:py-12 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp className="max-w-3xl mx-auto text-center mb-16 space-y-4">
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground">Got Questions?</h2>

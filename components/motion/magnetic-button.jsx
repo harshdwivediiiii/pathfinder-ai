@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 
-export function MagneticButton({ children, className, asChild, ...props }) {
+export function MagneticButton({ children, className, ...props }) {
   const ref = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -19,10 +19,8 @@ export function MagneticButton({ children, className, asChild, ...props }) {
     setPosition({ x: 0, y: 0 });
   };
 
-  const Component = asChild ? motion.div : motion.button;
-
   return (
-    <Component
+    <motion.div
       ref={ref}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -32,6 +30,6 @@ export function MagneticButton({ children, className, asChild, ...props }) {
       {...props}
     >
       {children}
-    </Component>
+    </motion.div>
   );
 }

@@ -7,7 +7,11 @@ if (!process.env.GEMINI_API_KEY) {
   process.env.GEMINI_API_KEY = "test-api-key";
 }
 
-import { afterAll, afterEach, beforeAll } from "vitest";
+import { vi, afterAll, afterEach, beforeAll } from "vitest";
+
+// Mock build-time boundary guards in test environment
+vi.mock("server-only", () => ({}));
+vi.mock("client-only", () => ({}));
 
 import { server } from "./mocks/server.mjs";
 

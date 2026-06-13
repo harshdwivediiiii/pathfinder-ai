@@ -11,9 +11,10 @@ afterEach(() => {
 });
 
 it("allows same-origin requests without an explicit allowlist", () => {
-  const request = new Request("http://localhost:3000/api/generate", {
-    headers: { origin: "http://localhost:3000" },
-  });
+  const request = {
+    url: "http://localhost:3000/api/generate",
+    headers: { get: (key) => key.toLowerCase() === "origin" ? "http://localhost:3000" : null }
+  };
 
   const policy = resolveCorsPolicy(request);
 
@@ -22,9 +23,10 @@ it("allows same-origin requests without an explicit allowlist", () => {
 });
 
 it("rejects untrusted cross-origin requests", () => {
-  const request = new Request("http://localhost:3000/api/generate", {
-    headers: { origin: "https://evil.example" },
-  });
+  const request = {
+    url: "http://localhost:3000/api/generate",
+    headers: { get: (key) => key.toLowerCase() === "origin" ? "https://evil.example" : null }
+  };
 
   const policy = resolveCorsPolicy(request);
 
@@ -41,9 +43,10 @@ it("allows configured cross-origin requests from ALLOWED_ORIGINS and CORS_ORIGIN
   expect(origins.has("https://admin.example.com")).toBe(true);
   expect(origins.has("https://studio.example.com")).toBe(true);
 
-  const request = new Request("http://localhost:3000/api/generate", {
-    headers: { origin: "https://studio.example.com" },
-  });
+  const request = {
+    url: "http://localhost:3000/api/generate",
+    headers: { get: (key) => key.toLowerCase() === "origin" ? "https://studio.example.com" : null }
+  };
 
   const policy = resolveCorsPolicy(request);
 

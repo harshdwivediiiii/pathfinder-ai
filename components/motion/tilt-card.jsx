@@ -12,14 +12,23 @@ export function TiltCard({ children, className, tiltDegree = 10, glare = true, .
   const handleMouseMove = (e) => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    const dx = e.clientX - rect.left;
+    const dy = e.clientY - rect.top;
+
+    // Avoid NaN when element is hidden / zero size.
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const nx = dx / rect.width; // 0..1
+    const ny = dy / rect.height; // 0..1
+
+    // -1..1
+    const x = (nx - 0.5) * 2;
+    const y = (ny - 0.5) * 2;
+
     setTilt({ x: y * -tiltDegree, y: x * tiltDegree });
-    setGlarePos({
-      x: ((e.clientX - rect.left) / rect.width) * 100,
-      y: ((e.clientY - rect.top) / rect.height) * 100,
-    });
+    setGlarePos({ x: nx * 100, y: ny * 100 });
   };
+
 
   const handleMouseLeave = () => {
     setTilt({ x: 0, y: 0 });

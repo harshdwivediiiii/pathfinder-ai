@@ -6,14 +6,22 @@ import AddJobModal from "./AddJobModal";
 import { updateJobApplicationStatus } from "@/actions/job-tracker";
 import { Plus, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { JOB_STATUSES } from "@/lib/schemas/forms";
 
-const COLUMNS = [
-  { id: "Wishlist", label: "Wishlist", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
-  { id: "Applied", label: "Applied", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
-  { id: "Interviewing", label: "Interviewing", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
-  { id: "Offer Received", label: "Offer Received", color: "bg-green-500/10 text-green-500 border-green-500/20" },
-  { id: "Archived", label: "Archived", color: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20" },
-];
+const COLUMN_CONFIG = {
+  "Saved": { label: "Saved", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
+  "Applied": { label: "Applied", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
+  "Online Assessment (OA)": { label: "Online Assessment", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
+  "Interview": { label: "Interview", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
+  "Offer": { label: "Offer Received", color: "bg-green-500/10 text-green-500 border-green-500/20" },
+  "Rejected": { label: "Rejected", color: "bg-red-500/10 text-red-500 border-red-500/20" },
+};
+
+const COLUMNS = JOB_STATUSES.map(status => ({
+  id: status,
+  label: COLUMN_CONFIG[status]?.label || status,
+  color: COLUMN_CONFIG[status]?.color || "bg-gray-500/10 text-gray-500 border-gray-500/20"
+}));
 
 export default function KanbanBoard({ initialJobs, setJobs }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -81,7 +89,9 @@ export default function KanbanBoard({ initialJobs, setJobs }) {
 
       <div className="flex h-full overflow-x-auto gap-6 pb-4 custom-scrollbar snap-x">
         {COLUMNS.map(column => {
-          const columnJobs = initialJobs.filter(j => j.status === column.id);
+          const columnJobs = initialJobs.filter(j => 
+            j.status === column.id || (column.id === "Saved" && j.status === "Wishlist")
+          );
           
           return (
             <div 

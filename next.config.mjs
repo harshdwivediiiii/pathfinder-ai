@@ -27,6 +27,7 @@ const nextConfig = {
   experimental: {
     // optimizePackageImports: ["lucide-react", "framer-motion", "@clerk/nextjs"],
   },
+  output: "standalone",
 };
 
 export default nextConfig;

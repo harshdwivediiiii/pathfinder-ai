@@ -3,13 +3,25 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
+import { buildSecurePrompt } from "@/lib/prompt-safety";
+import { parseAIJson } from "@/lib/validate";
 import { generateGeminiContent } from "@/lib/gemini";
 import { buildUserProfileContext } from "@/lib/ai-context";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function generateResumeContent(jobDescription) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "resumeBuilder");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Resume generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!jobDescription || jobDescription.trim().length < 50) {
     return { success: false, errors: { _form: ["Please provide a valid job description (at least 50 characters)."] } };

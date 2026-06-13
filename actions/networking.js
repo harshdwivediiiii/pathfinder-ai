@@ -8,10 +8,21 @@ import { networkingEmailSchema } from "@/lib/schemas/forms";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
 import { buildUserProfileContext } from "@/lib/ai-context";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function generateNetworkingEmail(data) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "networking");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Networking email generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const validation = validateInput(networkingEmailSchema, data);
   if (!validation.success) return { success: false, errors: validation.errors };

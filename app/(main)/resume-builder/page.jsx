@@ -18,12 +18,19 @@ export default function ResumeBuilderPage() {
 
   useEffect(() => {
     async function loadHistory() {
-      const res = await getResumeHistory();
-      if (res.success && res.data.length > 0) {
-        setHistory(res.data);
-        setActiveResume(res.data[0].content);
+      try {
+        const res = await getResumeHistory();
+
+        if (res.success && res.data.length > 0) {
+          setHistory(res.data);
+          setActiveResume(res.data[0].content);
+        }
+      } catch (error) {
+        console.error("Failed to load resume history:", error);
+        toast.error("Failed to load resume history");
       }
     }
+
     loadHistory();
   }, []);
 
@@ -50,7 +57,7 @@ export default function ResumeBuilderPage() {
       const element = resumeRef.current;
       const opt = {
         margin: [0.5, 0.5, 0.5, 0.5], // top, left, bottom, right
-        filename: `${activeResume.personalInfo.name.replace(/ /g, '_')}_Resume.pdf`,
+        filename: `${(activeResume.personalInfo?.name || "Resume").replace(/ /g, '_')}_Resume.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }

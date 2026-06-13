@@ -1,34 +1,30 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useState } from "react";
+import { motion } from "framer-motion";
 import { FadeUp, StaggerContainer, StaggerItem } from "@/components/motion";
 
 const milestones = [
-  { label: "Student", desc: "Foundation & learning", year: "Year 1", x: 50, y: 30 },
-  { label: "Intern", desc: "Real-world experience", year: "Year 2", x: 85, y: 18 },
-  { label: "Junior Dev", desc: "Building products", year: "Year 3-4", x: 92, y: 40 },
-  { label: "Software Engineer", desc: "Ship at scale", year: "Year 5+", x: 75, y: 68 },
-  { label: "Senior Engineer", desc: "Lead & architect", year: "Year 8+", x: 40, y: 80 },
-  { label: "Staff Engineer", desc: "Org-wide impact", year: "Year 10+", x: 15, y: 60 },
+  { label: "Student", desc: "Foundation & learning", year: "Year 1", x: 80, y: 80 },
+  { label: "Intern", desc: "Real-world experience", year: "Year 2", x: 180, y: 130 },
+  { label: "Junior Dev", desc: "Building products", year: "Year 3-4", x: 300, y: 100 },
+  { label: "Software Engineer", desc: "Ship at scale", year: "Year 5+", x: 420, y: 170 },
+  { label: "Senior Engineer", desc: "Lead & architect", year: "Year 8+", x: 320, y: 280 },
+  { label: "Staff Engineer", desc: "Org-wide impact", year: "Year 10+", x: 140, y: 250 },
 ];
 
+const pathD = `M 80 80
+Q 130 40 180 130
+Q 240 200 300 100
+Q 360 40 420 170
+Q 400 260 320 280
+Q 220 330 140 250`;
+
 export function CareerRoadmapSection() {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
   const [hovered, setHovered] = useState(null);
 
-  const drawProgress = useTransform(scrollYProgress, [0, 0.6], [0, 1]);
-
-  const pathD = milestones
-    .map((m, i) => `${i === 0 ? "M" : "L"}${m.x * 2.8 + 100} ${m.y * 2.8 + 60}`)
-    .join(" ");
-
   return (
-    <section ref={ref} id="career-roadmap" className="relative py-32 md:py-48 overflow-hidden">
+    <section id="career-roadmap" className="relative py-8 md:py-12 overflow-hidden">
       <div className="container mx-auto px-4 md:px-6">
         <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-widest text-primary">
@@ -43,14 +39,14 @@ export function CareerRoadmapSection() {
           </p>
         </FadeUp>
 
-        <div className="relative mx-auto max-w-4xl">
-          <svg viewBox="0 0 500 360" className="w-full h-auto">
+        <div className="max-w-5xl mx-auto">
+          <svg viewBox="0 0 500 365" className="w-full h-auto">
             <defs>
-              <linearGradient id="roadmapGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="roadmapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="oklch(var(--primary) / 0.6)" />
                 <stop offset="100%" stopColor="oklch(var(--primary) / 0.1)" />
               </linearGradient>
-              <filter id="glow2">
+              <filter id="glow">
                 <feGaussianBlur stdDeviation="3" result="blur" />
                 <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
@@ -59,18 +55,21 @@ export function CareerRoadmapSection() {
             <path
               d={pathD}
               fill="none"
-              stroke="oklch(var(--border) / 0.3)"
-              strokeWidth="2"
-              strokeDasharray="6 6"
+              stroke="oklch(var(--border) / 0.35)"
+              strokeWidth="3"
+              strokeDasharray="8 8"
             />
 
             <motion.path
               d={pathD}
               fill="none"
-              stroke="url(#roadmapGrad2)"
-              strokeWidth="3"
+              stroke="url(#roadmapGradient)"
+              strokeWidth="4"
               strokeLinecap="round"
-              style={{ pathLength: drawProgress }}
+              initial={{ pathLength: 0 }}
+              whileInView={{ pathLength: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 2 }}
             />
 
             {milestones.map((m, i) => (
@@ -81,46 +80,40 @@ export function CareerRoadmapSection() {
                 style={{ cursor: "pointer" }}
               >
                 <motion.circle
-                  cx={m.x * 2.8 + 100}
-                  cy={m.y * 2.8 + 60}
-                  r={hovered === i ? 22 : 14}
-                  fill="oklch(var(--card) / 1)"
-                  stroke={
-                    hovered === i
-                      ? "oklch(var(--primary) / 1)"
-                      : "oklch(var(--border) / 0.8)"
-                  }
-                  strokeWidth="2"
+                  cx={m.x}
+                  cy={m.y}
+                  r="18"
+                  fill="rgba(255,255,255,0.08)"
+                  stroke="oklch(var(--primary) / 0.8)"
+                  strokeWidth="1.5"
+                  animate={{ scale: hovered === i ? 1.2 : 1 }}
                   transition={{ duration: 0.3 }}
-                  style={{ filter: hovered === i ? "url(#glow2)" : "none" }}
+                  style={{ filter: hovered === i ? "url(#glow)" : "none" }}
                 />
                 <motion.circle
-                  cx={m.x * 2.8 + 100}
-                  cy={m.y * 2.8 + 60}
-                  r={6}
+                  cx={m.x}
+                  cy={m.y}
+                  r="6"
                   fill="oklch(var(--primary) / 1)"
                   animate={{ scale: [1, 1.3, 1] }}
                   transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
                 />
-                <text
-                  x={m.x * 2.8 + 100}
-                  y={m.y * 2.8 + 85}
-                  textAnchor="middle"
-                  fill="oklch(var(--foreground) / 1)"
-                  fontSize="12"
-                  fontWeight="700"
+                <foreignObject
+                  x={m.x - 55}
+                  y={m.y + 28}
+                  width="110"
+                  height="60"
+                  style={{ overflow: "visible" }}
                 >
-                  {m.label}
-                </text>
-                <text
-                  x={m.x * 2.8 + 100}
-                  y={m.y * 2.8 + 100}
-                  textAnchor="middle"
-                  fill="oklch(var(--muted-foreground) / 0.8)"
-                  fontSize="9"
-                >
-                  {m.desc}
-                </text>
+                  <div className={`flex flex-col items-center justify-center p-2 rounded-xl bg-card/80 backdrop-blur-md shadow-lg border transition-all duration-300 pointer-events-none ${hovered === i ? "border-primary/50" : "border-border/30"}`}>
+                    <span className="text-xs font-bold text-foreground leading-none text-center mb-1">
+                      {m.label}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground leading-tight text-center">
+                      {m.desc}
+                    </span>
+                  </div>
+                </foreignObject>
               </g>
             ))}
           </svg>

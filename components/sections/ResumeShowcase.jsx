@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { FileText, Sparkles, CheckCircle } from "lucide-react";
 import { FadeUp } from "@/components/motion";
 import { ScrollSpinningResume } from "@/components/ScrollSpinningResume";
@@ -11,14 +11,14 @@ export function ResumeShowcase() {
   const ref = useRef(null);
 
   return (
-    <section ref={ref} id="resume-showcase" className="relative py-32 md:py-48 bg-muted/30 overflow-hidden">
+    <section ref={ref} id="resume-showcase" className="relative py-20 sm:py-24 md:py-32 lg:py-40 bg-muted/30 overflow-hidden">
       <div className="container mx-auto px-4 md:px-6">
         <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-widest text-primary">
             <FileText className="h-3 w-3" />
             Resume Builder
           </span>
-          <h2 className="text-3xl md:text-6xl font-bold tracking-tight text-foreground">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
             ATS-Optimized{" "}
             <span className="text-gradient-primary">Resumes</span>
           </h2>
@@ -41,7 +41,7 @@ export function ResumeShowcase() {
               </p>
             </FadeUp>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { label: "ATS Score", value: "94%", color: "text-chart-2", desc: "Passes automated screening" },
                 { label: "Keyword Match", value: "96%", color: "text-chart-1", desc: "Aligned with job descriptions" },

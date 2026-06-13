@@ -1,5 +1,4 @@
-jsx
-// src/components/ResumeForm.jsx
+"use client";
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import './ResumeForm.css';

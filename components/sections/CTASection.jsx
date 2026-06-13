@@ -8,7 +8,7 @@ import { FadeUp } from "@/components/motion";
 
 export function CTASection() {
   return (
-    <section id="contact" className="relative py-32 md:py-48 overflow-hidden">
+    <section id="contact" className="relative py-8 md:py-12 overflow-hidden">
       <div className="container mx-auto px-4 md:px-6">
         <FadeUp>
           <div className="relative max-w-5xl mx-auto rounded-3xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/5 p-12 md:p-24 text-center shadow-2xl shadow-primary/5">
@@ -37,24 +37,24 @@ export function CTASection() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                <Link href="/dashboard">
-                  <Button
-                    size="lg"
-                    className="h-14 px-10 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 hover:scale-105 transition-transform duration-300 group bg-primary text-primary-foreground"
-                  >
+                <Button asChild
+                  size="lg"
+                  className="h-14 px-10 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 hover:scale-105 transition-transform duration-300 group bg-primary text-primary-foreground"
+                >
+                  <Link href="/dashboard">
                     Start Your Journey
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                  </Button>
-                </Link>
-                <Link href="#features">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-14 px-10 rounded-2xl text-lg font-bold border-border/50 glass hover:bg-muted/50 transition-all duration-300"
-                  >
+                  </Link>
+                </Button>
+                <Button asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-14 px-10 rounded-2xl text-lg font-bold border-border/50 glass hover:bg-muted/50 transition-all duration-300"
+                >
+                  <Link href="#features">
                     Learn More
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
           </div>

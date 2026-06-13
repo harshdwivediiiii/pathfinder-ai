@@ -30,3 +30,11 @@ it("refuses empty or whitespace-only prompts", () => {
   expect(whitespace.allowed).toBe(false);
   expect(whitespace.message).toBe("Prompt is required");
 });
+
+it("allows technical, programming, and domain-specific prep queries", () => {
+  const reactResult = preparePromptForGeneration("Explain how React rendering works");
+  expect(reactResult.allowed).toBe(true);
+
+  const dpResult = preparePromptForGeneration("What is dynamic programming?");
+  expect(dpResult.allowed).toBe(true);
+});
