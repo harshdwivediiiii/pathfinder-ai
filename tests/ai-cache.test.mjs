@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("../lib/cache/store.js", () => ({
-  cacheStore: mocks.cacheStore,
+  getCacheStore: () => mocks.cacheStore,
 }));
 
 vi.mock("../lib/gemini.js", () => ({
