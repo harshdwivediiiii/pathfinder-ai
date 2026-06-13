@@ -72,7 +72,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     const missingKeywords = Array.isArray(parsedAnalysis.missingKeywords) ? parsedAnalysis.missingKeywords.map(String) : [];
     const suggestions = normalizeAtsSuggestions(parsedAnalysis.suggestions);
 
-    const record = await db.atsAnalysis.create({
+    const record = await db.aTSAnalysis.create({
       data: {
         userId: user.id,
         jobTitle: jobTitle || "Target Position",
@@ -112,7 +112,7 @@ export async function getATSAnalyses() {
       return { success: false, data: [] };
     }
 
-    const analyses = await db.atsAnalysis.findMany({
+    const analyses = await db.aTSAnalysis.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     });
@@ -145,7 +145,7 @@ export async function deleteATSAnalysis(id) {
     }
 
     // Ensure the record exists and belongs to the requesting user before deleting.
-    const existing = await db.atsAnalysis.findUnique({ where: { id: id.trim() } });
+    const existing = await db.aTSAnalysis.findUnique({ where: { id: id.trim() } });
     if (!existing) {
       return { success: false, errors: { _form: ["Analysis record not found."] } };
     }
@@ -154,7 +154,7 @@ export async function deleteATSAnalysis(id) {
       return { success: false, errors: { _form: ["Unauthorized: you do not own this analysis."] } };
     }
 
-    await db.atsAnalysis.deleteMany({
+    await db.aTSAnalysis.deleteMany({
       where: {
         id: existing.id,
         userId: user.id,
