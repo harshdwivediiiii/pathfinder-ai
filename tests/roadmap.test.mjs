@@ -354,7 +354,7 @@ describe("getRoadmap", () => {
     expect(actionMocks.roadmapFindUnique).toHaveBeenCalledWith({
       where: { userId: "db-user-1" },
     });
-    expect(result.id).toBe("roadmap-1");
+    expect(result.roadmap.id).toBe("roadmap-1");
   });
 
   it("returns null when user is not authenticated", async () => {
@@ -363,7 +363,7 @@ describe("getRoadmap", () => {
     actionMocks.auth.mockResolvedValue({ userId: null });
 
     const result = await getRoadmap();
-    expect(result).toBeNull();
+    expect(result).toEqual({ roadmap: null, error: null });
   });
 
   it("returns null when user is not found in DB", async () => {
@@ -373,6 +373,6 @@ describe("getRoadmap", () => {
     actionMocks.findUnique.mockResolvedValue(null);
 
     const result = await getRoadmap();
-    expect(result).toBeNull();
+    expect(result).toEqual({ roadmap: null, error: null });
   });
 });
