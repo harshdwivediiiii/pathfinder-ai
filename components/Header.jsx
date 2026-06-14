@@ -1,137 +1,125 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import {
-  useAuth,
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  UserButton,
-} from "@clerk/nextjs";
-import {
-  LayoutDashboard,
-  ChevronRight,
-  Menu,
-  X,
-} from "lucide-react";
-import { Button } from "./ui/button";
-import { ModeToggle } from "./ui/Modetoggle";
-import { useTheme } from "next-themes";
-import { getUserOnboardingStatus } from "@/actions/user";
-import { motion, AnimatePresence } from "framer-motion";
-import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { usePathname } from "next/navigation";
+import { Menu, X, LayoutDashboard } from "lucide-react";
+import { useState } from "react";
 
 const NAV_LINKS = [
-  { id: "features", label: "Features" },
-  { id: "how-it-works", label: "How It Works" },
-  { id: "stats", label: "Stats" },
+  { href: "/", label: "Home" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/resume", label: "Resume" },
+  { href: "/interview", label: "Interview" },
 ];
 
 export default function Header() {
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [activeSection, setActiveSection] = useState("");
-  const { isSignedIn } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
-  const [clerkKeyless, setClerkKeyless] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useScrollLock(isMobileMenuOpen);
-
-  const isHomePage = pathname === "/";
-
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-
-      const sections = NAV_LINKS.map((link) => ({
-        id: link.id,
-        element: document.getElementById(link.id),
-      }));
-
-      const scrollPosition = window.scrollY + 100;
-
-      for (const section of sections) {
-        if (section.element) {
-          const { offsetTop, offsetHeight } = section.element;
-          if (
-            scrollPosition >= offsetTop &&
-            scrollPosition < offsetTop + offsetHeight
-          ) {
-            setActiveSection(section.id);
-            break;
-          }
-        }
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/dev/status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (active && data?.clerkKeyless) setClerkKeyless(true);
-      })
-      .catch(() => {});
-    return () => (active = false);
-  }, []);
-
-  const logoSrc =
-    mounted && resolvedTheme === "dark" ? "/white-logo.png" : "/logo.png";
-
-  const go = async (href) => {
-    if (!isSignedIn) return router.push("/sign-in");
-    try {
-      const { isOnboarded } = await getUserOnboardingStatus();
-      router.push(isOnboarded ? href : "/onboarding");
-    } catch (err) {
-      console.error("Onboarding check failed:", err);
-      router.push(href);
-    }
-  };
-
-  const scrollToSection = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      const offset = 80;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.scrollY - offset;
-      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-    }
-    setIsMobileMenuOpen(false);
-  };
-
-
-export default function Header() {
   return (
-    <header
-      style={{
-        padding: "20px",
-        borderBottom: "1px solid #333",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <h1 style={{ fontSize: "28px", fontWeight: "bold" }}>
-        Pathfinder AI
-      </h1>
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <LayoutDashboard className="h-5 w-5" />
+          </div>
+          <span className="text-xl font-black tracking-tight text-foreground">
+            Pathfinder AI
+          </span>
+        </Link>
 
-      <nav style={{ display: "flex", gap: "20px" }}>
-        <Link href="/">Home</Link>
-        <Link href="/dashboard">Dashboard</Link>
-      </nav>
+        <nav className="hidden items-center gap-6 md:flex">
+          {NAV_LINKS.map((link) => {
+            const active = pathname === link.href;
+
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`text-sm font-medium transition-colors ${
+                  active
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="hidden items-center gap-3 md:flex">
+          <Link
+            href="/sign-in"
+            className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+          >
+            Sign In
+          </Link>
+
+          <Link
+            href="/sign-up"
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+          >
+            Get Started
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border md:hidden"
+          onClick={() => setIsMobileMenuOpen((value) => !value)}
+          aria-label="Toggle menu"
+        >
+          {isMobileMenuOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
+        </button>
+      </div>
+
+      {isMobileMenuOpen && (
+        <div className="border-t border-border bg-background px-4 py-4 md:hidden">
+          <nav className="flex flex-col gap-3">
+            {NAV_LINKS.map((link) => {
+              const active = pathname === link.href;
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Link
+                href="/sign-in"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl border border-border px-4 py-2 text-center text-sm font-semibold text-foreground"
+              >
+                Sign In
+              </Link>
+
+              <Link
+                href="/sign-up"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground"
+              >
+                Get Started
+              </Link>
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
-
