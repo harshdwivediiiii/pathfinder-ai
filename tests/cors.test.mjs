@@ -5,9 +5,16 @@ import {
   resolveCorsPolicy,
 } from "../lib/cors.js";
 
+beforeEach(() => {
+  process.env.DATABASE_URL = "postgres://localhost:5432/test";
+  process.env.NODE_ENV = "test";
+});
+
 afterEach(() => {
   delete process.env.ALLOWED_ORIGINS;
   delete process.env.CORS_ORIGIN;
+  delete process.env.DATABASE_URL;
+  delete process.env.NODE_ENV;
 });
 
 it("allows same-origin requests without an explicit allowlist", () => {
