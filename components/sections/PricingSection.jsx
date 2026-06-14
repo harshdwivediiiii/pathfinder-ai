@@ -60,7 +60,10 @@ const plans = [
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="relative py-8 md:py-12 bg-muted/30 overflow-hidden">
+    <section
+      id="pricing"
+      className="relative py-32 md:py-48 bg-muted/30 overflow-hidden"
+    >
       <div className="container mx-auto px-4 md:px-6">
         <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-widest text-primary">
@@ -81,11 +84,10 @@ export function PricingSection() {
             <StaggerItem key={plan.name}>
               <motion.div
                 whileHover={{ y: -4 }}
-                className={`relative h-full rounded-2xl border p-8 transition-all duration-500 ${
-                  plan.popular
+                className={`relative h-full rounded-2xl border p-8 transition-all duration-500 ${plan.popular
                     ? "border-primary/40 bg-primary/[0.03] shadow-xl shadow-primary/5"
-                    : "glass hover:border-primary/30"
-                }`}
+                    : "border-border/40 glass hover:border-primary/30"
+                  }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest shadow-lg">
@@ -95,21 +97,31 @@ export function PricingSection() {
 
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
+                    <h3 className="text-lg font-bold text-foreground">
+                      {plan.name}
+                    </h3>
                     <div className="mt-2 flex items-baseline gap-1">
-                      <span className="text-4xl font-black text-foreground">{plan.price}</span>
+                      <span className="text-4xl font-black text-foreground">
+                        {plan.price}
+                      </span>
                       {plan.period && (
-                        <span className="text-sm text-muted-foreground">{plan.period}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {plan.period}
+                        </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2">{plan.desc}</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {plan.desc}
+                    </p>
                   </div>
 
                   <ul className="space-y-3">
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-3">
                         <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        <span className="text-sm text-muted-foreground">{f}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {f}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -118,7 +130,7 @@ export function PricingSection() {
                     <Button
                       className={`w-full h-12 rounded-xl font-bold ${
                         plan.popular
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 hover:text-primary-foreground"
                           : "border border-border bg-card text-white hover:bg-primary hover:text-primary-foreground"
                       }`}
                     >
@@ -126,6 +138,7 @@ export function PricingSection() {
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
                   </Link>
+
                 </div>
               </motion.div>
             </StaggerItem>

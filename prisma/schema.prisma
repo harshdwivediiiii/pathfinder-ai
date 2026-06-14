@@ -12,11 +12,11 @@ datasource db {
 // =============================================================================
 //
 // Composite indexes support common filter + sort query patterns. For example:
-//   - Message: [conversationId, createdAt] — fetch messages for a chat ordered by time
-//   - Conversation: [userId, updatedAt] — list a user's conversations by recency
+//   - Message: [conversationId, createdAt] - fetch messages for a chat ordered by time
+//   - Conversation: [userId, updatedAt] - list a user's conversations by recency
 //
 // In PostgreSQL, @unique and @@unique constraints automatically create B-tree indexes.
-// Do NOT add a separate @@index on the same column(s) — it duplicates storage and
+// Do NOT add a separate @@index on the same column(s) - it duplicates storage and
 // slows writes with no query benefit.
 //
 // Single-column indexes are kept alongside composites when they serve different
@@ -87,6 +87,7 @@ model User {
   performanceReviews   PerformanceReview[]
   imposterSyndromes    ImposterSyndrome[]
   managerReadmes       ManagerReadme[]
+  skillGapAnalyses     SkillGapAnalysis[]
 
   exportRecords ExportRecord[]
   auditLogs     AuditLog[]
@@ -134,7 +135,7 @@ model CoverLetter {
 }
 
 // industry @unique already creates a B-tree index for lookups (findUnique/upsert by industry).
-// A separate @@index([industry]) was removed — it duplicated the unique constraint index.
+// A separate @@index([industry]) was removed - it duplicated the unique constraint index.
 model IndustryInsight {
   id                String   @id @default(cuid())
   industry          String   @unique
@@ -151,8 +152,8 @@ model IndustryInsight {
   nextUpdate        DateTime
 }
 
-// @@index([userId]) — simple user lookups and deleteMany without ordering.
-// @@index([userId, updatedAt]) — list/search conversations filtered by user, ordered by recency.
+// @@index([userId]) - simple user lookups and deleteMany without ordering.
+// @@index([userId, updatedAt]) - list/search conversations filtered by user, ordered by recency.
 model Conversation {
   id        String    @id @default(cuid())
   userId    String
@@ -169,8 +170,8 @@ model Conversation {
   snapshots ConversationSnapshot[]
 }
 
-// @@index([conversationId]) — simple message lookups without ordering.
-// @@index([conversationId, createdAt]) — fetch messages for a conversation ordered by time.
+// @@index([conversationId]) - simple message lookups without ordering.
+// @@index([conversationId, createdAt]) - fetch messages for a conversation ordered by time.
 model Message {
   id             String       @id @default(cuid())
   conversationId String
@@ -269,8 +270,8 @@ model UserSettings {
   updatedAt       DateTime @updatedAt
 }
 
-// @@unique([userId, action, windowStart]) — exact-window upsert/lookup (rate-limit hot path).
-// @@index([userId, action]) — broader scans by user + action. No changes needed.
+// @@unique([userId, action, windowStart]) - exact-window upsert/lookup (rate-limit hot path).
+// @@index([userId, action]) - broader scans by user + action. No changes needed.
 model AiRateLimit {
   id        String   @id @default(cuid())
   userId    String
@@ -714,4 +715,17 @@ model ManagerReadme {
   createdAt      DateTime @default(now())
 
   @@index([userId])
+}
+
+model SkillGapAnalysis {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentSkills    String   @db.Text
+  targetRole       String
+  jobDescription   String?  @db.Text
+  learningDuration String?
+  analysis         Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }

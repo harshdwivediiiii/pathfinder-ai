@@ -1,4 +1,4 @@
-function isInngestConfigured() {
+﻿function isInngestConfigured() {
   return !!(process.env.INNGEST_EVENT_KEY && process.env.INNGEST_SIGNING_KEY);
 }
 
@@ -79,3 +79,4 @@ export async function PUT(request) {
     return new Response(JSON.stringify({ error: "Inngest handler error" }), { status: 500 });
   }
 }
+

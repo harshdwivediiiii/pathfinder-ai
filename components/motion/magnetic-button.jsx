@@ -33,3 +33,5 @@ export function MagneticButton({ children, className, ...props }) {
     </motion.div>
   );
 }
+
+export default MagneticButton;

@@ -46,7 +46,6 @@
     "html2pdf.js": "^0.14.0",
     "inngest": "^3.54.2",
     "jspdf": "^4.2.1",
-    "language-subtag-registry": "^0.4.2",
     "lightningcss": "^1.30.1",
     "lucide-react": "^0.522.0",
     "mammoth": "^1.12.0",
@@ -71,6 +70,7 @@
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "tesseract.js": "^7.0.0",
     "use-debounce": "^10.1.1",
     "zod": "^3.25.67"
   },
@@ -94,7 +94,6 @@
     "prisma": "^6.19.3",
     "rehype-sanitize": "^5.0.1",
     "tailwindcss": "^4",
-    "tsconfig-paths": "^4.2.0",
     "tw-animate-css": "^1.3.4",
     "vitest": "^2.1.8"
   }

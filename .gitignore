@@ -50,3 +50,8 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+test_output.txt
+*.bak
+*.bak*
+*.tmp
+*~

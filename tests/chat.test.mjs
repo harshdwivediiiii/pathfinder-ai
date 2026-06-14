@@ -89,10 +89,11 @@ describe("chatWithGemini", () => {
       retryAfterSeconds: 60 
     });
 
-    const result = await chatWithGemini("Hello");
-    expect(result).toEqual({
+    await expect(chatWithGemini("Hello")).resolves.toEqual({
       success: false,
-      errors: { _form: ["Rate limit exceeded. Try again in 60s."] }
+      errors: {
+        _form: ["Rate limit exceeded. Try again in 60s."]
+      }
     });
     expect(mocks.enforceRateLimit).toHaveBeenCalled();
     expect(mocks.generateGeminiContent).not.toHaveBeenCalled();
@@ -129,10 +130,11 @@ describe("chatWithGemini", () => {
     mocks.buildSecurePrompt.mockReturnValue("secure prompt");
     mocks.generateGeminiContent.mockRejectedValue(new Error("quota exceeded"));
 
-    const result = await chatWithGemini("Help me with interviews");
-    expect(result).toEqual({
+    await expect(chatWithGemini("Help me with interviews")).resolves.toEqual({
       success: false,
-      errors: { _form: ["Failed to get response from Gemini AI. Please try again."] }
+      errors: {
+        _form: ["Failed to get response from Gemini AI. Please try again."]
+      }
     });
     expect(consoleErrorSpy).toHaveBeenCalled();
   });

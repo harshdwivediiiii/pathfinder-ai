@@ -7,11 +7,18 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { FileUpload } from "@/components/ui/file-upload";
+import { extractResumeText } from "@/lib/extract-text";
 
 export default function ResumeRoastPage() {
   const [loading, setLoading] = useState(false);
   const [resumeContent, setResumeContent] = useState("");
   const [roastData, setRoastData] = useState(null);
+  
+  // Upload States
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState("");
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const handleRoast = async (e) => {
     e.preventDefault();
@@ -25,6 +32,38 @@ export default function ResumeRoastPage() {
       toast.error(res.errors?._form?.[0] || "Failed to roast resume");
     }
     setLoading(false);
+  };
+
+  const handleFileSelect = async (file) => {
+    try {
+      setIsExtracting(true);
+      setUploadSuccess(false);
+      setExtractionProgress("Initializing extraction...");
+
+      const extractedText = await extractResumeText(file, (progress) => {
+        setExtractionProgress(progress);
+      });
+
+      if (extractedText && extractedText.trim().length > 0) {
+        setResumeContent(extractedText);
+        setUploadSuccess(true);
+        toast.success("Text extracted successfully!");
+      } else {
+        toast.error("Could not extract meaningful text from this file.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to extract text. Please try pasting it manually.");
+    } finally {
+      setIsExtracting(false);
+      setExtractionProgress("");
+    }
+  };
+
+  const handleClearFile = () => {
+    setResumeContent("");
+    setUploadSuccess(false);
+    setExtractionProgress("");
   };
 
   return (
@@ -57,17 +96,48 @@ export default function ResumeRoastPage() {
               <h3 className="font-bold text-lg mb-6">Submit for Roasting</h3>
               
               <form onSubmit={handleRoast} className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
-                    <FileText className="h-3.5 w-3.5" /> Paste Your Resume
-                  </label>
-                  <Textarea
-                    placeholder="Paste the text of your resume here. Let's see what you've got..."
-                    className="min-h-[300px] rounded-xl resize-none bg-background focus-visible:ring-red-500 text-sm leading-relaxed"
-                    value={resumeContent}
-                    onChange={(e) => setResumeContent(e.target.value)}
-                    required
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5" /> Upload Resume
+                    </label>
+                    <FileUpload 
+                      onFileSelect={handleFileSelect}
+                      isExtracting={isExtracting}
+                      extractionProgress={extractionProgress}
+                      success={uploadSuccess}
+                      onClear={handleClearFile}
+                    />
+                  </div>
+                  
+                  <div className="relative py-2 flex items-center">
+                    <div className="flex-grow border-t border-border/50"></div>
+                    <span className="shrink-0 px-4 text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                      or paste text
+                    </span>
+                    <div className="flex-grow border-t border-border/50"></div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Paste the text of your resume here. Let's see what you've got..."
+                      className="min-h-[200px] rounded-xl resize-none bg-background focus-visible:ring-red-500 text-sm leading-relaxed"
+                      value={resumeContent}
+                      onChange={(e) => {
+                        setResumeContent(e.target.value);
+                        if (uploadSuccess && e.target.value === "") {
+                          setUploadSuccess(false);
+                        }
+                      }}
+                      required
+                      disabled={isExtracting}
+                    />
+                    {uploadSuccess && (
+                      <p className="text-[10px] text-muted-foreground px-1">
+                        * Please review and edit the extracted text above before submitting. OCR can occasionally make mistakes.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <Button

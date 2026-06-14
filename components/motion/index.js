@@ -5,5 +5,5 @@ export { RevealText } from "./reveal-text";
 export { StaggerContainer, StaggerItem } from "./stagger-container";
 export { ParallaxSection } from "./parallax-section";
 export { HoverCard } from "./hover-card";
-export { MagneticButton } from "./magnetic-button";
+export { default as MagneticButton } from "./magnetic-button";
 export { TiltCard } from "./tilt-card";

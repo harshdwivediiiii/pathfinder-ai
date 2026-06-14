@@ -55,7 +55,8 @@ import {
   Target,
   LineChart,
   Brain,
-  BookOpen
+  BookOpen,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -114,6 +115,7 @@ const MENU_GROUPS = [
       { href: "/freelance-proposal", label: "Freelance Proposals", icon: <FileSignature className="h-4 w-4 text-teal-500" /> },
       { href: "/explore", label: "Explore Careers", icon: <Compass className="h-4 w-4 text-cyan-500" /> },
       { href: "/roadmap", label: "Career Roadmap", icon: <Map className="h-4 w-4 text-amber-500" /> },
+      { href: "/skill-gap-analyzer", label: "Skill Gap Analyzer", icon: <Activity className="h-4 w-4 text-fuchsia-500" /> },
       { href: "/resignation-letter", label: "Resignation Letter", icon: <DoorOpen className="h-4 w-4 text-red-500" /> },
       { href: "/layoff-strategist", label: "Layoff Strategist", icon: <ShieldAlert className="h-4 w-4 text-blue-500" /> },
       { href: "/burnout-coach", label: "Burnout Coach", icon: <HeartPulse className="h-4 w-4 text-rose-500" /> },
@@ -261,7 +263,7 @@ export default function AppSidebar() {
         ))}
       </div>
 
-      {/* User Section */}
+      {/* User Section - FIXED for issue #455 */}
       <div className="p-4 border-t border-sidebar-border bg-sidebar/50 backdrop-blur-md">
         <div className={cn(
           "flex items-center rounded-2xl transition-all duration-300 border border-transparent hover:border-sidebar-border hover:bg-muted/50 cursor-pointer overflow-hidden",
@@ -283,8 +285,13 @@ export default function AppSidebar() {
               animate={{ opacity: 1, x: 0 }}
               className="flex flex-col flex-1 min-w-0"
             >
-              <span className="text-xs font-black text-foreground truncate leading-tight">{user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress || 'User Account'}</span>
-              <span className="text-[10px] font-bold text-muted-foreground truncate uppercase tracking-widest mt-0.5">{user?.publicMetadata?.plan ? `${user.publicMetadata.plan} Member` : 'Free Member'}</span>
+              <span className="text-xs font-black text-foreground truncate leading-tight">
+                {user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress || 'User Account'}
+              </span>
+              {/* FIXED: Shows "Pro Member" only for pro users, "Free Member" for everyone else */}
+              <span className="text-[10px] font-bold text-muted-foreground truncate uppercase tracking-widest mt-0.5">
+                {user?.publicMetadata?.plan === "pro" ? "Pro Member" : "Free Member"}
+              </span>
             </motion.div>
           )}
         </div>

@@ -42,7 +42,7 @@ export default function LandingPage() {
     <div className="relative overflow-hidden">
       <GlobalScrollTracker />
       
-      {/* ───────────── HERO SECTION ───────────── */}
+      {/* ------------- HERO SECTION ------------- */}
       <section id="hero" className="relative min-h-[100vh] flex flex-col justify-center pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[900px] bg-primary/5 rounded-full blur-[180px]" />
@@ -265,10 +265,10 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ───────────── SCROLL STORY ───────────── */}
+      {/* ------------- SCROLL STORY ------------- */}
       <ScrollStory />
 
-      {/* ───────────── FEATURES SECTION ───────────── */}
+      {/* ------------- FEATURES SECTION ------------- */}
       <section id="features" className="relative py-8 md:py-12 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
@@ -316,7 +316,7 @@ export default function LandingPage() {
 
       {/* The individual feature sections (Roadmap, Resume, Interview, SkillGap) have been unified into the ScrollStory component above. */}
 
-      {/* ───────────── STATS SECTION ───────────── */}
+      {/* ------------- STATS SECTION ------------- */}
       <section className="relative py-8 md:py-12 bg-muted/30 overflow-hidden">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp>
@@ -325,7 +325,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ───────────── HOW IT WORKS ───────────── */}
+      {/* ------------- HOW IT WORKS ------------- */}
       <section id="how-it-works" className="relative py-8 md:py-12 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp className="max-w-3xl mx-auto text-center mb-20 space-y-4">
@@ -362,13 +362,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ───────────── TESTIMONIALS ───────────── */}
+      {/* ------------- TESTIMONIALS ------------- */}
       <TestimonialsSection />
 
-      {/* ───────────── PRICING ───────────── */}
+      {/* ------------- PRICING ------------- */}
       <PricingSection />
 
-      {/* ───────────── FAQ ───────────── */}
+      {/* ------------- FAQ ------------- */}
       <section id="question" className="relative py-8 md:py-12 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">
           <FadeUp className="max-w-3xl mx-auto text-center mb-16 space-y-4">
@@ -397,7 +397,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ───────────── CTA ───────────── */}
+      {/* ------------- CTA ------------- */}
       <CTASection />
 
       <OpenSourceCommunity />
