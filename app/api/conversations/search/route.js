@@ -61,6 +61,7 @@ export async function GET(request) {
           orderBy: {
             createdAt: "asc",
           },
+          take: 1,
         },
       },
       orderBy: {
