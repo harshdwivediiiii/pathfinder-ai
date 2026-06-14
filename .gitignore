@@ -52,3 +52,6 @@ next-env.d.ts
 /.clerk/
 *.bak.magneticfix
 test_output.txt
+*.bak
+*.bak.*
+*.fix
