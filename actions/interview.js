@@ -573,7 +573,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     return quizValidation.data.questions.slice(0, 10);
   } catch (error) {
     console.error("AI Quiz generation failed, using fallback questions:", error);
-    const industryId = user.industry?.split("-")[0] || "tech";
+    const industryId = user.industry?.split("-")[0]?.toLowerCase() || "tech";
     return FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS;
   }
 }
