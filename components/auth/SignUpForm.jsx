@@ -57,6 +57,7 @@ export default function SignUpForm() {
   const handleVerify = async (e) => {
     e.preventDefault();
     if (!isLoaded) return;
+    setClerkError("");
     setIsVerifying(true);
     try {
       const result = await signUp.attemptEmailAddressVerification({ code });
@@ -86,6 +87,7 @@ export default function SignUpForm() {
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
+            autoComplete="one-time-code"
             placeholder="Verification code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
@@ -114,6 +116,7 @@ export default function SignUpForm() {
             id="email"
             type="email"
             name="email"
+            autoComplete="email"
             placeholder="Email"
             value={form.email}
             onChange={handleChange}
@@ -127,6 +130,7 @@ export default function SignUpForm() {
             id="password"
             type="password"
             name="password"
+            autoComplete="new-password"
             placeholder="Password"
             value={form.password}
             onChange={handleChange}
@@ -140,6 +144,7 @@ export default function SignUpForm() {
             id="confirmPassword"
             type="password"
             name="confirmPassword"
+            autoComplete="new-password"
             placeholder="Confirm Password"
             value={form.confirmPassword}
             onChange={handleChange}
