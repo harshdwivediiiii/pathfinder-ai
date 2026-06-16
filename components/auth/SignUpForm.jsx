@@ -26,6 +26,12 @@ export default function SignUpForm() {
     e.preventDefault();
     setClerkError("");
     setIsSubmitting(true);
+
+    if (!isLoaded) {
+      setIsSubmitting(false);
+      return;
+    }
+
     const result = signupSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors = {};
@@ -34,9 +40,11 @@ export default function SignUpForm() {
       setIsSubmitting(false);
       return;
     }
-    if (!isLoaded) return;
+
+    const sanitizedEmail = result.data.email;
+
     try {
-      await signUp.create({ emailAddress: form.email, password: form.password });
+      await signUp.create({ emailAddress: sanitizedEmail, password: result.data.password });
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setStep("verify");
     } catch (err) {
@@ -55,6 +63,8 @@ export default function SignUpForm() {
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         router.push("/onboarding");
+      } else {
+        setClerkError("Verification incomplete. Please try again.");
       }
     } catch (err) {
       setClerkError(err.errors?.[0]?.message || "Invalid code.");
@@ -147,7 +157,9 @@ export default function SignUpForm() {
       </form>
       <p className="text-center text-sm text-zinc-500 mt-4">
         Already have an account?{" "}
-        <Link href="/sign-in" className="text-indigo-500 hover:underline">Sign in</Link>
+        <Link href="/sign-in" className="text-indigo-500 hover:underline">
+          Sign in
+        </Link>
       </p>
     </div>
   );
