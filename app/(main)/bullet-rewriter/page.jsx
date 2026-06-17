@@ -18,14 +18,19 @@ export default function BulletRewriterPage() {
   const handleRewrite = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const res = await rewriteResumeBullet(bulletText, roleContext);
-    if (res.success) {
-      toast.success("Bullets rewritten!");
-      setResult(res.data);
-    } else {
-      toast.error(res.errors?._form?.[0] || "Failed to rewrite bullet");
+    try {
+      const res = await rewriteResumeBullet(bulletText, roleContext);
+      if (res.success) {
+        toast.success("Bullets rewritten!");
+        setResult(res.data);
+      } else {
+        toast.error(res.errors?._form?.[0] || "Failed to rewrite bullet");
+      }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -58,26 +63,30 @@ export default function BulletRewriterPage() {
               <h3 className="font-bold text-lg mb-6">Enter Your Bullet Point</h3>
               <form onSubmit={handleRewrite} className="space-y-5">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                  <label htmlFor="role-context" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
                     <FileText className="h-3.5 w-3.5" /> Role Context (optional)
                   </label>
                   <Input
+                    id="role-context"
                     placeholder="e.g. Software Engineer, Marketing Manager"
                     value={roleContext}
                     onChange={(e) => setRoleContext(e.target.value)}
                     className="rounded-xl"
+                    maxLength={200}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                  <label htmlFor="bullet-text" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
                     <FileText className="h-3.5 w-3.5" /> Weak Bullet Point
                   </label>
                   <Textarea
+                    id="bullet-text"
                     placeholder="e.g. Worked on customer support tickets."
                     className="min-h-[150px] rounded-xl resize-none bg-background focus-visible:ring-indigo-500 text-sm leading-relaxed"
                     value={bulletText}
                     onChange={(e) => setBulletText(e.target.value)}
                     required
+                    maxLength={500}
                   />
                 </div>
                 <Button
