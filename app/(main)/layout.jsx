@@ -1,7 +1,11 @@
+"use client";
 import React, { Suspense } from "react";
 import AppSidebar from "@/components/app-sidebar";
+import useKeyboardShortcuts from "@/hooks/useKeyboardShortcuts";
 
-const MainLayout = async ({ children }) => {
+const MainLayout = ({ children }) => {
+  useKeyboardShortcuts();
+
   return (
     <div className="flex min-h-screen">
       <Suspense fallback={<div className="w-[260px] h-screen bg-[#0F0F12] hidden lg:block" />}>
