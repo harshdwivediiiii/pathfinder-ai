@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
       },
+      atsAnalysis: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
     return instance;
   });
@@ -41,6 +44,9 @@ describe("Prisma Client Lifecycle Handling", () => {
         $connect: mocks.mockConnect,
         $disconnect: mocks.mockDisconnect,
         user: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        atsAnalysis: {
           findMany: vi.fn().mockResolvedValue([]),
         },
       };
@@ -112,5 +118,21 @@ describe("Prisma Client Lifecycle Handling", () => {
     const connectFn = db.$connect;
     await expect(connectFn()).resolves.toBeUndefined();
     expect(mocks.mockConnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("should handle case-insensitive property access for atsAnalysis", async () => {
+    const { db } = await import("../lib/prisma.js");
+    
+    // Accessing different capitalizations of atsAnalysis
+    expect(db.atsAnalysis).toBeDefined();
+    expect(db.aTSAnalysis).toBeDefined();
+    expect(db.ATSAnalysis).toBeDefined();
+    expect(db.atsanalysis).toBeDefined();
+    
+    // They should all resolve to the same mock model client.atsAnalysis
+    const client = db.atsAnalysis;
+    expect(db.aTSAnalysis).toBe(client);
+    expect(db.ATSAnalysis).toBe(client);
+    expect(db.atsanalysis).toBe(client);
   });
 });

@@ -1,5 +1,5 @@
 "use server";
-
+import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
@@ -20,7 +20,7 @@ export async function saveResume(rawContent) {
   if (!validation.success) return { success: false, errors: validation.errors };
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, errors: { _form: ["Active database profile not found."] } };
+  if (!user) return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
 
   try {
     const resume = await db.resume.upsert({
@@ -126,6 +126,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
       generateFn: async (p) => {
         const raw = p === prompt
           ? await cachedGenerateGeminiContent(p, {}, {
+              key: generateCacheKey("improve", user.id, buildUserProfileContext(user), current, type),
               key: generateCacheKey("improve", userId, current, type, user.industry),
               ttl: RESUME_IMPROVEMENT_CACHE_TTL_MS,
             })

@@ -354,7 +354,7 @@ describe("getRoadmap", () => {
     expect(actionMocks.roadmapFindUnique).toHaveBeenCalledWith({
       where: { userId: "db-user-1" },
     });
-    expect(result.roadmap.id).toBe("roadmap-1");
+    expect(result.roadmap?.id).toBe("roadmap-1");
     expect(result.error).toBeNull();
   });
 

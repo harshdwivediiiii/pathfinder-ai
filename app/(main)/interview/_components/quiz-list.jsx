@@ -20,6 +20,7 @@ const CATEGORY_FILTERS = [
   { value: "Technical", label: "Technical" },
   { value: "Behavioral", label: "Behavioral" },
   { value: "Situational", label: "Situational" },
+  { value: "Industry Knowledge", label: "Industry Knowledge" },
 ];
 
 export default function QuizList({ assessments }) {

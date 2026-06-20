@@ -7,6 +7,7 @@ import { generateAIInsights } from "./dashboard";
 import { getIndustryInsightRefreshTime } from "@/lib/industry-insights";
 import { validateInput } from "@/lib/validate";
 import { userProfileSchema } from "@/lib/schemas/forms";
+import { withAuth } from "@/lib/auth-errors";
 
 /**
  * Updates the current user's profile with industry and other info.
@@ -33,10 +34,13 @@ export async function updateUser(data) {
   // long-running external calls inside a DB tx (which can cause timeouts).
   let precomputedInsights = null;
   try {
-    precomputedInsights = await generateAIInsights(
-      profileData.industry,
-      profileData
-    );
+    let existingInsight = await db.industryInsight.findUnique({
+      where: { industry: profileData.industry },
+    });
+
+    if (!existingInsight) {
+      precomputedInsights = await generateAIInsights(profileData.industry);
+    }
   } catch (e) {
     console.error("Failed to generate insights pre-transaction:", e);
     precomputedInsights = null;
@@ -111,7 +115,10 @@ export async function getUserOnboardingStatus() {
 
       user = await db.user.upsert({
         where: { clerkUserId: userId },
-        update: {},
+        update: {
+          name: clerkUser.firstName ?? "",
+          imageUrl: clerkUser.imageUrl ?? "",
+        },
         create: {
           clerkUserId: userId,
           email,

@@ -4,11 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Check, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  FadeUp,
-  StaggerContainer,
-  StaggerItem,
-} from "@/components/motion";
+import { FadeUp, StaggerContainer, StaggerItem } from "@/components/motion";
 
 const plans = [
   {
@@ -33,7 +29,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "$15",
+    price: "$29",
     period: "/month",
     desc: "Everything you need to accelerate your career and land offers.",
     features: [
@@ -139,10 +135,7 @@ export function PricingSection() {
 
                   <ul className="space-y-3">
                     {plan.features.map((feature) => (
-                      <li
-                        key={feature}
-                        className="flex items-start gap-3"
-                      >
+                      <li key={feature} className="flex items-start gap-3">
                         <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                         <span className="text-sm text-muted-foreground">
                           {feature}
@@ -163,7 +156,6 @@ export function PricingSection() {
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
                   </Link>
-
                 </div>
               </motion.div>
             </StaggerItem>

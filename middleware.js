@@ -2,7 +2,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getAuthDecision } from "./lib/auth/routes";
 
-export default clerkMiddleware(async (auth, req) => {
+const clerkHandler = clerkMiddleware(async (auth, req) => {
   const decision = await getAuthDecision(req, auth);
 
   switch (decision.action) {
@@ -20,6 +20,13 @@ export default clerkMiddleware(async (auth, req) => {
       return NextResponse.next();
   }
 });
+
+export default function middleware(req, event) {
+  if (process.env.NODE_ENV === "development" && process.env.SKIP_AUTH === "true") {
+    return NextResponse.next();
+  }
+  return clerkHandler(req, event);
+}
 
 export const config = {
   matcher: [

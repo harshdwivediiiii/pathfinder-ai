@@ -21,7 +21,6 @@ import {
 import {
   getCachedResponse,
   cacheResponse,
-  buildCacheKey,
   getPendingGenerationRequest,
   setPendingGenerationRequest,
   deletePendingGenerationRequest,
@@ -324,9 +323,6 @@ export async function POST(request) {
 
   const aiContext = buildUserAiContext(user, recentMessages.reverse());
 
-  const clientIp = request.headers.get("x-real-ip") || "anonymous";
-  cacheUser = userId || clientIp;
-
   const restrictedPrompt = buildSecurePrompt({
     context: aiContext.context,
     task: `You are Pathfinder AI, a professional career guidance assistant.
@@ -479,10 +475,11 @@ Rules:
         if (fullResponse.trim()) {
           await cacheResponse(
             cacheUser,
-            promptCheck.prompt,
+            restrictedPrompt,
             fullResponse
           );
         }
+        if (abortController.signal.aborted) { safeClose(); return; }
         safeEnqueue("done", {
           finalText: fullResponse,
           hasContent: Boolean(fullResponse.trim()),
@@ -525,3 +522,4 @@ Rules:
     headers,
   });
 }
+

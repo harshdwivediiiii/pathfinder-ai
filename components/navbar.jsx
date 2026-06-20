@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { id: "features", label: "Features", href: "/#features" },
   { id: "pricing", label: "Pricing", href: "/#pricing" },
   { id: "about", label: "About", href: "/#about" },
+  { id: "question", label: "FAQ", href: "/#question" },
 ];
 
 export default function Navbar() {

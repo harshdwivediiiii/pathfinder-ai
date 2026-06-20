@@ -95,10 +95,13 @@ export default function SettingsClient({ userId, user, settings }) {
 
     startTransition(async () => {
       try {
-        const updatedSettings = await updateUserSettings(nextSettings);
+        const result = await updateUserSettings(nextSettings);
+        if (!result.success) {
+          throw new Error(result.error || "Failed to save settings.");
+        }
         const normalizedSettings = {
-          notifications: updatedSettings.notifications,
-          emailAlerts: updatedSettings.emailAlerts,
+          notifications: result.settings.notifications,
+          emailAlerts: result.settings.emailAlerts,
         };
 
         setForm(normalizedSettings);
@@ -120,7 +123,7 @@ export default function SettingsClient({ userId, user, settings }) {
 
     startProfileTransition(async () => {
       try {
-        const updatedUser = await updateUser({
+        const result = await updateUser({
           industry: nextProfile.industry,
           currentRole: nextProfile.currentRole || null,
           targetRole: nextProfile.targetRole || null,
@@ -129,6 +132,12 @@ export default function SettingsClient({ userId, user, settings }) {
           bio: nextProfile.bio || null,
           skills: parseSkills(nextProfile.skills),
         });
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to save profile.");
+        }
+
+        const updatedUser = result.user;
 
         const normalizedProfile = {
           currentRole: updatedUser.currentRole ?? "",

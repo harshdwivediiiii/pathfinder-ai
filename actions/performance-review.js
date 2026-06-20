@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { getUserByClerkId } from "@/lib/user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
@@ -10,7 +11,7 @@ export async function generateSelfAssessment(achievements, challenges, goals) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await getUserByClerkId(userId);
   if (!user) return { success: false, errors: { _form: ["User not found"] } };
 
   if (!achievements || !goals) {
@@ -68,7 +69,7 @@ export async function getPerformanceReviews() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await getUserByClerkId(userId);
   if (!user) return { success: false, data: [] };
 
   const records = await db.performanceReview.findMany({

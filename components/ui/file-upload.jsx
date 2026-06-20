@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+const ACCEPTED_EXTENSIONS = ".pdf,.jpg,.jpeg,.png";
 
 export function FileUpload({ onFileSelect, isExtracting, extractionProgress, success, onClear }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -103,7 +104,7 @@ export function FileUpload({ onFileSelect, isExtracting, extractionProgress, suc
               type="file"
               ref={fileInputRef}
               className="hidden"
-              accept=".pdf,.jpg,.jpeg,.png"
+              accept={ACCEPTED_EXTENSIONS}
               onChange={handleFileChange}
               disabled={isExtracting}
             />

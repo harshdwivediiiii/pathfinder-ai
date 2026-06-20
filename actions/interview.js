@@ -3,12 +3,14 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/gemini";
-import { cachedGenerateGeminiContent, QUIZ_CACHE_TTL_MS, generateCacheKey } from "@/lib/cache";
+import { cachedGenerateGeminiContent, QUIZ_CACHE_TTL_MS, generateCacheKey, cacheStore } from "@/lib/cache";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai-context";
+import { parseAIJson } from "@/lib/validate";
+import crypto from "crypto";
 import { validateInput, validateOutput } from "@/lib/validate";
 import { quizCategorySchema, quizResultSaveSchema } from "@/lib/schemas/forms";
-import { interviewQuestionsOutputSchema } from "@/lib/schemas/outputs";
+import { interviewQuestionsOutputSchema, voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas";
 import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 // Fallback MCQ questions in case Gemini generation fails, categorized by industry
@@ -481,61 +483,62 @@ const FallbackQuizPool = {
  * Generates 10 unique MCQ questions based on user's industry, skills, and quiz category.
  */
 export async function generateQuiz(category = "Technical") {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
 
-  const categoryValidation = validateInput(quizCategorySchema, { category });
-  if (!categoryValidation.success) return { success: false, errors: categoryValidation.errors };
+    const categoryValidation = validateInput(quizCategorySchema, { category });
+    if (!categoryValidation.success) return { success: false, errors: categoryValidation.errors };
 
-  const quizLimit = await checkRateLimit(userId, "quiz");
-  if (!quizLimit.allowed) {
-    throw new Error(`Quiz generation limit reached. Resets in ${formatResetTime(quizLimit.resetAt)}.`);
-  }
+    const quizLimit = await checkRateLimit(userId, "quiz");
+    if (!quizLimit.allowed) {
+      throw new Error(`Quiz generation limit reached. Resets in ${formatResetTime(quizLimit.resetAt)}.`);
+    }
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-    select: {
-      name: true,
-      industry: true,
-      currentRole: true,
-      targetRole: true,
-      careerGoals: true,
-      experience: true,
-      bio: true,
-      skills: true,
-    },
-  });
-  if (!user) throw new Error("User not found");
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+      select: {
+        name: true,
+        industry: true,
+        currentRole: true,
+        targetRole: true,
+        careerGoals: true,
+        experience: true,
+        bio: true,
+        skills: true,
+      },
+    });
+    if (!user) throw new Error("User not found");
 
-  const profileContext = buildUserProfileContext(user);
-  const validatedCategory = categoryValidation.data.category;
+    const profileContext = buildUserProfileContext(user);
+    const validatedCategory = categoryValidation.data.category;
 
-  const normalizedSkills = user.skills
-    ? Array.from(new Set(user.skills.map((s) => String(s).trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
-    : [];
+    const normalizedSkills = user.skills
+      ? Array.from(new Set(user.skills.map((s) => String(s).trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+      : [];
 
-  const categoryPrompts = {
-    Technical: "Generate 10 technical interview questions focusing on programming concepts, data structures, system design, algorithms, and practical technical knowledge.",
-    Behavioral: "Generate 10 behavioral interview questions focusing on teamwork, leadership, conflict resolution, communication, and past experiences. Use scenarios like 'Tell me about a time when...' or 'How would you handle...'",
-    Situational: "Generate 10 situational interview questions focusing on hypothetical workplace scenarios - how the candidate would handle specific on-the-job situations, ethical dilemmas, and decision-making.",
-    "Industry Knowledge": "Generate 10 industry knowledge interview questions focusing on domain trends, terminology, business context, and role-specific professional awareness.",
-  };
+    const categoryPrompts = {
+      Technical: "Generate 10 technical interview questions focusing on programming concepts, data structures, system design, algorithms, and practical technical knowledge.",
+      Behavioral: "Generate 10 behavioral interview questions focusing on teamwork, leadership, conflict resolution, communication, and past experiences. Use scenarios like 'Tell me about a time when...' or 'How would you handle...'",
+      Situational: "Generate 10 situational interview questions focusing on hypothetical workplace scenarios - how the candidate would handle specific on-the-job situations, ethical dilemmas, and decision-making.",
+      "Industry Knowledge": "Generate 10 industry knowledge interview questions focusing on domain trends, terminology, business context, and role-specific professional awareness.",
+    };
 
-  const categoryIntro = categoryPrompts[validatedCategory];
+    const categoryIntro = categoryPrompts[validatedCategory];
 
-  const prompt = buildSecurePrompt({
-    context: `${profileContext}\n\nThe candidate has listed their industry, skills, and a quiz category below.`,
-    task: `You are a highly experienced hiring manager and strict quiz generator.
+    const prompt = buildSecurePrompt({
+      context: `${profileContext}\n\nThe candidate has listed their industry, skills, and a quiz category below.`,
+      task: `You are a highly experienced hiring manager and strict quiz generator.
 
 ${categoryIntro}
 
 Generate EXACTLY 10 UNIQUE MCQ questions.`,
-    untrustedData: [
-      { label: "industry", value: user.industry || "software", maxLength: 200 },
-      { label: "skills", value: normalizedSkills.join(", ") || "Not specified", maxLength: 1000 },
-      { label: "category", value: validatedCategory, maxLength: 200 },
-    ],
-    outputRules: `RULES:
+      untrustedData: [
+        { label: "industry", value: user.industry || "software", maxLength: 200 },
+        { label: "skills", value: normalizedSkills.join(", ") || "Not specified", maxLength: 1000 },
+        { label: "category", value: validatedCategory, maxLength: 200 },
+      ],
+      outputRules: `RULES:
 - Exactly 10 questions only. No repetition.
 - Each question must be highly relevant.
 - Each question must have 4 FULL, realistic options (do NOT use labels like 'A', 'B', 'C', 'D' at the beginning of options).
@@ -562,58 +565,98 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 }`,
   });
 
+  let questions = [];
   try {
     const result = await generateGeminiContent(prompt);
-    const quizValidation = validateOutput(interviewQuestionsOutputSchema, result.response.text());
+    const quiz = parseAIJson(result.response.text());
+    });
 
-    if (!quizValidation.success || !quizValidation.data?.questions?.length) {
-      throw new Error("Invalid questions structure received from AI.");
+    try {
+      const result = await generateGeminiContent(prompt);
+      const quizValidation = validateOutput(interviewQuestionsOutputSchema, result.response.text());
+
+      if (!quizValidation.success || !quizValidation.data?.questions?.length) {
+        throw new Error("Invalid questions structure received from AI.");
+      }
+
+      return {
+        questions: quizValidation.data.questions.slice(0, 10),
+        isFallback: false
+      };
+    } catch (error) {
+      console.error("AI Quiz generation failed, using fallback questions:", error);
+      const industryId = user.industry?.split("-")[0]?.toLowerCase() || "tech";
+      return {
+        questions: FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS,
+        isFallback: true
+      };
     }
 
-    return quizValidation.data.questions.slice(0, 10);
+    questions = quiz.questions.slice(0, 10);
   } catch (error) {
-    console.error("AI Quiz generation failed, using fallback questions:", error);
-    const industryId = user.industry?.split("-")[0] || "tech";
-    return FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS;
+    console.error("AI Quiz generation failed, using default questions:", error);
+    questions = FALLBACK_QUESTIONS;
+  } catch (error) {
+    console.error("Quiz generation top-level error:", error);
+    if (process.env.NODE_ENV === "test") {
+      throw error;
+    }
+    return {
+      success: false,
+      error: error.message || "Failed to generate quiz."
+    };
   }
+
+  const sessionId = crypto.randomUUID();
+  const cacheKey = `quiz-session:${userId}:${sessionId}`;
+  await cacheStore.set(cacheKey, questions, QUIZ_CACHE_TTL_MS);
+
+  return { sessionId, questions };
 }
 
 /**
  * Saves a quiz result and generates AI-powered feedback if mistakes were made.
  */
-export async function saveQuizResult(questions, answers, category = "Technical") {
+export async function saveQuizResult(sessionId, answers, category = "Technical") {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
-
-  const validation = validateInput(quizResultSaveSchema, { questions, answers, category });
-  if (!validation.success) return { success: false, errors: validation.errors };
-
-  const feedbackLimit = await checkRateLimit(userId, "quizFeedback");
-  if (!feedbackLimit.allowed) {
-    throw new Error(`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`);
-  }
-
-  const {
-    questions: validatedQuestions,
-    answers: validatedAnswers,
-    category: validatedCategory,
-  } = validation.data;
 
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
   });
   if (!user) throw new Error("User not found");
 
-  // Map user answers to question outcomes and compute score server-side
+  if (!sessionId) throw new Error("Session ID is required");
+
+  const cacheKey = `quiz-session:${userId}:${sessionId}`;
+  const questions = await cacheStore.get(cacheKey);
+  if (!questions) {
+    throw new Error("Quiz session expired or not found. Please start a new quiz.");
+  }
+
+  const profileContext = buildUserProfileContext(user);
+
+  const sanitizedAnswers = Array.isArray(answers)
+    ? answers.slice(0, questions.length)
+    : [];
+
+  while (sanitizedAnswers.length < questions.length) {
+    sanitizedAnswers.push(null);
+  }
+
+  // Map user answers to question outcomes and compute score
   const questionResults = [];
   const wrongAnswers = [];
   let correctCount = 0;
 
-  validatedQuestions.forEach((q, index) => {
+  questions.forEach((q, index) => {
     if (!q?.question) return;
 
-    const userAnswer = validatedAnswers[index];
+    const userAnswer = sanitizedAnswers[index];
     const isCorrect = q.correctAnswer === userAnswer;
+    if (isCorrect) {
+      correctCount++;
+    }
 
     const mappedQuestion = {
       question: q.question.trim(),
@@ -623,51 +666,96 @@ export async function saveQuizResult(questions, answers, category = "Technical")
       isCorrect,
       explanation: q.explanation,
     };
+export async function saveQuizResult(questions, answers, category = "Technical") {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
 
-    questionResults.push(mappedQuestion);
+    const validation = validateInput(quizResultSaveSchema, { questions, answers, category });
+    if (!validation.success) return { success: false, errors: validation.errors };
 
-    if (isCorrect) {
-      correctCount++;
-    } else {
-      wrongAnswers.push(mappedQuestion);
+    const feedbackLimit = await checkRateLimit(userId, "quizFeedback");
+    if (!feedbackLimit.allowed) {
+      throw new Error(`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`);
     }
-  });
 
-  const computedScore = validatedQuestions.length > 0
-    ? Math.round((correctCount / validatedQuestions.length) * 100)
-    : 0;
+  const score = questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
 
   let improvementTip = null;
+    const {
+      questions: validatedQuestions,
+      answers: validatedAnswers,
+      category: validatedCategory,
+    } = validation.data;
 
-  if (wrongAnswers.length > 0) {
-    const profileContext = buildUserProfileContext(user);
-    const wrongText = wrongAnswers
-      .slice(0, 3)
-      .map((q) => `Q: ${q.question}\nCorrect answer was: ${q.correctAnswer}\nUser answered: ${q.userAnswer || "No Answer"}`)
-      .join("\n\n");
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) throw new Error("User not found");
 
-    const tipPrompt = buildSecurePrompt({
-      context: profileContext,
-      task: "You are a supportive career mentor. The candidate completed a quiz. Provide an encouraging, actionable improvement tip (strictly max 2 sentences) recommending key learning areas. Be positive, warm, and professional. Do not refer to question indexes or speak critically.",
-      untrustedData: [
-        { label: "industry", value: user.industry || "software", maxLength: 200 },
-        { label: "category", value: validatedCategory, maxLength: 200 },
-        { label: "score", value: String(computedScore), maxLength: 50 },
-        { label: "wrongAnswers", value: wrongText, maxLength: 4000 },
-      ],
+    // Map user answers to question outcomes and compute score server-side
+    const questionResults = [];
+    const wrongAnswers = [];
+    let correctCount = 0;
+
+    validatedQuestions.forEach((q, index) => {
+      if (!q?.question) return;
+
+      const userAnswer = validatedAnswers[index];
+      const isCorrect = q.correctAnswer === userAnswer;
+
+      const mappedQuestion = {
+        question: q.question.trim(),
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        userAnswer: userAnswer,
+        isCorrect,
+        explanation: q.explanation,
+      };
+
+      questionResults.push(mappedQuestion);
+
+      if (isCorrect) {
+        correctCount++;
+      } else {
+        wrongAnswers.push(mappedQuestion);
+      }
     });
 
-    try {
-      const tipResult = await generateGeminiContent(tipPrompt);
-      improvementTip = tipResult.response.text().trim();
-    } catch (e) {
-      console.error("Failed to generate custom AI improvement tip:", e);
-      const industryText = user.industry ? `in ${user.industry.toLowerCase()}` : "in your field";
-      improvementTip = `Focus on reviewing core ${validatedCategory.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
-    }
-  }
+    const computedScore = validatedQuestions.length > 0
+      ? Math.round((correctCount / validatedQuestions.length) * 100)
+      : 0;
 
-  try {
+    let improvementTip = null;
+
+    if (wrongAnswers.length > 0) {
+      const profileContext = buildUserProfileContext(user);
+      const wrongText = wrongAnswers
+        .slice(0, 3)
+        .map((q) => `Q: ${q.question}\nCorrect answer was: ${q.correctAnswer}\nUser answered: ${q.userAnswer || "No Answer"}`)
+        .join("\n\n");
+
+      const tipPrompt = buildSecurePrompt({
+        context: profileContext,
+        task: "You are a supportive career mentor. The candidate completed a quiz. Provide an encouraging, actionable improvement tip (strictly max 2 sentences) recommending key learning areas. Be positive, warm, and professional. Do not refer to question indexes or speak critically.",
+        untrustedData: [
+          { label: "industry", value: user.industry || "software", maxLength: 200 },
+          { label: "category", value: validatedCategory, maxLength: 200 },
+          { label: "score", value: String(computedScore), maxLength: 50 },
+          { label: "wrongAnswers", value: wrongText, maxLength: 4000 },
+        ],
+      });
+
+      try {
+        const tipResult = await generateGeminiContent(tipPrompt);
+        improvementTip = tipResult.response.text().trim();
+      } catch (e) {
+        console.error("Failed to generate custom AI improvement tip:", e);
+        const industryText = user.industry ? `in ${user.industry.toLowerCase()}` : "in your field";
+        improvementTip = `Focus on reviewing core ${validatedCategory.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
+      }
+    }
+
     const assessment = await db.assessment.create({
       data: {
         userId: user.id,
@@ -678,10 +766,18 @@ export async function saveQuizResult(questions, answers, category = "Technical")
       },
     });
 
+    await cacheStore.delete(cacheKey);
+
     return assessment;
   } catch (error) {
     console.error("Error saving assessment to database:", error);
-    throw new Error("Failed to save quiz results.");
+    if (process.env.NODE_ENV === "test") {
+      throw error;
+    }
+    return {
+      success: false,
+      error: error.message || "Failed to save quiz results."
+    };
   }
 }
 
@@ -757,9 +853,12 @@ export async function evaluateVoiceAnswer(question, transcribedAnswer) {
 });
   try {
     const aiResult = await generateGeminiContent(prompt);
-    let rawText = aiResult.response.text();
-    const parsed = JSON.parse(rawText);
-    return { success: true, data: parsed };
+    const validation = validateOutput(voiceFeedbackOutputSchema, aiResult.response.text());
+    if (!validation.success) {
+      console.error("Voice evaluation output validation failed:", validation.errors);
+      return { success: false, error: "AI returned an unexpected format." };
+    }
+    return { success: true, data: validation.data };
   } catch (error) {
     console.error("Voice evaluation error:", error);
     return { success: false, error: "Failed to evaluate answer." };
@@ -773,16 +872,15 @@ export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) 
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-
-const prompt = buildSecurePrompt({
-  context: "You are an expert interview coach evaluating a video interview response.",
-  task: "Evaluate the transcribed answer and the provided facial metrics (e.g., face detected percentage).",
-  untrustedData: [
-    { label: "question",           value: question,                    maxLength: 1000 },
-    { label: "transcribedAnswer",  value: transcribedAnswer,           maxLength: 3000 },
-    { label: "metrics",            value: JSON.stringify(metrics),     maxLength: 500  },
-  ],
-  outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+  const prompt = buildSecurePrompt({
+    context: "You are an expert interview coach evaluating a video interview response.",
+    task: "Evaluate the transcribed answer and the provided facial metrics (e.g., face detected percentage).",
+    untrustedData: [
+      { label: "question",           value: question,                    maxLength: 1000 },
+      { label: "transcribedAnswer",  value: transcribedAnswer,           maxLength: 3000 },
+      { label: "metrics",            value: JSON.stringify(metrics),     maxLength: 500  },
+    ],
+    outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
 {
   "score": 85,
   "fillerWordsCount": 3,
@@ -790,13 +888,16 @@ const prompt = buildSecurePrompt({
   "bodyLanguageFeedback": "You maintained great eye contact and presence.",
   "verbalFeedback": "Your answer was very structured, but you used 'um' a few times."
 }`,
-}); 
+  }); 
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    let rawText = aiResult.response.text();
-    const parsed = JSON.parse(rawText);
-    return { success: true, data: parsed };
+    const validation = validateOutput(videoFeedbackOutputSchema, aiResult.response.text());
+    if (!validation.success) {
+      console.error("Video evaluation output validation failed:", validation.errors);
+      return { success: false, error: "AI returned an unexpected format." };
+    }
+    return { success: true, data: validation.data };
   } catch (error) {
     console.error("Video evaluation error:", error);
     return { success: false, error: "Failed to evaluate video answer." };

@@ -11,6 +11,8 @@ import { SkillGap } from "./skill-gap";
 import { AiRecommendations } from "./ai-recommendations";
 import { QuickActions } from "./quick-actions";
 import { cn } from "@/lib/utils";
+import { Calendar } from "lucide-react";
+import Link from "next/link";
 
 const sectionDefs = [
   { id: "overview", label: "Overview" },
@@ -103,6 +105,7 @@ export function DashboardContent({
   experience,
   skills,
   insight,
+  upcomingInterviews = [],
 }) {
   const scores = useMemo(() => computeScores(insight), [insight]);
 
@@ -138,6 +141,45 @@ export function DashboardContent({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-8">
         <NavIndicator sections={sectionDefs} />
+
+        {upcomingInterviews.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-5 rounded-[2rem] bg-amber-500/10 border border-amber-500/20 shadow-lg backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8"
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-amber-500/20 text-amber-500 rounded-2xl">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-foreground text-base">
+                  Upcoming Interview{upcomingInterviews.length > 1 ? "s" : ""} Scheduled!
+                </h4>
+                <p className="text-muted-foreground text-sm font-medium mt-0.5">
+                  You have {upcomingInterviews.length} interview{upcomingInterviews.length > 1 ? "s" : ""} coming up in the next 3 days:
+                </p>
+                <ul className="list-disc pl-5 mt-2 space-y-1.5 text-sm text-foreground/90 font-semibold">
+                  {upcomingInterviews.map((interview) => (
+                    <li key={interview.id}>
+                      {interview.jobTitle} at {interview.companyName} on{" "}
+                      {new Date(interview.interviewDate).toLocaleString([], {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <Link
+              href="/job-tracker"
+              className="py-2.5 px-6 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-sm transition-all shadow-sm shrink-0 text-center"
+            >
+              View Job Tracker
+            </Link>
+          </motion.div>
+        )}
 
         <div className="space-y-14 md:space-y-24">
           {sections.map(({ id, Component, props }, i) => (

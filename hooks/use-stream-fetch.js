@@ -111,7 +111,7 @@ export default function useStreamFetch() {
           prompt,
           conversationId,
         }),
-        ...(signalToUse ? { signal: signalToUse } : {}),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -137,6 +137,9 @@ export default function useStreamFetch() {
 
         const errorMessage =
           (typeof parsed.error === "string" && parsed.error) ||
+          (parsed.error &&
+            typeof parsed.error.message === "string" &&
+            parsed.error.message) ||
           (typeof parsed.message === "string" && parsed.message) ||
           `Request failed (${response.status})`;
 

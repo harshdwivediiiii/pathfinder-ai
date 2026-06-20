@@ -1,5 +1,5 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 
 import useStreamFetch from "../hooks/use-stream-fetch.js";
 import { createSseResponse } from "./mocks/handlers.mjs";
@@ -7,6 +7,10 @@ import { server } from "./mocks/server.mjs";
 import { http } from "msw";
 
 describe("useStreamFetch", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("streams SSE deltas across chunk boundaries and handles multi-line data blocks", async () => {
     server.use(
       http.post("http://localhost/api/generate", () => {
@@ -126,17 +130,25 @@ describe("useStreamFetch", () => {
   });
 
   it("handles network failures via direct fetch mock (not MSW)", async () => {
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn().mockRejectedValue(new Error("Network failure"));
+    vi.stubGlobal("fetch", fetchMock);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network failure"));
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
 
-    try {
-      const { result } = renderHook(() => useStreamFetch());
+    const { result } = renderHook(() => useStreamFetch());
 
-      let outcome;
-      await act(async () => {
-        outcome = await result.current.startStream("Write a resume summary");
-      });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.startStream("Write a resume summary");
+    });
 
+    expect(outcome.status).toBe("error");
+    expect(outcome.error).toContain("Network failure");
+    expect(result.current.error).toContain("Network failure");
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.streamedText).toBe("");
+    expect(result.current.finalText).toBe("");
       expect(outcome.status).toBe("error");
       expect(outcome.error).toContain("Network failure");
       expect(result.current.error).toContain("Network failure");
@@ -144,8 +156,90 @@ describe("useStreamFetch", () => {
       expect(result.current.streamedText).toBe("");
       expect(result.current.finalText).toBe("");
     } finally {
+      vi.stubGlobal("fetch", originalFetch);
       fetchSpy.mockRestore();
       vi.unstubAllGlobals();
     }
+  });
+
+  it("extracts nested error messages from JSON error responses", async () => {
+    server.use(
+      http.post("http://localhost/api/generate", () => {
+        return new Response(
+          JSON.stringify({
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Invalid request body or parameters"
+            }
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+  it("aborts the request when reset() is called", async () => {
+    let requestAborted = false;
+    server.use(
+      http.post("http://localhost/api/generate", ({ request }) => {
+        request.signal.addEventListener("abort", () => {
+          requestAborted = true;
+        });
+        // Hang the request
+        return new Promise(() => {});
+      })
+    );
+
+    const { result } = renderHook(() => useStreamFetch());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.startStream("Write a resume summary");
+    });
+
+    expect(outcome).toEqual({
+      status: "error",
+      error: "Invalid request body or parameters",
+      finalText: "",
+    });
+    expect(result.current.error).toBe("Invalid request body or parameters");
+    expect(result.current.isLoading).toBe(false);
+  });
+    let outcomePromise;
+    await act(async () => {
+      outcomePromise = result.current.startStream("Slow request");
+      // Wait a bit for the fetch to start
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      result.current.reset();
+    });
+
+    const outcome = await outcomePromise;
+    expect(outcome.status).toBe("aborted");
+    expect(requestAborted).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("aborts the request when the component unmounts", async () => {
+    let requestAborted = false;
+    server.use(
+      http.post("http://localhost/api/generate", ({ request }) => {
+        request.signal.addEventListener("abort", () => {
+          requestAborted = true;
+        });
+        return new Promise(() => {});
+      })
+    );
+
+    const { result, unmount } = renderHook(() => useStreamFetch());
+
+    let outcomePromise;
+    await act(async () => {
+      outcomePromise = result.current.startStream("Unmounting request");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      unmount();
+    });
+
+    const outcome = await outcomePromise;
+    expect(outcome.status).toBe("aborted");
+    expect(requestAborted).toBe(true);
   });
 });

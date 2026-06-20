@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { generateResumeContent, getResumeHistory } from "@/actions/resume-builder";
 import { FileText, Download, Sparkles, Building, Briefcase } from "lucide-react";
+import { isValidResume } from "@/lib/type-guards";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,9 +41,13 @@ export default function ResumeBuilderPage() {
 
     const res = await generateResumeContent(jobDescription);
     if (res.success) {
-      toast.success("Resume generated successfully!");
-      setHistory([res.data, ...history]);
-      setActiveResume(res.data.content);
+      if (isValidResume(res.data.content)) {
+        toast.success("Resume generated successfully!");
+        setHistory([res.data, ...history]);
+        setActiveResume(res.data.content);
+      } else {
+        toast.error("Generated resume has an invalid format.");
+      }
     } else {
       toast.error(res.errors?._form?.[0] || "Failed to generate resume");
     }
@@ -50,7 +55,7 @@ export default function ResumeBuilderPage() {
   };
 
   const downloadPDF = async () => {
-    if (typeof window === "undefined" || !resumeRef.current) return;
+    if (typeof window === "undefined" || !resumeRef.current || !isValidResume(activeResume)) return;
     
     try {
       const html2pdf = (await import("html2pdf.js")).default;
@@ -127,11 +132,24 @@ export default function ResumeBuilderPage() {
 
           <div className="lg:col-span-8">
             {activeResume ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="space-y-4"
-              >
+              !isValidResume(activeResume) ? (
+                <div className="h-full flex items-center justify-center p-12 border border-destructive/20 bg-destructive/5 rounded-3xl text-center">
+                  <div className="max-w-md space-y-4">
+                    <div className="h-16 w-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="h-8 w-8 text-destructive" />
+                    </div>
+                    <h3 className="text-xl font-bold text-destructive">Invalid Resume Format</h3>
+                    <p className="text-muted-foreground text-sm">
+                      The loaded or generated resume data contains invalid fields or is corrupted. Please try generating a new one.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-4"
+                >
                 <div className="flex justify-end">
                   <Button onClick={downloadPDF} className="bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-500/20">
                     <Download className="mr-2 h-4 w-4" /> Download PDF
@@ -243,6 +261,7 @@ export default function ResumeBuilderPage() {
                   </div>
                 </div>
               </motion.div>
+             )
             ) : (
               <div className="h-full flex items-center justify-center p-12 border-2 border-dashed border-border rounded-3xl text-center">
                 <div className="max-w-md space-y-4">

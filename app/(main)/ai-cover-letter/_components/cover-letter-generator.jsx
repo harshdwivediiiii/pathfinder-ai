@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { generateCoverLetter } from "@/actions/cover-letter";
+import CoverLetterPreview from "./cover-letter-preview";
 import useFetch from "@/hooks/use-fetch";
 import { coverLetterSchema } from "@/app/lib/schema";
 import { useRouter } from "next/navigation";
@@ -53,12 +54,16 @@ export default function CoverLetterGenerator() {
 
   useEffect(() => {
     if (generatedLetter) {
-      toast.success("Cover letter generated successfully!");
-      router.push(`/ai-cover-letter/${generatedLetter.id}`);
-      reset();
-      setJdLength(0);
+      if (generatedLetter.isFallback) {
+        toast.warning("AI generation unavailable. Using generic fallback template.");
+      } else {
+        toast.success("Cover letter generated successfully!");
+        router.push(`/ai-cover-letter/${generatedLetter.id}`);
+        reset();
+        setJdLength(0);
+      }
     }
-  }, [generatedLetter]);
+  }, [generatedLetter, router, reset]);
 
   const jdHint = getQualityHint(jdLength, JD_MAX);
   const isOverLimit = jdLength > JD_MAX;
@@ -179,6 +184,15 @@ export default function CoverLetterGenerator() {
           </form>
         </CardContent>
       </Card>
+
+      {generatedLetter?.isFallback && (
+        <div className="mt-8 space-y-4">
+          <div className="p-4 bg-yellow-50 text-yellow-900 border border-yellow-200 rounded-lg text-sm">
+            <strong>Note:</strong> AI generation is currently unavailable. Displaying a general cover letter template. Please manually update the brackets with your details.
+          </div>
+          <CoverLetterPreview content={generatedLetter.content} />
+        </div>
+      )}
     </div>
   );
 }

@@ -88,6 +88,11 @@ export default async function RoadmapPage() {
 
         <div className="glass rounded-[2.5rem] p-1 border border-white/10 shadow-2xl overflow-hidden">
           <div className="bg-background/40 backdrop-blur-md rounded-[2.2rem] p-6 md:p-10 min-h-[400px]">
+            {roadmap?.isFallback && (
+              <div className="mb-6 p-4 bg-yellow-50 text-yellow-900 border border-yellow-200 rounded-lg text-sm">
+                <strong>Note:</strong> AI generation is currently unavailable. Displaying a general career roadmap template. Try regenerating later for a personalized roadmap.
+              </div>
+            )}
             {roadmap ? (
               <RoadmapView roadmap={roadmap} />
             ) : (

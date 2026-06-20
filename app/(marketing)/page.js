@@ -368,6 +368,26 @@ export default function LandingPage() {
       {/* ------------- PRICING ------------- */}
       <PricingSection />
 
+      <section
+  id="about"
+  className="relative py-20 scroll-mt-20"
+>
+  <div className="container mx-auto px-4 md:px-6">
+    <div className="max-w-3xl mx-auto text-center">
+      <h2 className="text-4xl font-bold mb-6">
+        About PathFinder AI
+      </h2>
+
+      <p className="text-muted-foreground text-lg">
+        PathFinder AI is an AI-powered career platform
+        that helps professionals optimize resumes,
+        prepare for interviews, analyze skill gaps,
+        and accelerate career growth.
+      </p>
+    </div>
+  </div>
+</section>
+
       {/* ------------- FAQ ------------- */}
       <section id="question" className="relative py-8 md:py-12 scroll-mt-20">
         <div className="container mx-auto px-4 md:px-6">

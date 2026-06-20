@@ -33,12 +33,18 @@ export function useCareerShortlist() {
       if (e.key === "career-shortlist") {
         try {
           if (e.newValue) {
-            setShortlist(JSON.parse(e.newValue));
+            const parsed = JSON.parse(e.newValue);
+            if (Array.isArray(parsed) && parsed.every(c => c && typeof c === 'object' && c.id && c.title)) {
+              setShortlist(parsed);
+            } else {
+              setShortlist([]);
+            }
           } else {
             setShortlist([]);
           }
         } catch (error) {
           console.error("Error syncing shortlist across tabs", error);
+          setShortlist([]);
         }
       }
     };

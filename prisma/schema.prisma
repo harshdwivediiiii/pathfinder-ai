@@ -93,6 +93,7 @@ model User {
 
   exportRecords ExportRecord[]
   auditLogs     AuditLog[]
+  resumeMatchAnalyses ResumeMatchAnalysis[]
 }
 
 model Assessment {
@@ -756,3 +757,22 @@ model ExecutivePresence {
 
   @@index([userId])
 }
+
+model ResumeMatchAnalysis {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeContent        String   @db.Text
+  jobDescription       String   @db.Text
+  jobTitle             String?
+  companyName          String?
+  matchScore           Float
+  matchedKeywords      String[]
+  missingKeywords      String[]
+  sectionFeedback      Json
+  suggestions          Json
+  improvedBulletPoints Json
+  createdAt            DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+}

@@ -12,6 +12,17 @@ import {
   resolveCorsPolicy,
 } from "../lib/cors.js";
 
+import { vi } from "vitest";
+
+vi.mock("../lib/env.js", () => {
+  return {
+    getEnv: () => ({
+      ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+      CORS_ORIGIN: process.env.CORS_ORIGIN,
+    }),
+  };
+});
+
 afterEach(() => {
   delete process.env.ALLOWED_ORIGINS;
   delete process.env.CORS_ORIGIN;

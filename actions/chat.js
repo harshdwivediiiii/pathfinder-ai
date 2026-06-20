@@ -20,6 +20,7 @@ export async function chatWithGemini(prompt) {
 
     const authResult = await auth();
     const userId = authResult?.userId;
+    if (!userId) throw new Error("Unauthorized");
     const headerList = await headers();
 
     const subject = getRateLimitIdentifier({ headers: headerList }, userId);

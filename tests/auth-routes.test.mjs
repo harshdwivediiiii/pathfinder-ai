@@ -46,6 +46,12 @@ describe("Auth Route Matchers", () => {
       expect(isAuthedAppRoute(createMockRequest("/linkedin-optimizer"))).toBe(true);
       expect(isAuthedAppRoute(createMockRequest("/project-ideas"))).toBe(true);
       expect(isAuthedAppRoute(createMockRequest("/networking"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/side-hustle"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/remote-work"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/manager-readme"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/imposter-syndrome"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/founder-readiness"))).toBe(true);
+      expect(isAuthedAppRoute(createMockRequest("/executive-presence"))).toBe(true);
     });
 
     it("does not match other routes", () => {
@@ -122,5 +128,24 @@ describe("getAuthDecision", () => {
     expect(res.action).toBe("redirect");
     expect(res.signInUrl).toContain("/sign-in");
     expect(res.signInUrl).toContain("redirect_url=%2Froadmap");
+  });
+
+  it("redirects unauthenticated user from newly protected app routes to /sign-in", async () => {
+    const routes = [
+      "/side-hustle",
+      "/remote-work",
+      "/manager-readme",
+      "/imposter-syndrome",
+      "/founder-readiness",
+      "/executive-presence"
+    ];
+
+    for (const route of routes) {
+      const req = createMockRequest(route);
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
+      expect(res.signInUrl).toContain(`redirect_url=${encodeURIComponent(route)}`);
+    }
   });
 });

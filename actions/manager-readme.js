@@ -1,16 +1,20 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { getUserByClerkId } from "@/lib/user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { createErrorResponse } from "@/lib/action-errors";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history-response";
+import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
 
 export async function buildReadme(style, boundaries, feedback) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await getUserByClerkId(userId);
   if (!user) return { success: false, errors: { _form: ["User not found"] } };
 
   if (!style || !boundaries || !feedback) {
@@ -57,9 +61,9 @@ export async function buildReadme(style, boundaries, feedback) {
 
 export async function getManagerReadmes() {
   const { userId } = await auth();
-  if (!userId) return { success: false, data: [] };
+  if (!userId) return EMPTY_HISTORY_RESPONSE;
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await getUserByClerkId(userId);
   if (!user) return { success: false, data: [] };
 
   const records = await db.managerReadme.findMany({
