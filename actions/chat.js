@@ -9,7 +9,6 @@ import { buildUserProfileContext } from "@/lib/ai-context";
 import { enforceRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { validateInput } from "@/lib/validate";
 import { chatPromptSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function chatWithGemini(prompt) {
   try {
@@ -37,17 +36,6 @@ export async function chatWithGemini(prompt) {
       };
     }
 
-    if (userId) {
-      const limit = await checkRateLimit(userId, "chat");
-      if (!limit.allowed) {
-        return {
-          success: false,
-          errors: {
-            _form: [`Chat limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
-          },
-        };
-      }
-    }
     const user = userId
       ? await db.user.findUnique({
           where: { clerkUserId: userId },
@@ -64,7 +52,7 @@ export async function chatWithGemini(prompt) {
 
     try {
       const { response } = await generateGeminiContent(securePrompt);
-      return response.text();
+      return { success: true, data: response.text() };
     } catch (err) {
       const message =
         err?.response?.error?.message || err?.message || "Unknown Gemini error";
