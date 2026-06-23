@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
 import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
 
 export async function startCoffeeChat(industry, targetRole) {
   const { userId } = await auth();
@@ -26,7 +27,7 @@ export async function startCoffeeChat(industry, targetRole) {
     where: { clerkUserId: userId },
   });
   if (!user) {
-    return { success: false, errors: { _form: ["User not found"] } };
+    return USER_NOT_FOUND_RESPONSE;
   }
   if (!industry || !targetRole) {
     return {

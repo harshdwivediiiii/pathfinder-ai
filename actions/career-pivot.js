@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedUserId } from "@/lib/auth-userid";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
+import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
 import { generateGeminiContent } from "@/lib/gemini";
 
 export async function generatePivotStrategy(currentRole, targetRole) {
@@ -12,7 +13,7 @@ export async function generatePivotStrategy(currentRole, targetRole) {
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, errors: { _form: ["User not found"] } };
+  if (!user) return USER_NOT_FOUND_RESPONSE;
 
   if (!currentRole || !targetRole) {
     return { success: false, errors: { _form: ["Both current and target roles are required."] } };

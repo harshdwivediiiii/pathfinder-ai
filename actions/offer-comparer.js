@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
 import { offersComparisonSchema } from "@/lib/schemas/forms";
 import { validateInput } from "@/lib/validate";
 import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
