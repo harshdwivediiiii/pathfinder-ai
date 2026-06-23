@@ -12,8 +12,6 @@ import {
   resolveCorsPolicy,
 } from "../lib/cors.js";
 
-import { vi } from "vitest";
-
 vi.mock("../lib/env.js", () => {
   return {
     getEnv: () => ({

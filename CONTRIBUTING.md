@@ -121,11 +121,7 @@ npx prisma generate
 ```
 
 This repository's CI also enforces migration parity: the workflow will fail if `prisma/schema.prisma` is changed without a corresponding migration file under `prisma/migrations`. If you see a CI failure mentioning pending migrations, run the commands above, commit the generated migration, and push again.
-<<<<<<< HEAD
-=======
 
-
->>>>>>> upstream/main
 4. **Start the dev server:**
 
    ```bash
