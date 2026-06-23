@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { onboardingPlanOutputSchema } from "@/lib/schemas/outputs";
 
 export async function generateOnboardingPlan(company, role) {
   const { userId } = await auth();
@@ -44,7 +45,9 @@ export async function generateOnboardingPlan(company, role) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = onboardingPlanOutputSchema.parse(
+      parseAIJson(aiResult.response.text())
+    );
 
     const record = await db.onboardingPlan.create({
       data: {

@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
 import { parseAIJson } from "@/lib/validate";
+import { resumeRoastOutputSchema } from "@/lib/schemas/outputs";
 
 export async function generateResumeRoast(resumeContent) {
   const { userId } = await auth();
@@ -34,8 +35,8 @@ export async function generateResumeRoast(resumeContent) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    let rawText = aiResult.response.text();
-    const parsedData = parseAIJson(rawText);
+    const rawText = aiResult.response.text();
+    const parsedData = resumeRoastOutputSchema.parse(parseAIJson(rawText));
 
     return { success: true, data: parsedData };
   } catch (error) {
