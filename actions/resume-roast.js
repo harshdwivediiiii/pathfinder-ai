@@ -24,7 +24,7 @@ export async function generateResumeRoast(resumeContent) {
     outputRules: `Provide the output in the following JSON format ONLY:
 {
   "roast": "A 2-3 paragraph brutal, witty roast of their resume.",
-  "score": "A harsh score out of 100 (e.g., 42)",
+  "score": 42,
   "fixes": [
     "Actionable, serious fix 1",
     "Actionable, serious fix 2",
