@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -79,8 +80,7 @@ export async function generateSkillGapAnalysis(data) {
 
     return { data: saved, error: null };
   } catch (error) {
-    console.error("Error generating skill gap analysis:", error);
-    return { data: null, error: error.message || "Failed to generate analysis" };
+    return handleServerError(error, "skill-gap");
   }
 }
 
@@ -100,7 +100,6 @@ export async function getSkillGapAnalysis() {
 
     return { data: analysis, error: null };
   } catch (error) {
-    console.error("Error fetching skill gap analysis:", error);
-    return { data: null, error: error.message };
+    return handleServerError(error, "skill-gap");
   }
 }
