@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateAndParseJson } from "@/lib/ai-generation";
 import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
 import { createAiPrompt } from "@/lib/prompt-builder";
 
@@ -24,6 +25,16 @@ export async function generateAssessmentStrategy(company, assessmentType) {
 
   if (!user) {
     return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
+  }
+
+  const limit = await checkRateLimit(userId, "behavioralPrep");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Behavioral prep strategy generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
   }
 
   const prompt = createAiPrompt({
