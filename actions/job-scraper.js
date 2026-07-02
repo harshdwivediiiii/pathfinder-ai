@@ -3,11 +3,22 @@
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/gemini";
 import { JSDOM } from "jsdom";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 
 export async function parseJobUrl(url) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "jobScraper");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Job scraping limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   try {
     const response = await fetch(url, {
