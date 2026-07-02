@@ -7,6 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 import { getHistoryUserContext } from "@/lib/history-auth";
 async function getPerformanceReviewUser(userId) {
   return getUserByClerkId(userId);
@@ -17,6 +18,16 @@ export async function generateSelfAssessment(achievements, challenges, goals) {
 
   const user = await getPerformanceReviewUser(userId);
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "performanceReview");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Performance review self-assessment limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!achievements || !goals) {
     return { success: false, errors: { _form: ["Achievements and goals are required."] } };
