@@ -6,6 +6,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { createPromptConfig } from "@/lib/prompt-config";
 import { revalidatePath } from "next/cache";
+import { createOutputRules } from "@/lib/output-rules";
 import { createErrorResponse } from "@/lib/action-errors";
 import { createRecord } from "@/lib/record-create";
 import { getAuthenticatedUserId } from "@/lib/auth-userid";
@@ -35,7 +36,7 @@ export async function generatePivotStrategy(currentRole, targetRole) {
       { label: "currentRole", value: currentRole, maxLength: 100 },
       { label: "targetRole", value: targetRole, maxLength: 100 },
     ],
-    outputRules: `Provide the output in the following JSON format ONLY:
+    outputRules: createOutputRules(`Provide the output in the following JSON format ONLY:
 {
   "transferableSkills": [
     "Skill 1 (and how it translates)",
@@ -50,7 +51,7 @@ export async function generatePivotStrategy(currentRole, targetRole) {
     { "step": "Phase 2: Portfolio", "action": "What to build or prove" },
     { "step": "Phase 3: Networking & Application", "action": "How to position yourself" }
   ]
-}`,
+}`),
   })
 );
 

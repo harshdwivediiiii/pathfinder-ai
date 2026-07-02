@@ -23,6 +23,8 @@ describe("Auth Route Matchers", () => {
       expect(isPublicRoute(createMockRequest("/sign-in/callback"))).toBe(true);
       expect(isPublicRoute(createMockRequest("/sign-up"))).toBe(true);
       expect(isPublicRoute(createMockRequest("/api/dev/status"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/inngest"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/inngest/"))).toBe(true);
     });
 
     it("does not match non-public routes", () => {
@@ -69,6 +71,8 @@ describe("Auth Route Matchers", () => {
 
     it("does not match public api routes", () => {
       expect(isProtectedApiRoute(createMockRequest("/api/dev/status"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/inngest"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/inngest/"))).toBe(false);
     });
 
     it("does not match non-api routes", () => {
