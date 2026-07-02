@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -54,8 +55,7 @@ export async function generateStarStory(rawExperience) {
     revalidatePath("/interview/star-builder");
     return { success: true, data: record };
   } catch (error) {
-    console.error("STAR Story Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate STAR story"] } };
+    return handleServerError(error, "star-story");
   }
 }
 

@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -22,7 +23,7 @@ export async function generateLinkedInPosts(topic) {
   });
   if (!user) return createErrorResponse("User not found");
 
-  const rateLimitResult = await checkRateLimit(user.id, "linkedin");
+  const rateLimitResult = await checkRateLimit(userId, "linkedin");
   if (!rateLimitResult.allowed) {
     return {
       success: false,
@@ -76,8 +77,7 @@ export async function generateLinkedInPosts(topic) {
     revalidatePath("/linkedin-post");
     return { success: true, data: record };
   } catch (error) {
-    console.error("LinkedIn Post Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate posts"] } };
+    return handleServerError(error, "linkedin-post");
   }
 }
 

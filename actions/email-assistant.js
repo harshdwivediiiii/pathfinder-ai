@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -7,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
 import { buildUserProfileContext } from "@/lib/ai-context";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function generateEmailReply(originalEmail, goal) {
   const { userId } = await auth();
@@ -20,6 +22,16 @@ export async function generateEmailReply(originalEmail, goal) {
     where: { clerkUserId: userId },
   });
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "emailAssistant");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Email reply generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const prompt = buildSecurePrompt({
     context: buildUserProfileContext(user),
@@ -48,8 +60,7 @@ export async function generateEmailReply(originalEmail, goal) {
     revalidatePath("/email-assistant");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Email Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate email reply"] } };
+    return handleServerError(error, "email-assistant");
   }
 }
 
