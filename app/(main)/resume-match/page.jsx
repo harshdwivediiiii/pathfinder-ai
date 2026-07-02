@@ -3,6 +3,8 @@ import { getResume } from "@/actions/resume";
 import { getUserOnboardingStatus } from "@/actions/user";
 import { redirect } from "next/navigation";
 import MatchScorePage from "./_components/match-score-page";
+
+export const dynamic = "force-dynamic";
 import { Sparkles, Target } from "lucide-react";
 
 export const metadata = {

@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -64,8 +65,7 @@ export async function createJobApplication(data) {
     revalidatePath("/dashboard");
     return { success: true, data: job };
   } catch (error) {
-    console.error("Failed to create job application:", error);
-    return { success: false, errors: { _form: ["Failed to create job application"] } };
+    return handleServerError(error, "job-tracker");
   }
 }
 
@@ -100,8 +100,7 @@ export async function updateJobApplicationStatus(id, status) {
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("Failed to update job status:", error);
-    return { success: false, errors: { _form: ["Failed to update job status"] } };
+    return handleServerError(error, "job-tracker");
   }
 }
 
@@ -137,8 +136,7 @@ export async function updateJobApplicationInterviewDate(id, interviewDate) {
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("Failed to update interview date:", error);
-    return { success: false, errors: { _form: ["Failed to update interview date"] } };
+    return handleServerError(error, "job-tracker");
   }
 }
 
@@ -167,8 +165,7 @@ export async function deleteJobApplication(id) {
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("Failed to delete job application:", error);
-    return { success: false, errors: { _form: ["Failed to delete job application"] } };
+    return handleServerError(error, "job-tracker");
   }
 }
 
@@ -255,8 +252,7 @@ export async function getJobAnalytics() {
       }
     };
   } catch (error) {
-    console.error("Failed to fetch analytics:", error);
-    return { success: false, data: null };
+    return handleServerError(error, "job-tracker");
   }
 }
 
@@ -337,9 +333,8 @@ export async function syncJobApplicationsFromEmail() {
 
     revalidatePath("/job-tracker");
     revalidatePath("/dashboard");
-    return { success: true, message: \`Synced! Added \${addedCount}, Updated \${updatedCount} applications.\` };
+    return { success: true, message: `Synced! Added ${addedCount}, Updated ${updatedCount} applications.` };
   } catch (error) {
-    console.error("Failed to sync emails:", error);
-    return { success: false, message: error.message || "Failed to sync emails." };
+    return handleServerError(error, "job-tracker");
   }
 }

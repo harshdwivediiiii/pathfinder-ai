@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -117,21 +118,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
 
     return { ...coverLetter, isFallback: false };
   } catch (error) {
-    console.error("Error generating cover letter, using fallback:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    
-    // We do not save fallback cover letters to the DB
-    return {
-      content: FALLBACK_COVER_LETTER,
-      companyName: companyName ?? null,
-      jobTitle: jobTitle ?? null,
-      jobDescription: jobDescription ?? null,
-      status: "fallback",
-      userId: coverLetterUser?.id ?? null,
-      isFallback: true
-    };
+    return handleServerError(error, "cover-letter");
   }
 }
 
@@ -153,8 +140,7 @@ export async function getCoverLetters() {
       orderBy: { createdAt: "desc" },
     });
   } catch (error) {
-    console.error("Error fetching cover letters:", error);
-    return [];
+    return handleServerError(error, "cover-letter");
   }
 }
 
@@ -178,8 +164,7 @@ export async function getCoverLetter(id) {
       },
     });
   } catch (error) {
-    console.error("Error fetching cover letter:", error);
-    return null;
+    return handleServerError(error, "cover-letter");
   }
 }
 
@@ -213,7 +198,6 @@ export async function deleteCoverLetter(id) {
 
     return { success: true };
   } catch (error) {
-    console.error("Failed to delete cover letter:", error);
-    return { success: false, errors: { _form: [error.message || String(error)] } };
+    return handleServerError(error, "cover-letter");
   }
 }

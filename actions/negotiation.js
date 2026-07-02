@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -36,8 +37,7 @@ export async function chatSalaryNegotiation(history, userMessage) {
     const aiResult = await generateGeminiContent(prompt);
     return { success: true, response: aiResult.response.text() };
   } catch (error) {
-    console.error("Negotiation error:", error);
-    return { success: false, error: "Failed to get a response." };
+    return handleServerError(error, "negotiation");
   }
 }
 
@@ -75,7 +75,6 @@ export async function evaluateNegotiation(history) {
     const parsed = parseAIJson(aiResult.response.text());
     return { success: true, data: parsed };
   } catch (error) {
-    console.error("Negotiation evaluation error:", error);
-    return { success: false, error: "Failed to evaluate negotiation." };
+    return handleServerError(error, "negotiation");
   }
 }
