@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -55,8 +56,7 @@ export async function generateEscapePlan(symptoms, role) {
     revalidatePath("/toxic-workplace");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Toxic Workplace Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate escape plan"] } };
+    return handleServerError(error, "toxic-workplace");
   }
 }
 

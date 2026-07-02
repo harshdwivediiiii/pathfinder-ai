@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -67,8 +68,7 @@ export async function discoverIkigai(passions, skills, marketNeeds) {
     revalidatePath("/ikigai");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Ikigai Discovery Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate Ikigai"] } };
+    return handleServerError(error, "ikigai");
   }
 }
 

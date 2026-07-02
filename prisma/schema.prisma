@@ -23,38 +23,46 @@ datasource db {
 // query shapes (e.g. simple WHERE without ORDER BY, or deleteMany by userId).
 // =============================================================================
 
+enum LanguageCode {
+  en
+  hi
+}
+
 model User {
-  id              String           @id @default(uuid())
-  clerkUserId     String           @unique
-  email           String           @unique
-  name            String?
-  imageUrl        String?
-  industry        String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id          String   @id @default(uuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  name        String?
+  imageUrl    String?
+  industry    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Profile fields
-  currentRole     String?
-  targetRole      String?
-  careerGoals     String?
-  bio             String?
-  experience      Int?
-  
+  currentRole String?
+  targetRole  String?
+  careerGoals String?
+  bio         String?
+  experience  Int?
+
   // Settings
-  saveChatHistory Boolean          @default(true)
+  saveChatHistory Boolean @default(true)
 
   // Relations
-  skills          String[]
-  assessments     Assessment[]
-  coverLetter     CoverLetter[]
-  conversations   Conversation[]
-  resume          Resume?
-  industryInsight IndustryInsight? @relation(fields: [industry], references: [industry])
-  atsAnalyses     AtsAnalysis[]
-  settings        UserSettings?
-  roadmaps             Roadmap[]
-  jobApplications      JobApplication[]
+  skills                String[]
+  assessments           Assessment[]
+  coverLetter           CoverLetter[]
+  conversations         Conversation[]
+  resume                Resume?
+  portfolio             Portfolio?
+  industryInsight       IndustryInsight?       @relation(fields: [industry], references: [industry])
+  atsAnalyses           AtsAnalysis[]
+  settings              UserSettings?
+  roadmaps              Roadmap[]
+  jobApplications       JobApplication[]
   linkedinOptimizations LinkedInOptimization[]
+  cultureMatches       CultureMatch[]
+  githubAnalyses       GithubAnalysis[]
   networkingEmails     NetworkingEmail[]
   projectIdeas         ProjectIdea[]
   resumeGenerations    ResumeGeneration[]
@@ -91,8 +99,8 @@ model User {
   founderReadinesses   FounderReadiness[]
   executivePresences   ExecutivePresence[]
 
-  exportRecords ExportRecord[]
-  auditLogs     AuditLog[]
+  exportRecords       ExportRecord[]
+  auditLogs           AuditLog[]
   resumeMatchAnalyses ResumeMatchAnalysis[]
 }
 
@@ -122,16 +130,16 @@ model Resume {
 }
 
 model CoverLetter {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content        String
-  jobDescription String?
-  companyName    String
-  jobTitle       String
-  status         String   @default("draft")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content         String
+  jobDescription  String?
+  companyName     String
+  jobTitle        String
+  status          String           @default("draft")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   jobApplications JobApplication[]
 
   @@index([userId])
@@ -158,19 +166,19 @@ model IndustryInsight {
 // @@index([userId]) - simple user lookups and deleteMany without ordering.
 // @@index([userId, updatedAt]) - list/search conversations filtered by user, ordered by recency.
 model Conversation {
-  id        String    @id @default(cuid())
+  id        String                 @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
-  type      String    @default("chat")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  type      String                 @default("chat")
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
   messages  Message[]
+  exports   ExportRecord[]
+  snapshots ConversationSnapshot[]
 
   @@index([userId])
   @@index([userId, updatedAt])
-  exports   ExportRecord[]
-  snapshots ConversationSnapshot[]
 }
 
 // @@index([conversationId]) - simple message lookups without ordering.
@@ -189,19 +197,19 @@ model Message {
 }
 
 model AtsAnalysis {
-  id              String   @id @default(cuid())
+  id              String           @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  resumeContent   String   @db.Text
-  jobDescription  String   @db.Text
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeContent   String           @db.Text
+  jobDescription  String           @db.Text
   jobTitle        String?
   companyName     String?
   atsScore        Float
   matchedKeywords String[]
   missingKeywords String[]
   suggestions     Json[]
-  overallFeedback String?  @db.Text
-  createdAt       DateTime @default(now())
+  overallFeedback String?          @db.Text
+  createdAt       DateTime         @default(now())
   jobApplications JobApplication[]
 
   @@index([userId])
@@ -209,87 +217,86 @@ model AtsAnalysis {
 }
 
 model ExportRecord {
-  id             String @id @default(cuid())
+  id String @id @default(cuid())
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  userId         String
-  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  format         String
-  status         String @default("completed")
-  downloadCount  Int @default(0)
+  format        String
+  status        String @default("completed")
+  downloadCount Int    @default(0)
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([conversationId])
 }
 
 model ConversationSnapshot {
-  id             String @id @default(cuid())
+  id String @id @default(cuid())
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  title          String
-  version        Int
+  title   String
+  version Int
 
-  data           Json
+  data Json
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([conversationId])
 }
 
 model AuditLog {
-  id           String @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId       String
-  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   action       String
   resourceType String
   resourceId   String
 
-  metadata     Json?
+  metadata Json?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }
 
-
 model UserSettings {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  theme                  String   @default("light")
-  notifications          Boolean  @default(true)
-  emailAlerts            Boolean  @default(true)
-  dashboardLayout        String   @default("default")
-  largeButtonsMode       Boolean  @default(false)
-  highContrastMode       Boolean  @default(false)
-  speechSpeed            Float    @default(1.0)
-  preferredLanguage      String   @default("en")
-  preferredVoiceLanguage String   @default("en")
-  oneTapCameraMode       Boolean  @default(false)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id                     String       @id @default(cuid())
+  userId                 String       @unique
+  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme                  String       @default("light")
+  notifications          Boolean      @default(true)
+  emailAlerts            Boolean      @default(true)
+  dashboardLayout        String       @default("default")
+  largeButtonsMode       Boolean      @default(false)
+  highContrastMode       Boolean      @default(false)
+  speechSpeed            Float        @default(1.0)
+  preferredLanguage      LanguageCode @default(en)
+  preferredVoiceLanguage LanguageCode @default(en)
+  oneTapCameraMode       Boolean      @default(false)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 }
 
 // @@unique([userId, action, windowStart]) - exact-window upsert/lookup (rate-limit hot path).
 // @@index([userId, action]) - broader scans by user + action. No changes needed.
 model AiRateLimit {
-  id        String   @id @default(cuid())
-  userId    String
-  action    String
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
   windowStart DateTime
-  count     Int      @default(1)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  count       Int      @default(1)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([userId, action, windowStart])
   @@index([userId, action])
@@ -300,29 +307,29 @@ model Roadmap {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   Json     // The full roadmap milestones JSON
+  content   Json // The full roadmap milestones JSON
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model JobApplication {
-  id             String       @id @default(cuid())
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyName    String
-  jobTitle       String
-  status         String       @default("Wishlist")
-  url            String?
-  salary         String?
-  location       String?
-  notes          String?      @db.Text
-  atsAnalysisId  String?
-  atsAnalysis    AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
-  coverLetterId  String?
-  coverLetter    CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
-  interviewDate  DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName   String
+  jobTitle      String
+  status        String       @default("Wishlist")
+  url           String?
+  salary        String?
+  location      String?
+  notes         String?      @db.Text
+  atsAnalysisId String?
+  atsAnalysis   AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
+  coverLetterId String?
+  coverLetter   CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
+  interviewDate DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   @@index([userId])
 }
@@ -338,27 +345,39 @@ model LinkedInOptimization {
   @@index([userId])
 }
 
-model NetworkingEmail {
+model GithubAnalysis {
   id             String   @id @default(cuid())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recipientName  String?
-  company        String?
-  goal           String
-  content        String   @db.Text
+  githubUrl      String?  @db.Text
+  profileContent String?  @db.Text
+  analysis       Json
   createdAt      DateTime @default(now())
 
   @@index([userId])
 }
 
+model NetworkingEmail {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipientName String?
+  company       String?
+  goal          String
+  content       String   @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
 model ProjectIdea {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  targetRole     String
-  skillGap       String
-  ideas          Json
-  createdAt      DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole String
+  skillGap   String
+  ideas      Json
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
@@ -375,105 +394,105 @@ model ResumeGeneration {
 }
 
 model StarStory {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rawExperience  String   @db.Text
-  starContent    Json
-  createdAt      DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawExperience String   @db.Text
+  starContent   Json
+  createdAt     DateTime @default(now())
 
   @@index([userId])
 }
 
 model RecruiterEmail {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  originalEmail  String   @db.Text
-  goal           String
-  replyContent   String   @db.Text
-  createdAt      DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalEmail String   @db.Text
+  goal          String
+  replyContent  String   @db.Text
+  createdAt     DateTime @default(now())
 
   @@index([userId])
 }
 
 model InterviewCheatSheet {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company        String
-  role           String
-  content        Json
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   String
+  role      String
+  content   Json
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }
 
 model LinkedInPost {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  topic          String   @db.Text
-  content        Json
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic     String   @db.Text
+  content   Json
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }
 
 model OfferComparison {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  offers         Json
-  analysis       Json
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offers    Json
+  analysis  Json
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }
 
 model CareerPivot {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currentRole    String
-  targetRole     String
-  analysis       Json
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentRole String
+  targetRole  String
+  analysis    Json
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
 
 model OnboardingPlan {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company        String
-  role           String
-  planContent    Json
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     String
+  role        String
+  planContent Json
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
 
 model ResignationLetter {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  circumstance   String
-  lastDay        String
-  content        String   @db.Text
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circumstance String
+  lastDay      String
+  content      String   @db.Text
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
 
 model PromotionStrategy {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  targetRole     String
-  content        Json
-  createdAt      DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole String
+  content    Json
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
@@ -503,137 +522,137 @@ model BehavioralPrep {
 }
 
 model LayoffStrategy {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  details        String   @db.Text
-  planContent    Json
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  details     String   @db.Text
+  planContent Json
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
 
 model CoffeeChatSession {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  targetRole     String
-  industry       String
-  chatHistory    Json
-  feedback       Json?
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole  String
+  industry    String
+  chatHistory Json
+  feedback    Json?
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
 
 model EquityAnalysis {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  offerDetails   Json
-  analysis       Json
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offerDetails Json
+  analysis     Json
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
 
 model AssignmentGrade {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  prompt         String   @db.Text
-  solution       String   @db.Text
-  gradeData      Json
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt    String   @db.Text
+  solution  String   @db.Text
+  gradeData Json
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }
 
 model BurnoutAssessment {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  symptoms       String   @db.Text
-  workload       String   @db.Text
-  assessment     Json
-  createdAt      DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symptoms   String   @db.Text
+  workload   String   @db.Text
+  assessment Json
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
 
 model SideHustleIdea {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skills         String   @db.Text
-  interests      String   @db.Text
-  ideasData      Json
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills    String   @db.Text
+  interests String   @db.Text
+  ideasData Json
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }
 
 model RemoteWorkPitch {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role           String
-  reasons        String   @db.Text
-  objections     String   @db.Text
-  pitchData      Json
-  createdAt      DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String
+  reasons    String   @db.Text
+  objections String   @db.Text
+  pitchData  Json
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
 
 model InternalTransfer {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currentRole    String
-  targetRole     String
-  reasons        String   @db.Text
-  transferData   Json
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentRole  String
+  targetRole   String
+  reasons      String   @db.Text
+  transferData Json
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
 
 model CareerBreakPlan {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  duration       String
-  reason         String   @db.Text
-  returnGoals    String   @db.Text
-  planData       Json
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  duration    String
+  reason      String   @db.Text
+  returnGoals String   @db.Text
+  planData    Json
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
 
 model VisaStrategy {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  visaType       String
-  targetRole     String
-  concerns       String   @db.Text
-  strategyData   Json
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visaType     String
+  targetRole   String
+  concerns     String   @db.Text
+  strategyData Json
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
 
 model RelocationAnalysis {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currentCity    String
-  targetCity     String
-  salary         String
-  analysisData   Json
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentCity  String
+  targetCity   String
+  salary       String
+  analysisData Json
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
@@ -651,77 +670,77 @@ model MentorOutreach {
 }
 
 model ToxicWorkplaceEscape {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  symptoms       String   @db.Text
-  role           String
-  escapeData     Json
-  createdAt      DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symptoms   String   @db.Text
+  role       String
+  escapeData Json
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
 
 model FreelanceRate {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skills         String
-  experience     String
-  targetIncome   String
-  rateData       Json
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills       String
+  experience   String
+  targetIncome String
+  rateData     Json
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
 
 model IkigaiDiscovery {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  passions       String   @db.Text
-  skills         String   @db.Text
-  marketNeeds    String   @db.Text
-  ikigaiData     Json
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passions    String   @db.Text
+  skills      String   @db.Text
+  marketNeeds String   @db.Text
+  ikigaiData  Json
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
 
 model PerformanceReview {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  achievements   String   @db.Text
-  challenges     String   @db.Text
-  goals          String   @db.Text
-  reviewData     Json
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievements String   @db.Text
+  challenges   String   @db.Text
+  goals        String   @db.Text
+  reviewData   Json
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
 
 model ImposterSyndrome {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doubts         String   @db.Text
-  achievements   String   @db.Text
-  reframeData    Json
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doubts       String   @db.Text
+  achievements String   @db.Text
+  reframeData  Json
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
 
 model ManagerReadme {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  style          String   @db.Text
-  boundaries     String   @db.Text
-  feedback       String   @db.Text
-  readmeData     Json
-  createdAt      DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  style      String   @db.Text
+  boundaries String   @db.Text
+  feedback   String   @db.Text
+  readmeData Json
+  createdAt  DateTime @default(now())
 
   @@index([userId])
 }
@@ -740,14 +759,14 @@ model SkillGapAnalysis {
 }
 
 model FounderReadiness {
-  id               String   @id @default(cuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  businessIdea     String   @db.Text
-  riskTolerance    String
-  skills           String   @db.Text
-  readinessData    Json
-  createdAt        DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessIdea  String   @db.Text
+  riskTolerance String
+  skills        String   @db.Text
+  readinessData Json
+  createdAt     DateTime @default(now())
 
   @@index([userId])
 }
@@ -781,4 +800,28 @@ model ResumeMatchAnalysis {
   createdAt            DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model Portfolio {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     Json     // hero, about, experience, projects, skills, contact
+  theme       String   @default("modern")
+  slug        String   @unique
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CultureMatch {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyUrl     String?  @db.Text
+  companyContent String?  @db.Text
+  analysis       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
 }

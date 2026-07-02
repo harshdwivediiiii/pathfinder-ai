@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -59,8 +60,7 @@ export async function generateCheatSheet(company, role) {
     revalidatePath("/interview/cheat-sheet");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Cheat Sheet Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate cheat sheet"] } };
+    return handleServerError(error, "cheat-sheet");
   }
 }
 

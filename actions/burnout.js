@@ -1,6 +1,8 @@
 "use server";
-
+import { handleServerError } from "@/lib/error-handler";
+import { getAiResponseText } from "@/lib/ai-response";
 import { db } from "@/lib/prisma";
+import { finalizeAiPersistence } from "@/lib/ai-persistence";
 import { logActionError } from "@/lib/action-logger";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
@@ -47,7 +49,7 @@ export async function assessBurnout(symptoms, workload) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.burnoutAssessment.create({
       data: {
@@ -58,11 +60,10 @@ export async function assessBurnout(symptoms, workload) {
       },
     });
 
-    revalidatePath("/burnout-coach");
+    finalizeAiPersistence("/burnout-coach");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Burnout Assessment Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to assess burnout"] } };
+    return handleServerError(error, "burnout");
   }
 }
 /** Retrieve all burnout assessments for the current user. */
