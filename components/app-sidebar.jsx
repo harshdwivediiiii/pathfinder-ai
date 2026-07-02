@@ -20,6 +20,7 @@ const ClerkUserButton = dynamic(
 import {
   LayoutDashboard,
   Bot,
+  Volume2,
   FileText,
   Mail,
   Mic,
@@ -57,6 +58,8 @@ import {
   HeartPulse,
   Rocket,
   Home,
+  Building2,
+  Github,
   Workflow,
   CalendarHeart,
   Globe,
@@ -95,6 +98,7 @@ const MENU_GROUPS = [
       { href: "/bullet-rewriter", label: "Bullet Rewriter", icon: <PenLine className="h-4 w-4 text-amber-500" />, shortcut: "" },
       { href: "/ai-cover-letter", label: "Cover Letters", icon: <Mail className="h-4 w-4 text-rose-500" />, shortcut: "Alt+3" },
       { href: "/linkedin-optimizer", label: "LinkedIn Optimizer", icon: <ScanSearch className="h-4 w-4 text-[#0A66C2]" />, shortcut: "" },
+      { href: "/github-analyzer", label: "GitHub Analyzer", icon: <Github className="h-4 w-4 text-foreground" />, shortcut: "" },
       { href: "/linkedin-post", label: "LinkedIn Posts", icon: <Linkedin className="h-4 w-4 text-[#0A66C2]" />, shortcut: "" },
     ]
   },
@@ -107,6 +111,7 @@ const MENU_GROUPS = [
       { href: "/interview/star-builder", label: "STAR Builder", icon: <Star className="h-4 w-4 text-yellow-500" />, shortcut: "" },
       { href: "/interview/cheat-sheet", label: "Cheat Sheet", icon: <FileSearch className="h-4 w-4 text-zinc-500" />, shortcut: "" },
       { href: "/behavioral-prep", label: "Behavioral Prep", icon: <BrainCircuit className="h-4 w-4 text-rose-500" />, shortcut: "" },
+      { href: "/culture-matcher", label: "Culture Matcher", icon: <Building2 className="h-4 w-4 text-cyan-500" />, shortcut: "" },
       { href: "/coffee-chat", label: "Coffee Chat", icon: <Coffee className="h-4 w-4 text-amber-500" />, shortcut: "" },
       { href: "/assignment-grader", label: "Take-Home Grader", icon: <Code2 className="h-4 w-4 text-violet-500" />, shortcut: "" },
     ]
@@ -151,6 +156,12 @@ const MENU_GROUPS = [
       { href: "/manager-readme", label: "Manager README Builder", icon: <BookOpen className="h-4 w-4 text-cyan-500" />, shortcut: "" },
       { href: "/founder-readiness", label: "Startup Founder Readiness", icon: <RocketIcon className="h-4 w-4 text-orange-500" />, shortcut: "" },
       { href: "/executive-presence", label: "Executive Presence Coach", icon: <Crown className="h-4 w-4 text-purple-500" />, shortcut: "" },
+    ]
+  },
+  {
+    title: "Accessibility",
+    items: [
+      { href: "/ocr-reader", label: "OCR Reader", icon: <Volume2 className="h-4 w-4 text-primary" />, shortcut: "" },
     ]
   },
   {

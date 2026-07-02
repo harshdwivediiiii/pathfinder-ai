@@ -6,6 +6,7 @@ import {
   createRateLimitStore,
   createRedisRateLimitStore,
   DEFAULT_BUCKET_TTL_MS,
+  withDefaultCheckAndDeduct,
 } from "../lib/rate-limit/store.js";
 
 const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
@@ -455,4 +456,358 @@ it("cleanupExpiredBuckets wrapper handles null store gracefully", async () => {
   await expect(
     cleanupExpiredBuckets(null)
   ).resolves.toBeUndefined();
+});
+
+// Tests for the default checkAndDeduct implementation with mutex
+describe("withDefaultCheckAndDeduct (fallback path)", () => {
+  it("handles concurrent requests without race condition", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const key = "/api/test:concurrent-fallback";
+    const LIMIT = 10;
+
+    // Remove the native checkAndDeduct to force fallback path
+    const nativeCheckAndDeduct = store.checkAndDeduct;
+    delete store.checkAndDeduct;
+
+    const results = await Promise.all(
+      Array.from({ length: 25 }, () =>
+        withDefaultCheckAndDeduct(store, key, {
+          limitPerMinute: LIMIT,
+          burstCapacity: LIMIT,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+    const rejected = results.filter((r) => !r.allowed);
+
+    // At most LIMIT requests should be allowed
+    expect(allowed.length).toBeLessThanOrEqual(LIMIT);
+    // At least 15 should be rejected
+    expect(rejected.length).toBeGreaterThanOrEqual(15);
+
+    // Remaining values should be strictly decreasing with no duplicates
+    const remainings = allowed.map((r) => r.remaining).sort((a, b) => b - a);
+    expect(remainings).toEqual(Array.from({ length: allowed.length }, (_, i) => LIMIT - 1 - i));
+
+    // Restore native method for cleanup
+    store.checkAndDeduct = nativeCheckAndDeduct;
+    await store.close();
+  });
+
+  it("handles burst capacity = 1 correctly under concurrency", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const key = "/api/test:burst-1";
+    const BURST = 1;
+
+    delete store.checkAndDeduct;
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        withDefaultCheckAndDeduct(store, key, {
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+    const rejected = results.filter((r) => !r.allowed);
+
+    // Exactly 1 request should be allowed
+    expect(allowed.length).toBe(1);
+    expect(allowed[0].remaining).toBe(0);
+
+    // 9 should be rejected
+    expect(rejected.length).toBe(9);
+
+    await store.close();
+  });
+
+  it("handles simultaneous bucket creation atomically", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const key = "/api/test:simultaneous-creation";
+    const BURST = 5;
+
+    delete store.checkAndDeduct;
+
+    // All requests try to create the bucket at the same time
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        withDefaultCheckAndDeduct(store, key, {
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+
+    // At most BURST requests should be allowed
+    expect(allowed.length).toBeLessThanOrEqual(BURST);
+
+    // Verify bucket was created only once
+    const bucket = await store.getBucket(key, 1_000);
+    expect(bucket).not.toBeNull();
+    expect(bucket.burstCapacity).toBe(BURST);
+
+    await store.close();
+  });
+
+  it("handles token refill correctly after elapsed time", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const key = "/api/test:refill";
+    const LIMIT = 60;
+    const BURST = 2;
+
+    delete store.checkAndDeduct;
+
+    // Exhaust the bucket
+    const first = await withDefaultCheckAndDeduct(store, key, {
+      limitPerMinute: LIMIT,
+      burstCapacity: BURST,
+      now: 1_000,
+    });
+    expect(first.allowed).toBe(true);
+    expect(first.remaining).toBe(1);
+
+    const second = await withDefaultCheckAndDeduct(store, key, {
+      limitPerMinute: LIMIT,
+      burstCapacity: BURST,
+      now: 1_000,
+    });
+    expect(second.allowed).toBe(true);
+    expect(second.remaining).toBe(0);
+
+    const third = await withDefaultCheckAndDeduct(store, key, {
+      limitPerMinute: LIMIT,
+      burstCapacity: BURST,
+      now: 1_000,
+    });
+    expect(third.allowed).toBe(false);
+
+    // After 1 minute, should have refilled to burst capacity (2 tokens)
+    // With LIMIT=60 tokens/min, after 1 minute we get 60 tokens, capped at BURST=2
+    const refill = await withDefaultCheckAndDeduct(store, key, {
+      limitPerMinute: LIMIT,
+      burstCapacity: BURST,
+      now: 61_000,
+    });
+    expect(refill.allowed).toBe(true);
+    expect(refill.remaining).toBe(1);
+
+    await store.close();
+  });
+
+  it("isolates operations on different bucket keys", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const key1 = "/api/test:user1";
+    const key2 = "/api/test:user2";
+    const BURST = 2;
+
+    delete store.checkAndDeduct;
+
+    // Each user should get their full burst capacity
+    const results1 = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        withDefaultCheckAndDeduct(store, key1, {
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          now: 1_000,
+        })
+      )
+    );
+
+    const results2 = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        withDefaultCheckAndDeduct(store, key2, {
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed1 = results1.filter((r) => r.allowed);
+    const allowed2 = results2.filter((r) => r.allowed);
+
+    // Each user should get exactly BURST requests
+    expect(allowed1.length).toBe(BURST);
+    expect(allowed2.length).toBe(BURST);
+
+    await store.close();
+  });
+
+  it("calculates retryAfterSeconds correctly", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const key = "/api/test:retry-after";
+    const LIMIT = 60;
+    const BURST = 1;
+
+    delete store.checkAndDeduct;
+
+    // Exhaust the bucket
+    await withDefaultCheckAndDeduct(store, key, {
+      limitPerMinute: LIMIT,
+      burstCapacity: BURST,
+      now: 1_000,
+    });
+
+    // Next request should be rejected with retryAfter
+    const result = await withDefaultCheckAndDeduct(store, key, {
+      limitPerMinute: LIMIT,
+      burstCapacity: BURST,
+      now: 1_000,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+    expect(result.retryAfterSeconds).toBeGreaterThan(0);
+    // With LIMIT=60 and missing 1 token, should retry after ~1 second
+    expect(result.retryAfterSeconds).toBe(1);
+
+    await store.close();
+  });
+
+  it("handles exhausted bucket correctly", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const key = "/api/test:exhausted";
+    const LIMIT = 10;
+    const BURST = 5;
+
+    delete store.checkAndDeduct;
+
+    // Exhaust the bucket
+    for (let i = 0; i < BURST; i++) {
+      const result = await withDefaultCheckAndDeduct(store, key, {
+        limitPerMinute: LIMIT,
+        burstCapacity: BURST,
+        now: 1_000,
+      });
+      expect(result.allowed).toBe(true);
+    }
+
+    // All subsequent requests should be rejected
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        withDefaultCheckAndDeduct(store, key, {
+          limitPerMinute: LIMIT,
+          burstCapacity: BURST,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+    expect(allowed.length).toBe(0);
+
+    // All should have remaining=0 and retryAfter>0
+    for (const r of results) {
+      expect(r.remaining).toBe(0);
+      expect(r.retryAfterSeconds).toBeGreaterThan(0);
+    }
+
+    await store.close();
+  });
+
+  it("works with custom store without checkAndDeduct", async () => {
+    // Create a minimal custom store that only implements getBucket/setBucket
+    const customStore = {
+      kind: "custom",
+      data: new Map(),
+      async getBucket(key, now) {
+        const bucket = this.data.get(key);
+        if (!bucket) return null;
+        if (now >= bucket.lastRefillAt + 60_000) {
+          this.data.delete(key);
+          return null;
+        }
+        return bucket;
+      },
+      async setBucket(key, bucket) {
+        this.data.set(key, bucket);
+        return true;
+      },
+    };
+
+    const key = "/api/test:custom-store";
+    const BURST = 3;
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        withDefaultCheckAndDeduct(customStore, key, {
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+    expect(allowed.length).toBeLessThanOrEqual(BURST);
+  });
+});
+
+describe("enforceRateLimit with fallback path", () => {
+  it("uses fallback path when store lacks checkAndDeduct", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const subject = { kind: "user", value: "fallback-test" };
+    const BURST = 2;
+
+    // Remove native checkAndDeduct to force fallback
+    delete store.checkAndDeduct;
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        enforceRateLimit({
+          endpoint: "/api/generate",
+          subject,
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          store,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+    const rejected = results.filter((r) => !r.allowed);
+
+    // At most BURST should be allowed
+    expect(allowed.length).toBeLessThanOrEqual(BURST);
+    expect(rejected.length).toBeGreaterThanOrEqual(8);
+
+    await store.close();
+  });
+
+  it("maintains backward compatibility with response structure", async () => {
+    const store = createMemoryRateLimitStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const subject = { kind: "user", value: "compat-test" };
+
+    delete store.checkAndDeduct;
+
+    const result = await enforceRateLimit({
+      endpoint: "/api/generate",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 5,
+      store,
+      now: 1_000,
+    });
+
+    // Verify response structure matches expected API
+    expect(result).toHaveProperty("allowed");
+    expect(result).toHaveProperty("remaining");
+    expect(result).toHaveProperty("retryAfterSeconds");
+    expect(result).toHaveProperty("rejectionRate");
+    expect(typeof result.allowed).toBe("boolean");
+    expect(typeof result.remaining).toBe("number");
+    expect(typeof result.retryAfterSeconds).toBe("number");
+    expect(typeof result.rejectionRate).toBe("number");
+
+    await store.close();
+  });
 });

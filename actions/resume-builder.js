@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { validateAuthenticatedUser } from "@/lib/auth-user";
 import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/input-limits";
 import { isValidAIOutput } from "@/lib/ai-validation";
@@ -111,21 +112,24 @@ export async function generateResumeContent(jobDescription) {
     revalidatePath("/resume-builder");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Resume Generation Error:", error);
-    return createErrorResponse(
-  error.message || "Failed to generate resume"
-);
+    return handleServerError(error, "resume-builder");
   }
 }
 
 export async function getResumeHistory() {
-  const user = await getHistoryUserContext();
-  if (!user) return EMPTY_HISTORY_RESPONSE;
+  try {
+    const user = await getHistoryUserContext();
 
-  const records = await db.resumeGeneration.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-  });
+    if (!user) return EMPTY_HISTORY_RESPONSE;
 
-  return { success: true, data: records };
+    const records = await db.resumeGeneration.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { success: true, data: records };
+  } catch (error) {
+    console.error("Resume history error:", error);
+    throw error;
+  }
 }

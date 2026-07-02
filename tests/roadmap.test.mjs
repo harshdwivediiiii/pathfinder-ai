@@ -290,25 +290,31 @@ describe("generateCareerRoadmap", () => {
     expect(result.id).toBe("roadmap-1");
   });
 
-  it("throws on unauthorized access", async () => {
+  it("returns error on unauthorized access", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: null });
 
-    await expect(generateCareerRoadmap()).rejects.toThrow("Unauthorized");
+    const result = await generateCareerRoadmap();
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveProperty("_form");
   });
 
-  it("throws when rate limit is exceeded", async () => {
+  it("returns error when rate limit is exceeded", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
     actionMocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date(Date.now() + 3600000) });
     actionMocks.formatResetTime.mockReturnValue("60 minutes");
 
-    await expect(generateCareerRoadmap()).rejects.toThrow("Roadmap generation limit reached");
+    const result = await generateCareerRoadmap();
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveProperty("_form");
   });
 
-  it("throws when AI generation fails", async () => {
+  it("returns error when AI generation fails", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
@@ -328,7 +334,10 @@ describe("generateCareerRoadmap", () => {
       });
     actionMocks.generateGeminiContent.mockRejectedValue(new Error("AI service unavailable"));
 
-    await expect(generateCareerRoadmap()).rejects.toThrow("AI returned an unexpected format.");
+    const result = await generateCareerRoadmap();
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveProperty("_form");
   });
 });
 

@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getAuthDecision } from "./lib/auth/routes";
 
 const clerkHandler = clerkMiddleware(async (auth, req) => {
+  // Route protection rules (public routes, protected routes) are defined
+  // and evaluated in lib/auth/routes.js using createRouteMatcher.
   const decision = await getAuthDecision(req, auth);
 
   switch (decision.action) {
