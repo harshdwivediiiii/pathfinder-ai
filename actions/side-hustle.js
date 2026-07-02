@@ -6,6 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function generateSideHustles(skills, interests) {
   const { userId } = await auth();
@@ -13,6 +14,16 @@ export async function generateSideHustles(skills, interests) {
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "sideHustle");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Side hustle ideas generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!skills || !interests) {
     return { success: false, errors: { _form: ["Both skills and interests are required."] } };
