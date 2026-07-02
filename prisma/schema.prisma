@@ -54,12 +54,14 @@ model User {
   coverLetter           CoverLetter[]
   conversations         Conversation[]
   resume                Resume?
+  portfolio             Portfolio?
   industryInsight       IndustryInsight?       @relation(fields: [industry], references: [industry])
   atsAnalyses           AtsAnalysis[]
   settings              UserSettings?
   roadmaps              Roadmap[]
   jobApplications       JobApplication[]
   linkedinOptimizations LinkedInOptimization[]
+  cultureMatches       CultureMatch[]
   githubAnalyses       GithubAnalysis[]
   networkingEmails     NetworkingEmail[]
   projectIdeas         ProjectIdea[]
@@ -798,4 +800,28 @@ model ResumeMatchAnalysis {
   createdAt            DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model Portfolio {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     Json     // hero, about, experience, projects, skills, contact
+  theme       String   @default("modern")
+  slug        String   @unique
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CultureMatch {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyUrl     String?  @db.Text
+  companyContent String?  @db.Text
+  analysis       Json
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
 }

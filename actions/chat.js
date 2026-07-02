@@ -65,7 +65,7 @@ export async function chatWithGemini(prompt) {
 
     try {
       const { response } = await generateGeminiContent(securePrompt);
-      return response.text();
+      return { success: true, data: response.text() };
     } catch (err) {
     return handleServerError(err, "chat");
   }

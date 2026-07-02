@@ -3,6 +3,7 @@ import { handleServerError } from "@/lib/error-handler";
 import { runAiGeneration } from "@/lib/ai-pipeline";
 import { getUserHistory } from "@/lib/history-query";
 import { db } from "@/lib/prisma";
+import { createPrompt } from "@/lib/prompt-wrapper";
 import { createRecord } from "@/lib/record-create";
 import { auth } from "@clerk/nextjs/server";
 import { createErrorResponse } from "@/lib/action-errors";
@@ -11,8 +12,10 @@ import { getAuthenticatedUserId } from "@/lib/auth-userid";
 import { createPromptConfig } from "@/lib/prompt-config";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { buildUserFilter } from "@/lib/user-filter";
 import { parseAiOutput } from "@/lib/ai-output";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
+import { createOutputRules } from "@/lib/output-rules";
 
 /** Generate a career break plan based on user preferences. */
 export async function planCareerBreak(duration, reason, returnGoals) {
@@ -26,7 +29,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
     return { success: false, errors: { _form: ["Duration, reason, and return goals are required."] } };
   }
 
-  const prompt = buildSecurePrompt(
+  const prompt = createPrompt(
   createPromptConfig({
     context:
       "You are a Career Strategist who helps professionals take sabbaticals, parental leave, or health breaks without derailing their career.",
@@ -41,7 +44,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
       { label: "returnGoals", value: returnGoals, maxLength: 1000 },
     ],
 
-    outputRules: `Provide the output in the following JSON format ONLY:
+    outputRules: createOutputRules(`Provide the output in the following JSON format ONLY:
 
 {
   "handoffPlan": ["Action 1 for leaving gracefully", "Action 2"],
@@ -49,7 +52,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
   "resumeExplanation": "A strong, unapologetic 1-2 sentence explanation to put on their resume.",
   "linkedinHeadline": "A suggested LinkedIn headline or summary addition.",
   "interviewScript": "How to answer 'Can you explain the gap in your resume?' in a future interview."
-}`,
+}`),
   })
 );
 
