@@ -6,6 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 import { getHistoryUser } from "@/lib/history-user";
 import { createErrorResponse } from "@/lib/action-errors";
 import { EMPTY_HISTORY_RESPONSE } from "@/lib/history-response";
@@ -17,6 +18,16 @@ export async function buildReadme(style, boundaries, feedback) {
 
   const user = await getHistoryUser(userId);
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "managerReadme");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Manager README generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!style || !boundaries || !feedback) {
     return { success: false, errors: { _form: ["All fields are required."] } };
