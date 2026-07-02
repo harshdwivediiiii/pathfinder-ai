@@ -1,9 +1,11 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { auth } from "@clerk/nextjs/server";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
-import { parseAIJson } from "@/lib/validate";
+import { validateOutput } from "@/lib/validate";
+import { resumeRoastOutputSchema } from "@/lib/schemas/outputs";
 
 export async function generateResumeRoast(resumeContent) {
   const { userId } = await auth();
@@ -34,12 +36,14 @@ export async function generateResumeRoast(resumeContent) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    let rawText = aiResult.response.text();
-    const parsedData = parseAIJson(rawText);
+    const validation = validateOutput(resumeRoastOutputSchema, aiResult.response.text());
 
-    return { success: true, data: parsedData };
+    if (!validation.success) {
+      return { success: false, errors: { _form: ["AI returned an invalid response format. Please try again."] } };
+    }
+
+    return { success: true, data: validation.data };
   } catch (error) {
-    console.error("Resume Roast Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to roast resume"] } };
+    return handleServerError(error, "resume-roast");
   }
 }

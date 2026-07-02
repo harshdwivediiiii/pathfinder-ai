@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -59,8 +60,7 @@ export async function generatePromotionStrategy(achievements, targetRole) {
     revalidatePath("/promotion-negotiator");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Promotion Strategy Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate promotion strategy"] } };
+    return handleServerError(error, "promotion");
   }
 }
 

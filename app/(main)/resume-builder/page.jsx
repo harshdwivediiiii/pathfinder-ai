@@ -43,7 +43,7 @@ export default function ResumeBuilderPage() {
     if (res.success) {
       if (isValidResume(res.data.content)) {
         toast.success("Resume generated successfully!");
-        setHistory([res.data, ...history]);
+        setHistory((prev) => [res.data, ...prev]);
         setActiveResume(res.data.content);
       } else {
         toast.error("Generated resume has an invalid format.");

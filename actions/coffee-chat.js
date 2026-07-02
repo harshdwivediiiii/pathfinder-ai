@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -54,13 +55,7 @@ export async function startCoffeeChat(industry, targetRole) {
       data: record,
     };
   } catch (error) {
-    console.error("Start Coffee Chat Error:", error);
-    return {
-      success: false,
-      errors: {
-        _form: ["Failed to start session. Please try again later."],
-      },
-    };
+    return handleServerError(error, "coffee-chat");
   }
 }
 
@@ -113,8 +108,7 @@ export async function sendCoffeeChatMessage(sessionId, userMessage) {
     revalidatePath(`/coffee-chat/${sessionId}`);
     return { success: true, data: record };
   } catch (error) {
-    console.error("Coffee Chat Reply Error:", error);
-    return { success: false, errors: { _form: ["Failed to get reply. Please try again later."] } };
+    return handleServerError(error, "coffee-chat");
   }
 }
 
@@ -164,8 +158,7 @@ export async function generateCoffeeChatFeedback(sessionId) {
     revalidatePath(`/coffee-chat/${sessionId}`);
     return { success: true, data: record };
   } catch (error) {
-    console.error("Coffee Chat Feedback Error:", error);
-    return { success: false, errors: { _form: ["Failed to generate feedback. Please try again later."] } };
+    return handleServerError(error, "coffee-chat");
   }
 }
 

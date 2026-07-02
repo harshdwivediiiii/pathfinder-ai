@@ -96,6 +96,7 @@ export async function GET(request, context) {
     // Sanitize filename to remove unsafe characters
     const sanitizedTitle = conversation.title
       .replace(/[^a-zA-Z0-9_\- ]/g, '')
+      .replace(/\s+/g, '_')
       .substring(0, 100);
 
     return new Response(exportData, {

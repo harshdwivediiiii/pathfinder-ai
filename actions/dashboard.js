@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -93,8 +94,7 @@ export async function getIndustryInsights() {
 
     return user.industryInsight;
   } catch (error) {
-    console.error("Failed to fetch or save industry insights:", error);
-    return null;
+    return handleServerError(error, "dashboard");
   }
 }
 

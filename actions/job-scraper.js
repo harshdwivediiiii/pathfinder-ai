@@ -1,10 +1,12 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/gemini";
 import { JSDOM } from "jsdom";
 import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
+import { parseAIJson } from "@/lib/validate";
 
 export async function parseJobUrl(url) {
   const { userId } = await auth();
@@ -64,18 +66,13 @@ export async function parseJobUrl(url) {
     });
 
     const aiResult = await generateGeminiContent(prompt);
-    let rawText = aiResult.response.text();
-    if (rawText.startsWith("\`\`\`json")) {
-      rawText = rawText.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
-    }
-    const parsed = JSON.parse(rawText);
+    const parsed = parseAIJson(aiResult.response.text());
 
     return {
       success: true,
       data: parsed
     };
   } catch (error) {
-    console.error("Job URL Parse Error:", error);
-    return { success: false, errors: { _form: ["Failed to parse the job URL. The site might be blocking scrapers or the URL is invalid."] } };
+    return handleServerError(error, "job-scraper");
   }
 }
