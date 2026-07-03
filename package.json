@@ -1,5 +1,5 @@
 {
-  "name": "aicoach",
+  "name": "Pathfinder - AI",
   "version": "0.1.0",
   "engines": {
     "node": "22.x"
@@ -36,6 +36,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.10",
+    "@sentry/nextjs": "^10.62.0",
     "class-variance-authority": "^0.7.1",
     "client-only": "^0.0.1",
     "clsx": "^2.1.1",
