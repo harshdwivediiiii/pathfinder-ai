@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -134,17 +135,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     const returnData = { ...roadmap, isFallback: false };
     return returnData;
   } catch (error) {
-    console.error("Error generating career roadmap, using fallback:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    
-    // We don't save the fallback to the DB so they can try again later
-    return {
-      content: FALLBACK_ROADMAP,
-      userId: authUserId ?? null,
-      isFallback: true
-    };
+    return handleServerError(error, "roadmap");
   }
 }
 
@@ -168,10 +159,6 @@ export async function getRoadmap() {
     
     return { roadmap: roadmap || null, error: null };
   } catch (error) {
-    console.error("Error fetching roadmap:", error);
-    return { 
-      roadmap: null, 
-      error: error.message || "Failed to load roadmap. Please try again." 
-    };
+    return handleServerError(error, "roadmap");
   }
 }
