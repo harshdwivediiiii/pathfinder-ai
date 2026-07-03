@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -16,6 +17,7 @@ export async function reframeThoughts(doubts, achievements) {
   if (!user) return createErrorResponse("User not found");
 
   const limit = await checkRateLimit(userId, "imposter");
+  const limit = await checkRateLimit(userId, "imposterSyndrome");
   if (!limit.allowed) {
     return {
       success: false,
@@ -67,8 +69,7 @@ export async function reframeThoughts(doubts, achievements) {
     revalidatePath("/imposter-syndrome");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Imposter Syndrome Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate reframes"] } };
+    return handleServerError(error, "imposter-syndrome");
   }
 }
 

@@ -46,6 +46,7 @@ describe("reframeThoughts", () => {
   });
 
   it("successfully generates reframes when within rate limits", async () => {
+  it("successfully reframes thoughts when within rate limits", async () => {
     mocks.auth.mockResolvedValue({ userId: "user-1" });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
@@ -65,6 +66,12 @@ describe("reframeThoughts", () => {
 
     expect(result.success).toBe(true);
     expect(mocks.checkRateLimit).toHaveBeenCalledWith("user-1", "imposter");
+    mocks.imposterSyndromeCreate.mockResolvedValue({ id: "imposter-1" });
+
+    const result = await reframeThoughts("I am a fraud", "Launched a product");
+
+    expect(result.success).toBe(true);
+    expect(mocks.checkRateLimit).toHaveBeenCalledWith("user-1", "imposterSyndrome");
     expect(mocks.imposterSyndromeCreate).toHaveBeenCalled();
   });
 
@@ -74,6 +81,7 @@ describe("reframeThoughts", () => {
     mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
 
     const result = await reframeThoughts("I am a fraud", "Shipped production app");
+    const result = await reframeThoughts("I am a fraud", "Launched a product");
 
     expect(result.success).toBe(false);
     expect(result.errors._form[0]).toContain("limit reached");

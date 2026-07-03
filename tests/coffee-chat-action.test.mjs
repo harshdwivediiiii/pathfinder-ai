@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   createSession: vi.fn(),
   updateSession: vi.fn(),
   generateGeminiContent: vi.fn(),
+  checkRateLimit: vi.fn(),
+  formatResetTime: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -30,6 +32,11 @@ vi.mock("@/lib/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
+vi.mock("@/lib/rate-limit-actions", () => ({
+  checkRateLimit: mocks.checkRateLimit,
+  formatResetTime: mocks.formatResetTime,
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -39,6 +46,7 @@ import { startCoffeeChat, sendCoffeeChatMessage, generateCoffeeChatFeedback } fr
 describe("coffee chat actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.checkRateLimit.mockResolvedValue({ allowed: true, resetAt: new Date() });
   });
 
   describe("startCoffeeChat", () => {
@@ -69,7 +77,7 @@ describe("coffee chat actions", () => {
 
       const result = await sendCoffeeChatMessage("session-1", "Hello");
       expect(result.success).toBe(false);
-      expect(result.errors._form).toContain("Session not found");
+      expect(result.errors._form).toContain("Session not found or unauthorized");
       expect(mocks.findFirstSession).toHaveBeenCalledWith({
         where: { id: "session-1", userId: "user-1" },
       });
@@ -95,7 +103,7 @@ describe("coffee chat actions", () => {
       const result = await sendCoffeeChatMessage("session-1", "Hello");
       expect(result.success).toBe(true);
       expect(mocks.updateSession).toHaveBeenCalledWith({
-        where: { id: "session-1" },
+        where: { id: "session-1", userId: "user-1" },
         data: {
           chatHistory: [
             { role: "user", content: "Hello" },
@@ -114,7 +122,7 @@ describe("coffee chat actions", () => {
 
       const result = await generateCoffeeChatFeedback("session-1");
       expect(result.success).toBe(false);
-      expect(result.errors._form).toContain("Session not found");
+      expect(result.errors._form).toContain("Session not found or unauthorized");
       expect(mocks.findFirstSession).toHaveBeenCalledWith({
         where: { id: "session-1", userId: "user-1" },
       });

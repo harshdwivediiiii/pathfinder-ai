@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -86,14 +87,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
     return presence;
   } catch (error) {
-    console.error("Error generating executive presence:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    return {
-      success: false,
-      error: error?.message || "Failed to generate executive presence plan."
-    };
+    return handleServerError(error, "executive-presence");
   }
 }
 
@@ -114,10 +108,6 @@ export async function getExecutivePresences() {
     
     return { presences, error: null };
   } catch (error) {
-    console.error("Error fetching executive presences:", error);
-    return { 
-      presences: [], 
-      error: error.message || "Failed to load executive presence history." 
-    };
+    return handleServerError(error, "executive-presence");
   }
 }

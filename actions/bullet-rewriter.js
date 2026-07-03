@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -15,7 +16,7 @@ export async function rewriteBullet(rawParams) {
   try {
     assertFeatureEnabled("bulletRewriter");
   } catch (err) {
-    return { success: false, errors: { _form: [err.message] } };
+    return handleServerError(err, "bullet-rewriter");
   }
 
   const { userId } = await auth();
@@ -107,7 +108,6 @@ Respond ONLY with a valid JSON object in this exact format:
 
     return { success: true, data: result.data };
   } catch (error) {
-    console.error("Error rewriting bullet:", error);
-    return { success: false, errors: { _form: ["An unexpected error occurred while rewriting your bullet. Please try again later."] } };
+    return handleServerError(error, "bullet-rewriter");
   }
 }
