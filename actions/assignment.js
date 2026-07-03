@@ -15,14 +15,23 @@ import { buildHistoryResponse } from "@/lib/history-loader";
 import { generateGeminiContent } from "@/lib/gemini";
 import { getHistoryRecords } from "@/lib/history-query";
 import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 /** Grade an assignment submission against a rubric or prompt. */
 export async function gradeAssignment(promptText, solutionText) {
   const user = await getAuthenticatedHistoryUser();
-
-  const user = await getUserByScope(userId);
   if (!user) return USER_NOT_FOUND_RESPONSE;
-  if (!user) return EMPTY_HISTORY_RESPONSE;
+
+  const { userId } = await auth();
+  const limit = await checkRateLimit(userId, "assignment");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Assignment grading limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!promptText || !solutionText) {
     return { success: false, errors: { _form: ["Both prompt and solution are required."] } };
