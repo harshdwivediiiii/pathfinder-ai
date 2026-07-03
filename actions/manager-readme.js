@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { getUserByClerkId } from "@/lib/user";
@@ -55,8 +56,7 @@ export async function buildReadme(style, boundaries, feedback) {
     revalidatePath("/manager-readme");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Manager README Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate README"] } };
+    return handleServerError(error, "manager-readme");
   }
 }
 

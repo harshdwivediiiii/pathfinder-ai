@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getUserSettings } from "@/actions/settings";
 import { getUserOnboardingStatus } from "@/actions/user";
 import SettingsClient from "./_components/settings-client";
+
+export const dynamic = "force-dynamic";
 import { Sparkles, Settings } from "lucide-react";
 
 export default async function SettingsPage() {

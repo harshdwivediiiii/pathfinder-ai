@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
@@ -42,7 +43,8 @@ export async function updateUser(data) {
       precomputedInsights = await generateAIInsights(profileData.industry);
     }
   } catch (e) {
-    console.error("Failed to generate insights pre-transaction:", e);
+    // If AI generation fails, we'll create a placeholder in the transaction
+    console.error("Failed to generate AI insights, will create placeholder:", e);
     precomputedInsights = null;
   }
 
@@ -94,8 +96,7 @@ export async function updateUser(data) {
 
     return result;
   } catch (err) {
-    console.error("Error updating user and industry:", err);
-    throw new Error("Failed to update profile");
+    return handleServerError(err, "user");
   }
 }
 
@@ -146,7 +147,6 @@ export async function getUserOnboardingStatus() {
       isSignedIn: true,
     };
   } catch (error) {
-    console.error("Error fetching onboarding status:", error);
-    throw new Error("Failed to get onboarding status");
+    return handleServerError(error, "user");
   }
 }

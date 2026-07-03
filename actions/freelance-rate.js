@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -12,6 +13,16 @@ import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 export async function calculateRate(skills, experience, targetIncome) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "freelanceRate");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Freelance rate calculation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await getAuthenticatedUser(userId);
   if (!user) return createErrorResponse("User not found");
@@ -68,8 +79,7 @@ export async function calculateRate(skills, experience, targetIncome) {
     revalidatePath("/freelance-rate");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Freelance Rate Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to calculate rate"] } };
+    return handleServerError(error, "freelance-rate");
   }
 }
 

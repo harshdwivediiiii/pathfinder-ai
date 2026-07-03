@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { auth } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
@@ -64,21 +65,11 @@ export async function chatWithGemini(prompt) {
 
     try {
       const { response } = await generateGeminiContent(securePrompt);
-      return response.text();
+      return { success: true, data: response.text() };
     } catch (err) {
-      const message =
-        err?.response?.error?.message || err?.message || "Unknown Gemini error";
-      console.error("Gemini API error:", message);
-      return {
-        success: false,
-        errors: { _form: ["Failed to get response from Gemini AI. Please try again."] },
-      };
-    }
+    return handleServerError(err, "chat");
+  }
   } catch (error) {
-    console.error("Chat action error:", error);
-    return {
-      success: false,
-      errors: { _form: [error.message || "An unexpected error occurred."] },
-    };
+    return handleServerError(error, "chat");
   }
 }

@@ -7,7 +7,6 @@ import { Sparkles, Briefcase, Mail, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 
 export default function JobTrackerPage() {
   const [jobs, setJobs] = useState([]);

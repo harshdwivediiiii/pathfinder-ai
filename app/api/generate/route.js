@@ -224,34 +224,7 @@ export async function POST(request) {
 
 
 
-  // Check for pending request (deduplication)
-  const pendingRequest = await getPendingGenerationRequest(
-    cacheUser,
-    promptCheck.prompt
-  );
 
-  if (pendingRequest) {
-    try {
-      await pendingRequest;
-    } catch (error) {
-      // Pending request failed, we'll proceed with our own generation
-      console.warn("[dedup] Pending request failed, proceeding with new generation");
-    }
-
-    const cachedAfterPending = await getCachedResponse(
-      cacheUser,
-      promptCheck.prompt
-    );
-
-    if (cachedAfterPending) {
-  return createCachedSseResponse({
-    text: cachedAfterPending,
-    headers: SSE_BASE_HEADERS,
-    cacheStatus: "DEDUP",
-    deduped: true,
-  });
-}
-  }
 
   if (conversationId) {
     try {
@@ -343,6 +316,35 @@ Rules:
     ],
   });
 
+
+  // Check for pending request (deduplication)
+  const pendingRequest = await getPendingGenerationRequest(
+    cacheUser,
+    promptCheck.prompt
+  );
+
+  if (pendingRequest) {
+    try {
+      await pendingRequest;
+    } catch (error) {
+      // Pending request failed, we'll proceed with our own generation
+      console.warn("[dedup] Pending request failed, proceeding with new generation");
+    }
+
+    const cachedAfterPending = await getCachedResponse(
+      cacheUser,
+      restrictedPrompt
+    );
+
+    if (cachedAfterPending) {
+      return createCachedSseResponse({
+        text: cachedAfterPending,
+        headers: SSE_BASE_HEADERS,
+        cacheStatus: "DEDUP",
+        deduped: true,
+      });
+    }
+  }
 
   const restrictedCachedResponse = await getCachedResponse(
     cacheUser,
