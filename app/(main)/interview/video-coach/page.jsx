@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { evaluateVideoAnswer } from "@/actions/interview";
+import { evaluateVideoAnswer, getCoachQuestions } from "@/actions/interview";
+import useFetch from "@/hooks/use-fetch";
 import { Video, Square, RotateCcw, Sparkles, AlertCircle, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,9 @@ import { toast } from "sonner";
 import { useAccessibility } from "@/components/accessibility-provider";
 import { useAuth } from "@clerk/nextjs";
 
-const QUESTION = "Describe a time when you disagreed with a team member. How did you resolve it?";
-
 export default function VideoCoachPage() {
+  const { data: questionPool, loading: loadingQuestion, error: questionError, fn: loadQuestions } = useFetch(getCoachQuestions);
+  const [question, setQuestion] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [evaluating, setEvaluating] = useState(false);
@@ -40,6 +41,16 @@ export default function VideoCoachPage() {
       return false;
     }
   };
+
+  // Load industry-specific questions on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadQuestions(); }, []);
+
+  useEffect(() => {
+    if (questionPool?.length) {
+      setQuestion(questionPool[Math.floor(Math.random() * questionPool.length)]);
+    }
+  }, [questionPool]);
 
   // Initialize Camera and Speech Recognition
   useEffect(() => {
@@ -78,6 +89,7 @@ export default function VideoCoachPage() {
   }, [oneTapCameraMode]);
 
   const toggleRecording = async () => {
+    if (loadingQuestion || !question) return;
     if (!permissionsGranted && !error) {
        const success = await startCamera();
        if (!success) return;
@@ -98,6 +110,7 @@ export default function VideoCoachPage() {
 
   const handleEvaluate = async () => {
     setTimeout(async () => {
+      if (loadingQuestion || !question) return;
       if (!transcript.trim()) {
         toast.error("No speech detected. Please speak louder.");
         return;
@@ -111,7 +124,7 @@ export default function VideoCoachPage() {
         posture: "Upright"
       };
 
-      const res = await evaluateVideoAnswer(QUESTION, transcript, simulatedMetrics);
+      const res = await evaluateVideoAnswer(question, transcript, simulatedMetrics);
       if (res.success) {
         setEvaluation(res.data);
       } else {
@@ -124,6 +137,10 @@ export default function VideoCoachPage() {
   const handleRetry = () => {
     setTranscript("");
     setEvaluation(null);
+    if (questionPool?.length) {
+      const pool = questionPool.filter((q) => q !== question);
+      setQuestion(pool[Math.floor(Math.random() * pool.length)] || questionPool[0]);
+    }
   };
 
   return (
@@ -173,9 +190,12 @@ export default function VideoCoachPage() {
                     )}
                     <button
                       onClick={toggleRecording}
+                      disabled={!question}
                       className={`relative z-10 h-20 w-20 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${
-                        isRecording 
-                          ? 'bg-red-500 text-white hover:bg-red-600 scale-105' 
+                        isRecording
+                          ? 'bg-red-500 text-white hover:bg-red-600 scale-105'
+                          : !question
+                          ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
                           : 'bg-primary text-primary-foreground hover:bg-primary/90'
                       }`}
                     >
@@ -183,7 +203,7 @@ export default function VideoCoachPage() {
                     </button>
                   </div>
                   <span className={`font-bold px-4 py-1.5 rounded-full text-sm backdrop-blur-md ${isRecording ? 'bg-red-500/20 text-red-500' : 'bg-black/50 text-white'}`}>
-                    {isRecording ? "● RECORDING" : "CLICK TO START"}
+                    {isRecording ? "● RECORDING" : loadingQuestion ? "LOADING..." : "CLICK TO START"}
                   </span>
                 </div>
               </div>
@@ -205,9 +225,18 @@ export default function VideoCoachPage() {
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" /> Current Question
                 </h3>
-                <p className="text-xl font-semibold leading-relaxed text-foreground">
-                  "{QUESTION}"
-                </p>
+                {loadingQuestion ? (
+                  <div className="space-y-2 animate-pulse">
+                    <div className="h-4 bg-muted rounded w-full" />
+                    <div className="h-4 bg-muted rounded w-4/5" />
+                  </div>
+                ) : questionError ? (
+                  <p className="text-sm text-destructive">Failed to load question. Please refresh the page.</p>
+                ) : (
+                  <p className="text-xl font-semibold leading-relaxed text-foreground">
+                    "{question}"
+                  </p>
+                )}
               </motion.div>
 
               {evaluating && (

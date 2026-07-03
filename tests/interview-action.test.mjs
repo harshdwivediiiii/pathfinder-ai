@@ -7,6 +7,8 @@ const actionMocks = vi.hoisted(() => ({
   generateGeminiContent: vi.fn(),
   checkRateLimit: vi.fn(),
   formatResetTime: vi.fn(),
+  cacheGet: vi.fn(),
+  cacheDelete: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -32,6 +34,17 @@ vi.mock("@/lib/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));
+
+vi.mock("@/lib/cache", async () => {
+  const actual = await vi.importActual("@/lib/cache");
+  return {
+    ...actual,
+    cacheStore: {
+      get: actionMocks.cacheGet,
+      delete: actionMocks.cacheDelete,
+    },
+  };
+});
 
 describe("saveQuizResult", () => {
   beforeEach(() => {
@@ -73,6 +86,8 @@ describe("saveQuizResult", () => {
     await cacheStore.set(cacheKey, questions);
 
     const answers = ["Measuring temperature"]; // Wrong answer
+
+    actionMocks.cacheGet.mockResolvedValue(questions);
 
     const result = await saveQuizResult(sessionId, answers, "Technical");
 

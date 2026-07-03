@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -94,14 +95,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
     return readiness;
   } catch (error) {
-    console.error("Error generating founder readiness:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    return {
-      success: false,
-      error: error?.message || "Failed to generate founder readiness analysis."
-    };
+    return handleServerError(error, "founder-readiness");
   }
 }
 
@@ -122,10 +116,6 @@ export async function getFounderReadinesses() {
     
     return { readinesses, error: null };
   } catch (error) {
-    console.error("Error fetching founder readinesses:", error);
-    return { 
-      readinesses: [], 
-      error: error.message || "Failed to load founder readiness history." 
-    };
+    return handleServerError(error, "founder-readiness");
   }
 }
