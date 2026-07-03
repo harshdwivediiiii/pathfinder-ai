@@ -6,6 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function generateLayoffStrategy(details) {
   const { userId } = await auth();
@@ -13,6 +14,16 @@ export async function generateLayoffStrategy(details) {
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "layoff");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Layoff strategy generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!details || details.trim().length === 0) {
     return { success: false, errors: { _form: ["Please provide some details about the layoff/severance."] } };
