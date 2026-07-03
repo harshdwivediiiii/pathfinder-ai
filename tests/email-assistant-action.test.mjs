@@ -46,17 +46,20 @@ describe("generateEmailReply", () => {
   });
 
   it("successfully generates reply when within rate limits", async () => {
+  it("successfully generates email reply when within rate limits", async () => {
     mocks.auth.mockResolvedValue({ userId: "user-1" });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
     mocks.generateGeminiContent.mockResolvedValue({
       response: {
         text: () => "This is a reply email.",
+        text: () => "Drafted reply",
       },
     });
     mocks.recruiterEmailCreate.mockResolvedValue({ id: "email-1" });
 
     const result = await generateEmailReply("Are you interested?", "Schedule interview");
+    const result = await generateEmailReply("Original email text", "Accept interview");
 
     expect(result.success).toBe(true);
     expect(mocks.checkRateLimit).toHaveBeenCalledWith("user-1", "emailAssistant");
@@ -69,6 +72,7 @@ describe("generateEmailReply", () => {
     mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
 
     const result = await generateEmailReply("Are you interested?", "Schedule interview");
+    const result = await generateEmailReply("Original email text", "Accept interview");
 
     expect(result.success).toBe(false);
     expect(result.errors._form[0]).toContain("limit reached");

@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -8,6 +9,7 @@ import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
 import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 import { buildUserProfileContext } from "@/lib/ai-context";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function generateEmailReply(originalEmail, goal) {
   const { userId } = await auth();
@@ -59,8 +61,7 @@ export async function generateEmailReply(originalEmail, goal) {
     revalidatePath("/email-assistant");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Email Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate email reply"] } };
+    return handleServerError(error, "email-assistant");
   }
 }
 
