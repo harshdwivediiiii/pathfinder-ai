@@ -103,9 +103,10 @@ describe("chatWithGemini", () => {
       response: { text: () => "career advice" },
     });
 
-    await expect(chatWithGemini("How do I improve my resume?")).resolves.toBe(
-      "career advice"
-    );
+    await expect(chatWithGemini("How do I improve my resume?")).resolves.toEqual({
+      success: true,
+      data: "career advice",
+    });
 
     expect(mocks.buildSecurePrompt).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -130,7 +131,7 @@ describe("chatWithGemini", () => {
 
     await expect(chatWithGemini("Help me with interviews")).resolves.toEqual({
       success: false,
-      errors: { _form: ["Failed to get response from Gemini AI. Please try again."] },
+      errors: { _form: ["An unexpected error occurred. Our team has been notified."] },
     });
     expect(consoleErrorSpy).toHaveBeenCalled();
   });

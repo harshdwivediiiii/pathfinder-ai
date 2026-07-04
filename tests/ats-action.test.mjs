@@ -113,6 +113,7 @@ describe("analyzeATS", () => {
     expect(result.success).toBe(true);
     expect(mocks.generateCacheKey).toHaveBeenCalledWith(
       "ats",
+      "user-1",
       rawParams.resumeContent,
       rawParams.jobDescription,
       rawParams.jobTitle,

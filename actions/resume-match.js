@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -117,8 +118,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     revalidatePath("/resume-match");
     return { success: true, data: record };
   } catch (error) {
-    console.error("[Resume Match Action Error]:", error);
-    return { success: false, errors: { _form: ["An error occurred processing your request"] } };
+    return handleServerError(error, "resume-match");
   }
 }
 
@@ -155,8 +155,7 @@ export async function getResumeMatchHistory() {
     });
     return { success: true, data: analyses || [] };
   } catch (error) {
-    console.error("Failed to query resume match history:", error);
-    return { success: false, data: [] };
+    return handleServerError(error, "resume-match");
   }
 }
 
@@ -197,7 +196,6 @@ export async function deleteResumeMatchAnalysis(id) {
     revalidatePath("/resume-match");
     return { success: true };
   } catch (error) {
-    console.error("Failed to safely delete resume match entry:", error);
-    return { success: false, errors: { _form: ["An error occurred processing your request"] } };
+    return handleServerError(error, "resume-match");
   }
 }

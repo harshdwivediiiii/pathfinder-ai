@@ -7,6 +7,7 @@ import { Sparkles, Building2, Target, Clock3, TrendingUp, ShieldCheck, BrainCirc
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import LinkedinImportButton from "@/components/linkedin-import-button";
 
 const ringColors = {
   "primary": { track: "oklch(var(--primary) / 0.8)", iconBg: "bg-primary/10", iconText: "text-primary" },
@@ -176,6 +177,8 @@ export function WelcomeHero({ userName, currentRole, targetRole, insight, career
             transition={{ delay: 0.15 }}
             className="flex flex-row md:flex-col items-center md:items-end gap-3 shrink-0"
           >
+            <LinkedinImportButton className="rounded-full shadow-sm text-xs h-9 px-4" />
+            
             {lastUpdated && (
               <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/30 border border-border/50">
                 <Clock3 className="h-3 w-3" />

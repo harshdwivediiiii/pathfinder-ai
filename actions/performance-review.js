@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
@@ -64,8 +65,7 @@ export async function generateSelfAssessment(achievements, challenges, goals) {
     revalidatePath("/performance-review");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Performance Review Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate review"] } };
+    return handleServerError(error, "performance-review");
   }
 }
 

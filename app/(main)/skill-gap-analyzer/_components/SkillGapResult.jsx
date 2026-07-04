@@ -1,14 +1,16 @@
 "use client";
-
-import { CheckCircle2, AlertTriangle, Lightbulb, Map, Target, CalendarDays, BrainCircuit } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, AlertTriangle, Lightbulb, Map, Target, CalendarDays, BrainCircuit, Copy, Check,} from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function SkillGapResult({ data }) {
   if (!data) return null;
-
+  const [copied, setCopied] = useState(false);
   const {
     matchPercentage,
     matchedSkills,
@@ -30,6 +32,34 @@ export default function SkillGapResult({ data }) {
         return "bg-secondary text-secondary-foreground";
     }
   };
+
+const roadmapToText = (roadmap) => {
+  return [
+    "Learning Roadmap",
+    "",
+    ...roadmap.map(
+      (week) => `${week.week}
+Focus: ${week.focus}
+
+${week.tasks.map((task) => `• ${task}`).join("\n")}`
+    ),
+  ].join("\n\n");
+};
+
+const handleCopyRoadmap = async () => {
+  try {
+    const text = roadmapToText(weeklyRoadmap);
+
+    await navigator.clipboard.writeText(text);
+
+    setCopied(true);
+    window.setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+  } catch (error) {
+    toast.error("Failed to copy roadmap.");
+  }
+};
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -128,12 +158,34 @@ export default function SkillGapResult({ data }) {
 
       {/* Weekly Roadmap */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Map className="w-5 h-5 text-primary" />
             Learning Roadmap
           </CardTitle>
           <CardDescription>A structured plan to acquire missing skills</CardDescription>
+          </div>
+          {weeklyRoadmap?.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyRoadmap}
+              className="gap-2"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy Learning Roadmap
+                </>
+              )}
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="space-y-6 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">

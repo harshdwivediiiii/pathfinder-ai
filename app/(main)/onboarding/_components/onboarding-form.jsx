@@ -31,6 +31,7 @@ import useFetch from "@/hooks/use-fetch";
 import { onboardingSchema } from "@/app/lib/schema";
 import { updateUser } from "@/actions/user";
 import { cn } from "@/lib/utils";
+import LinkedinImportButton from "@/components/linkedin-import-button";
 
 const BIO_MAX = 500;
 
@@ -86,6 +87,18 @@ const OnboardingForm = ({ industries }) => {
     }
   }, [updateResult, updateLoading, router]);
 
+  const handleImportComplete = (data) => {
+    if (data.currentRole) setValue("currentRole", data.currentRole);
+    if (data.bio) {
+      setValue("bio", data.bio);
+      setBioLength(data.bio.length);
+    }
+    if (data.experience) setValue("experience", data.experience.toString());
+    if (data.skills && data.skills.length > 0) setValue("skills", data.skills.join(", "));
+    // Note: Industry dropdown might need manual selection if it doesn't strictly match the predefined lists,
+    // but the bio, skills, role, and experience will be filled in, saving a lot of time.
+  };
+
   const watchIndustry = watch("industry");
   const bioHint = getQualityHint(bioLength, BIO_MAX);
   const isOverLimit = bioLength > BIO_MAX;
@@ -122,6 +135,14 @@ const OnboardingForm = ({ industries }) => {
           </CardHeader>
 
           <CardContent className="p-8 md:p-12 pt-0">
+            <div className="flex justify-center mb-8 pb-8 border-b border-border border-dashed">
+              <LinkedinImportButton 
+                variant="outline" 
+                className="w-full max-w-sm rounded-xl h-12 shadow-sm"
+                onImportComplete={handleImportComplete} 
+              />
+            </div>
+            
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Industry Selection */}
