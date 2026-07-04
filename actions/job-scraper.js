@@ -55,11 +55,11 @@ export async function parseJobUrl(url) {
     });
 
     const aiResult = await generateGeminiContent(prompt);
-    const parsed = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(aiResult.response.text());
 
     return {
       success: true,
-      data: parsed
+      data: parsedData
     };
   } catch (error) {
     return handleServerError(error, "job-scraper");

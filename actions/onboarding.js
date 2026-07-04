@@ -5,8 +5,10 @@ import { createErrorResponse } from "@/lib/action-errors";
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
+import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { validateOutput } from "@/lib/validate";
+import { onboardingPlanOutputSchema } from "@/lib/schemas/outputs";
 
 export async function generateOnboardingPlan(company, role) {
   const { userId } = await auth();
@@ -52,11 +54,10 @@ export async function generateOnboardingPlan(company, role) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const validation = validateOutput(onboardingPlanOutputSchema, aiResult.response.text());
 
-    // Validate parsed structure
-    if (!parsedData?.day30?.focus || !parsedData?.day60?.focus || !parsedData?.day90?.focus) {
-      return { success: false, errors: { _form: ["Failed to generate valid onboarding plan. Please try again."] } };
+    if (!validation.success) {
+      return { success: false, errors: { _form: ["AI returned an invalid response format. Please try again."] } };
     }
 
     const record = await db.onboardingPlan.create({
@@ -64,7 +65,7 @@ export async function generateOnboardingPlan(company, role) {
         userId: user.id,
         company: trimmedCompany,
         role: trimmedRole,
-        planContent: parsedData,
+        planContent: validation.data,
       },
     });
 

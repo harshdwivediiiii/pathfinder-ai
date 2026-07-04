@@ -1,12 +1,14 @@
 "use server";
+import { requireHistoryUser } from "@/lib/history-guard";
 import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
-
+import { getAiResponseText } from "@/lib/ai-response";
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { buildHistoryResponse } from "@/lib/history-loader";
 
 export async function decodeEquityOffer(offerDetails) {
   const { userId } = await auth();
@@ -48,7 +50,7 @@ export async function decodeEquityOffer(offerDetails) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.equityAnalysis.create({
       data: {
@@ -69,13 +71,16 @@ export async function getEquityAnalyses() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, data: [] };
+  const user = await requireHistoryUser();
+
+if ("success" in user) {
+  return user;
+}
 
   const records = await db.equityAnalysis.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
   });
 
-  return { success: true, data: records };
+  return buildHistoryResponse(records);
 }

@@ -103,9 +103,10 @@ describe("chatWithGemini", () => {
       response: { text: () => "career advice" },
     });
 
-    await expect(chatWithGemini("How do I improve my resume?")).resolves.toBe(
-      "career advice"
-    );
+    await expect(chatWithGemini("How do I improve my resume?")).resolves.toEqual({
+      success: true,
+      data: "career advice",
+    });
 
     expect(mocks.buildSecurePrompt).toHaveBeenCalledWith(
       expect.objectContaining({

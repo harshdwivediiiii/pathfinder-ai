@@ -7,6 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function analyzeRelocation(currentCity, targetCity, salary) {
   const { userId } = await auth();
@@ -14,6 +15,16 @@ export async function analyzeRelocation(currentCity, targetCity, salary) {
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "relocation");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Relocation analysis limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!currentCity || !targetCity || !salary) {
     return { success: false, errors: { _form: ["Current city, target city, and salary are required."] } };
