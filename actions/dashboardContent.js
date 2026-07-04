@@ -1,3 +1,4 @@
+import { handleServerError } from "@/lib/error-handler";
 import React, { useEffect, useState } from 'react';
 
 // Mock data fetch function (replace with actual data fetching as necessary)
@@ -18,8 +19,8 @@ const Dashboard = () => {
                     setSections(data);
                 }
             } catch (error) {
-                console.error('Error fetching dashboard data:', error);
-            }
+    return handleServerError(error, "dashboardContent");
+  }
         };
         loadSections();
     }, []);

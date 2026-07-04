@@ -1,4 +1,5 @@
 "use server";
+import { handleServerError } from "@/lib/error-handler";
 import { db } from "@/lib/prisma";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
 import { auth } from "@clerk/nextjs/server";
@@ -59,8 +60,7 @@ export async function generateAssessmentStrategy(company, assessmentType) {
     revalidatePath("/behavioral-prep");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Behavioral Prep Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate assessment strategy"] } };
+    return handleServerError(error, "behavioral-prep");
   }
 }
 /** Retrieve all behavioral prep sessions for the current user. */

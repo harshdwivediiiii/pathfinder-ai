@@ -385,7 +385,6 @@ Open [http://localhost:3000](http://localhost:3000). You're in.
 
 ---
 
-<!-- Fix: Corrected step numbering from 5.5 to 6 for proper sequential numbering -->
 ### 6. Start the Inngest Dev Server (required for background jobs)
 
 In a **second terminal**, run:
