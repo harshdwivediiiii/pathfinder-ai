@@ -7,6 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
 
 export async function generateStarStory(rawExperience) {
   const { userId } = await auth();
@@ -14,6 +15,16 @@ export async function generateStarStory(rawExperience) {
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "starStory");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`STAR story generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!rawExperience || rawExperience.trim().length < 20) {
     return { success: false, errors: { _form: ["Please provide a valid experience description."] } };

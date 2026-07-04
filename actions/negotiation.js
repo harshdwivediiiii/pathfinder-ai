@@ -72,8 +72,8 @@ export async function evaluateNegotiation(history) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsed = parseAIJson(aiResult.response.text());
-    return { success: true, data: parsed };
+    const parsedData = parseAIJson(aiResult.response.text());
+    return { success: true, data: parsedData };
   } catch (error) {
     return handleServerError(error, "negotiation");
   }
