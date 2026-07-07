@@ -96,7 +96,7 @@ export async function analyzeResumeMatch(rawParams) {
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.`,
     });
 
-    const result = await generateGeminiContent(prompt);
+    const aiResult = await generateGeminiContent(prompt);
     const parsedAnalysis = parseAIJson(result.response.text());
 
     const record = await db.resumeMatchAnalysis.create({

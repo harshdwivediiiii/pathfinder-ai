@@ -597,8 +597,8 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     let isFallback = false;
 
     try {
-      const result = await generateGeminiContent(prompt);
-      const quizValidation = validateOutput(interviewQuestionsOutputSchema, result.response.text());
+      const aiResult = await generateGeminiContent(prompt);
+      const quizValidation = validateOutput(interviewQuestionsOutputSchema, aiResult.response.text());
 
       if (!quizValidation.success || !quizValidation.data?.questions?.length) {
         throw new Error("Invalid questions structure received from AI.");

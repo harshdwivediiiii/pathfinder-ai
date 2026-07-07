@@ -1,8 +1,11 @@
 "use server";
 import { handleServerError } from "@/lib/error-handler";
+import { mapParsedOutput } from "@/lib/field-mapping";
+import { ACTION_CONTEXT } from "@/lib/action-context";
 import { getAiResponseText } from "@/lib/ai-response";
 import { db } from "@/lib/prisma";
 import { finalizeAiPersistence } from "@/lib/ai-persistence";
+import { requireAuthenticatedUser } from "@/lib/authenticated-user";
 import { buildUserLookup } from "@/lib/user-query";
 import { getAuthenticatedHistoryResponse } from "@/lib/history-response-auth";
 import { createSuccessResponse } from "@/lib/action-success";
@@ -20,8 +23,10 @@ import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
 
 /** Grade an assignment submission against a rubric or prompt. */
 export async function gradeAssignment(promptText, solutionText) {
-  const user = await getAuthenticatedHistoryUser();
-  if (!user) return USER_NOT_FOUND_RESPONSE;
+  const init = await initializeAuthenticatedAction();
+  if ("success" in init) return init;
+
+  const { user } = init;
 
   if (!promptText || !solutionText) {
     return { success: false, errors: { _form: ["Both prompt and solution are required."] } };
@@ -62,7 +67,7 @@ export async function gradeAssignment(promptText, solutionText) {
     finalizeAiPersistence("/assignment-grader");
     return { success: true, data: record };
   } catch (error) {
-    return handleServerError(error, "assignment");
+    return handleServerError(error, ACTION_CONTEXT.ASSIGNMENT);
   }
 /** Retrieve all graded assignments for the current user. */
 }

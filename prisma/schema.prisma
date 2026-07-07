@@ -825,3 +825,17 @@ model CultureMatch {
 
   @@index([userId])
 }
+
+model MockInterviewSession {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  technicalScore     Float
+  communicationScore Float
+  grammarScore       Float
+  overallScore       Float
+  feedback           String?  @db.Text
+  createdAt          DateTime @default(now())
+
+  @@index([userId])
+}

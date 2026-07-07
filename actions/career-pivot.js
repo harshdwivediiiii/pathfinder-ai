@@ -1,10 +1,16 @@
 "use server";
 import { executeSecurePrompt } from "@/lib/prompt-execution";
+import { returnRecord } from "@/lib/record-response";
 import { handleServerError } from "@/lib/error-handler";
+import { executeAiWorkflow } from "@/lib/ai-workflow";
+import { PROMPT_CONTEXTS } from "@/lib/prompt-contexts";
 import { executeAiLifecycle } from "@/lib/ai-lifecycle";
+import { createValidationResponse } from "@/lib/validation-response";
 import { runAiGeneration } from "@/lib/ai-pipeline";
+import { createJsonOutputRules } from "@/lib/output-rules";
 import { loadHistory } from "@/lib/history-loader";
 import { getUserHistory } from "@/lib/history-query";
+import { createSuccessResponse } from "@/lib/action-success";
 import { db } from "@/lib/prisma";
 import { buildParsedResult } from "@/lib/parsed-ai";
 import { auth } from "@clerk/nextjs/server";
@@ -13,12 +19,14 @@ import { createPromptConfig } from "@/lib/prompt-config";
 import { revalidatePath } from "next/cache";
 import { createOutputRules } from "@/lib/output-rules";
 import { createErrorResponse } from "@/lib/action-errors";
+import { completePersistence } from "@/lib/persistence-complete";
 import { createRecord } from "@/lib/record-create";
 import { getAuthenticatedUserId } from "@/lib/auth-userid";
 import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
 import { parseAiOutput } from "@/lib/ai-output";
+import { getAuthenticatedUser } from "@/lib/authenticated-history";
 
 /** Generate a career pivot strategy based on user goals. */
 export async function generatePivotStrategy(currentRole, targetRole) {
@@ -29,10 +37,9 @@ export async function generatePivotStrategy(currentRole, targetRole) {
   if (!user) return createErrorResponse("User not found");
 
   if (!currentRole || !targetRole) {
-    return {
-      success: false,
-      errors: { _form: ["Both current and target roles are required."] },
-    };
+    return createValidationResponse(
+    "Both current and target roles are required."
+  );
   }
 
   try {
@@ -45,7 +52,7 @@ export async function generatePivotStrategy(currentRole, targetRole) {
           { label: "currentRole", value: currentRole, maxLength: 100 },
           { label: "targetRole", value: targetRole, maxLength: 100 },
         ],
-        outputRules: createOutputRules(`Provide the output in the following JSON format ONLY:
+        outputRules: createJsonOutputRules(`Provide the output in the following JSON format ONLY:
 {
   "transferableSkills": [
     "Skill 1 (and how it translates)",
@@ -67,24 +74,21 @@ export async function generatePivotStrategy(currentRole, targetRole) {
     const parsedData = parseAIJson(aiResult.response.text());
 
     const record = await createRecord(db.careerPivot, {
-      userId: user.id,
-      currentRole,
-      targetRole,
-      result: parsedData,
-    });
+  userId: user.id,
+  currentRole,
+  targetRole,
+  ...withParsedData("result", parsedData),
+});
 
     revalidatePath("/career-pivot");
-    return { success: true, data: record };
+    return createSuccessResponse(record);
   } catch (error) {
     return handleServerError(error, "career-pivot");
   }
 }
 
 export async function getCareerPivots() {
-  const userId = await getAuthenticatedUserId(auth);
-  if (!userId) return { success: false, data: [] };
-
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await getAuthenticatedUser();
   if (!user) return { success: false, data: [] };
 
   const records = await getUserHistory(
@@ -98,5 +102,4 @@ export async function getCareerPivots() {
   const records = await db.careerBreakPlan.findMany(...);
 
   return { success: true, data: records };
-});
 }

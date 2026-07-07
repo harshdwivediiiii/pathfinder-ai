@@ -9,6 +9,7 @@ import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
 import { buildUserProfileContext } from "@/lib/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { safeFetch } from "../lib/safe-fetch.js";
 
 export async function generateCultureMatch(data) {
   const { userId } = await auth();
@@ -48,11 +49,11 @@ export async function generateCultureMatch(data) {
 
   if (companyUrl && !companyContent) {
     try {
-      const res = await fetch(companyUrl, {
+      const res = await safeFetch(companyUrl, {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
       });
-      if (!res.ok) throw new Error("Failed to fetch URL");
-      const html = await res.text();
+      if (!res.success) return res;
+      const html = res.text();
       
       // Basic extraction: remove script, style, and extract body text
       let text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')

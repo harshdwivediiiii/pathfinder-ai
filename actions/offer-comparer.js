@@ -1,7 +1,7 @@
 "use server";
 import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
-
+import { buildUserLookup } from "@/lib/user-query";
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
@@ -15,7 +15,9 @@ export async function compareOffers(offers) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await db.user.findUnique(
+  buildUserLookup(userId)
+);
   if (!user) return createErrorResponse("User not found");
 
   const rateLimitResult = await checkRateLimit(userId, "offerComparer");
@@ -83,7 +85,9 @@ export async function getOfferComparisons() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await db.user.findUnique(
+  buildUserLookup(userId)
+);
   if (!user) return { success: false, data: [] };
 
   const records = await db.offerComparison.findMany({

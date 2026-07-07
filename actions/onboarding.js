@@ -3,6 +3,7 @@ import { handleServerError } from "@/lib/error-handler";
 import { createErrorResponse } from "@/lib/action-errors";
 
 import { db } from "@/lib/prisma";
+import { createAiValidationError } from "@/lib/ai-validation-response";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
@@ -57,7 +58,7 @@ export async function generateOnboardingPlan(company, role) {
     const validation = validateOutput(onboardingPlanOutputSchema, aiResult.response.text());
 
     if (!validation.success) {
-      return { success: false, errors: { _form: ["AI returned an invalid response format. Please try again."] } };
+      return createAiValidationError();
     }
 
     const record = await db.onboardingPlan.create({

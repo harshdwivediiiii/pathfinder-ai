@@ -4,6 +4,7 @@ import { handleServerError } from "@/lib/error-handler";
 import { auth } from "@clerk/nextjs/server";
 import { buildSecurePrompt } from "@/lib/prompt-safety";
 import { generateGeminiContent } from "@/lib/gemini";
+import { createAiValidationError } from "@/lib/ai-validation-response";
 import { validateOutput } from "@/lib/validate";
 import { resumeRoastOutputSchema } from "@/lib/schemas/outputs";
 
@@ -39,7 +40,7 @@ export async function generateResumeRoast(resumeContent) {
     const validation = validateOutput(resumeRoastOutputSchema, aiResult.response.text());
 
     if (!validation.success) {
-      return { success: false, errors: { _form: ["AI returned an invalid response format. Please try again."] } };
+      return createAiValidationError();
     }
 
     return { success: true, data: validation.data };

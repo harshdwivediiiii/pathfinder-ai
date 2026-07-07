@@ -1,226 +1,310 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { generateEscapePlan, getEscapePlans } from "@/actions/toxic-escape";
+import { 
+  HeartPulse, ShieldAlert, Sparkles, Brain, 
+  DoorOpen, MessagesSquare, Shield 
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldAlert, Send, FileText, Loader2, HeartPulse, Flag, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { generateEscapePlan, getEscapePlans } from "@/actions/toxic-workplace";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function ToxicWorkplacePage() {
+  const [loading, setLoading] = useState(false);
   const [symptoms, setSymptoms] = useState("");
   const [role, setRole] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [timeline, setTimeline] = useState("3 Months");
+  const [activePlan, setActivePlan] = useState(null);
   const [history, setHistory] = useState([]);
-  const [currentPlan, setCurrentPlan] = useState(null);
 
   useEffect(() => {
+    async function loadHistory() {
+      const res = await getEscapePlans();
+      if (res.success && res.data.length > 0) {
+        setHistory(res.data);
+        setActivePlan(res.data[0].escapeData);
+      }
+    }
     loadHistory();
   }, []);
 
-  const loadHistory = async () => {
-    const res = await getEscapePlans();
-    if (res.success && res.data.length > 0) {
-      setHistory(res.data);
-      setCurrentPlan(res.data[0]);
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+    if (symptoms.length < 20) return;
+    
+    setLoading(true);
+    const res = await generateEscapePlan(symptoms, role, timeline);
+    
+    if (res.success) {
+      setActivePlan(res.data);
+      setHistory(prev => [res.data, ...prev]);
+      toast.success("Escape plan generated. Stay strong!");
+    } else {
+      toast.error(res.errors?._form?.[0] || "Failed to generate plan");
     }
+    setLoading(false);
   };
 
-  const handleGenerate = async () => {
-    if (!symptoms.trim() || !role.trim()) {
-      toast.error("Please fill out your symptoms and role.");
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const res = await generateEscapePlan(symptoms, role);
-      if (res.success) {
-        toast.success("Escape plan generated successfully!");
-        setSymptoms("");
-        setRole("");
-        loadHistory();
-      } else {
-        toast.error(res.errors._form?.[0] || "Failed to generate plan");
-      }
-    } catch (error) {
-      toast.error("An unexpected error occurred");
-    } finally {
-      setIsGenerating(false);
-    }
+  const getScoreColor = (score) => {
+    if (!score) return "text-amber-500";
+    if (score < 40) return "text-amber-500";
+    if (score < 75) return "text-orange-500";
+    return "text-destructive";
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
+  const getScoreBg = (score) => {
+    if (!score) return "bg-amber-500/10 border-amber-500/20";
+    if (score < 40) return "bg-amber-500/10 border-amber-500/20";
+    if (score < 75) return "bg-orange-500/10 border-orange-500/20";
+    return "bg-destructive/10 border-destructive/20";
   };
+
+  // Helper to handle legacy vs new plan schema
+  const planData = activePlan;
+  const isLegacy = planData && !planData.toxicityScore;
 
   return (
-    <div className="container max-w-6xl py-12 px-4 md:px-6">
-      <div className="space-y-4 mb-10 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-500">
-          <ShieldAlert className="h-4 w-4" />
-          <span className="text-sm font-bold uppercase tracking-widest">Toxic Workplace Escape</span>
-        </div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
-          Protect Your <span className="text-gradient-primary">Peace.</span>
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Gaslighting? Micromanagement? Unrealistic demands? Let us validate your experience and generate a discreet, fast-track escape plan to preserve your mental health.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-destructive/5 rounded-full blur-[100px] -z-10 translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -z-10 -translate-x-1/2 translate-y-1/2" />
+      
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-10 md:py-16">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12"
+        >
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-destructive font-bold text-xs uppercase tracking-[0.2em]">
+              <ShieldAlert className="h-3 w-3" />
+              Covert Tool
+            </div>
+            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground">
+              Toxic Workplace <span className="text-destructive">Escape Plan</span>
+            </h1>
+            <p className="text-muted-foreground text-sm md:text-base font-medium max-w-2xl">
+              Stuck in a bad environment? Tell us what's happening. The AI will generate a covert exit strategy, mental health triage tips, and professional scripts to set boundaries today.
+            </p>
+          </div>
+        </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Input Column */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="p-6 glass rounded-3xl border border-red-500/20 shadow-sm">
-            <h3 className="text-lg font-bold mb-4">What's going on?</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Your Role</label>
-                <Input
-                  placeholder="E.g., Senior Designer"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="h-12 bg-background/50 border-border/50 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Describe the Environment (Symptoms)</label>
-                <Textarea
-                  placeholder="E.g., My manager constantly texts me on weekends, takes credit for my work, and belittles me in team meetings..."
-                  value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)}
-                  className="min-h-[120px] resize-none bg-background/50 border-border/50 rounded-2xl"
-                />
-              </div>
-              <Button 
-                onClick={handleGenerate}
-                disabled={isGenerating || !symptoms.trim() || !role.trim()}
-                className="w-full h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing Environment...
-                  </>
-                ) : (
-                  <>
-                    Generate Escape Plan
-                    <Send className="ml-2 h-4 w-4" />
-                  </>
-                )}
-              </Button>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-card border border-border p-6 rounded-3xl shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-destructive to-orange-500" />
+              <h3 className="font-bold text-lg mb-4">Your Situation</h3>
+              
+              <form onSubmit={handleGenerate} className="space-y-5">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Current Role</Label>
+                  <Input
+                    placeholder="e.g. Marketing Manager"
+                    className="h-12 rounded-xl bg-background focus-visible:ring-destructive"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Target Exit Timeline</Label>
+                  <select
+                    className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={timeline}
+                    onChange={(e) => setTimeline(e.target.value)}
+                  >
+                    <option value="ASAP (1 Month)">ASAP (1 Month)</option>
+                    <option value="3 Months">3 Months</option>
+                    <option value="6 Months">6 Months</option>
+                    <option value="Just setting boundaries for now">Just setting boundaries for now</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <ShieldAlert className="h-3.5 w-3.5" /> Toxic Symptoms
+                  </Label>
+                  <Textarea
+                    placeholder="Micromanagement? Unpaid overtime? Gaslighting? Describe the red flags..."
+                    className="min-h-[150px] rounded-xl resize-none bg-background focus-visible:ring-destructive text-sm"
+                    value={symptoms}
+                    onChange={(e) => setSymptoms(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading || symptoms.length < 20}
+                  className="w-full h-12 rounded-xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg shadow-destructive/20"
+                >
+                  {loading ? "Generating Strategy..." : "Build Escape Plan"} <Sparkles className="ml-2 h-4 w-4" />
+                </Button>
+              </form>
             </div>
           </div>
 
-          {history.length > 0 && (
-            <div className="p-6 glass rounded-3xl border border-border">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Past Plans</h3>
-              <div className="space-y-2">
-                {history.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setCurrentPlan(item)}
-                    className={`w-full text-left p-3 rounded-xl transition-all duration-300 ${
-                      currentPlan?.id === item.id 
-                        ? "bg-red-500/10 border border-red-500/30" 
-                        : "bg-background/40 border border-transparent hover:border-border"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Flag className={`h-4 w-4 shrink-0 ${currentPlan?.id === item.id ? "text-red-500" : "text-muted-foreground"}`} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-foreground truncate">{item.role}</p>
-                        <p className="text-xs text-muted-foreground">{format(new Date(item.createdAt), "MMM d, yyyy")}</p>
+          <div className="lg:col-span-8">
+            <AnimatePresence mode="wait">
+              {planData ? (
+                <motion.div 
+                  key="result"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="space-y-6"
+                >
+                  {/* Validation & Score Card */}
+                  <div className={cn("p-6 rounded-3xl border shadow-sm flex flex-col md:flex-row items-center gap-6", getScoreBg(planData.toxicityScore))}>
+                    {!isLegacy && (
+                      <div className="text-center shrink-0">
+                        <div className={cn("text-5xl font-black tabular-nums", getScoreColor(planData.toxicityScore))}>
+                          {planData.toxicityScore}
+                        </div>
+                        <div className="text-xs font-bold uppercase tracking-wider mt-1 opacity-70">
+                          Toxicity Score
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-2 text-center md:text-left">
+                      <p className={cn("text-sm md:text-base font-semibold leading-relaxed", getScoreColor(planData.toxicityScore))}>
+                        "{planData.validationMessage || planData.toxicityAssessment}"
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Immediate Boundaries */}
+                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Shield className="h-5 w-5 text-blue-500" />
+                        <h3 className="font-bold text-lg">Immediate Boundaries</h3>
+                      </div>
+                      <div className="space-y-4">
+                        {planData.immediateBoundaries?.map((boundary, idx) => (
+                          <div key={idx} className="p-3 bg-muted/50 rounded-xl border border-border/50">
+                            {isLegacy ? (
+                              <span className="text-sm italic text-blue-500 block">Say this: "{boundary}"</span>
+                            ) : (
+                              <>
+                                <span className="text-xs font-bold text-foreground block mb-1">{boundary.situation}</span>
+                                <span className="text-sm italic text-blue-500 block">Say this: "{boundary.script}"</span>
+                              </>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Results Column */}
-        <div className="lg:col-span-7">
-          <AnimatePresence mode="wait">
-            {currentPlan ? (
-              <motion.div
-                key={currentPlan.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                {/* Validation */}
-                <div className="p-6 glass rounded-3xl border border-indigo-500/30 bg-indigo-500/5">
-                  <h3 className="text-lg font-bold text-indigo-500 flex items-center gap-2 mb-3">
-                    <HeartPulse className="h-5 w-5" />
-                    Validation & Assessment
-                  </h3>
-                  <p className="text-sm text-foreground leading-relaxed italic border-l-2 border-indigo-500/50 pl-4">
-                    {currentPlan.escapeData.toxicityAssessment}
-                  </p>
-                </div>
-
-                {/* Boundaries */}
-                <div className="p-6 glass rounded-3xl border border-amber-500/30 bg-amber-500/5">
-                  <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4">
-                    <ShieldCheck className="h-5 w-5" />
-                    Immediate Boundaries to Set
-                  </h3>
-                  <ul className="space-y-3">
-                    {currentPlan.escapeData.immediateBoundaries.map((boundary, idx) => (
-                      <li key={idx} className="flex items-start gap-3">
-                        <span className="text-amber-500 mt-1 font-bold">•</span>
-                        <span className="text-sm text-foreground leading-relaxed">{boundary}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* The Escape Strategy */}
-                <div className="p-6 glass rounded-3xl border border-emerald-500/30 bg-emerald-500/5">
-                  <h3 className="text-lg font-bold text-emerald-500 flex items-center gap-2 mb-6">
-                    <ShieldAlert className="h-5 w-5" />
-                    Quiet Exit Strategy
-                  </h3>
-                  <div className="space-y-6">
-                    {currentPlan.escapeData.quietExitStrategy.map((step, idx) => (
-                      <div key={idx} className="relative pl-6 border-l-2 border-emerald-500/20">
-                        <div className="absolute w-3 h-3 bg-emerald-500 rounded-full -left-[7px] top-1" />
-                        <h4 className="text-sm font-bold text-foreground mb-1">{step.phase}</h4>
-                        <p className="text-sm text-muted-foreground">{step.action}</p>
+                    {/* Mental Health Triage */}
+                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <HeartPulse className="h-5 w-5 text-rose-500" />
+                        <h3 className="font-bold text-lg">Mental Triage</h3>
                       </div>
-                    ))}
+                      <ul className="space-y-3">
+                        {isLegacy ? (
+                          <li className="flex gap-2 text-sm text-muted-foreground items-start">
+                            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                            <span className="leading-snug">Take breaks and disconnect emotionally to preserve peace.</span>
+                          </li>
+                        ) : planData.mentalTriage?.map((item, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm text-muted-foreground items-start">
+                            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                            <span className="leading-snug">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Covert Search & Exit Strategy */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Brain className="h-5 w-5 text-purple-500" />
+                        <h3 className="font-bold text-lg">Covert Job Search</h3>
+                      </div>
+                      <ul className="space-y-3">
+                        {isLegacy ? (
+                          <li className="flex gap-2 text-sm text-muted-foreground items-start">
+                            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 shrink-0" />
+                            <span className="leading-snug">Network quietly and update your resume.</span>
+                          </li>
+                        ) : planData.covertSearch?.map((item, idx) => (
+                          <li key={idx} className="flex gap-2 text-sm text-muted-foreground items-start">
+                            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 shrink-0" />
+                            <span className="leading-snug">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <DoorOpen className="h-5 w-5 text-emerald-500" />
+                        <h3 className="font-bold text-lg">Exit Strategy</h3>
+                      </div>
+                      <ul className="space-y-3">
+                        {isLegacy ? (
+                          planData.quietExitStrategy?.map((item, idx) => (
+                            <li key={idx} className="flex gap-2 text-sm text-muted-foreground items-start">
+                              <div className="mt-1.5 h-4 w-4 flex items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold shrink-0">
+                                {idx + 1}
+                              </div>
+                              <span className="leading-snug"><strong>{item.phase}:</strong> {item.action}</span>
+                            </li>
+                          ))
+                        ) : (
+                          planData.exitStrategy?.map((item, idx) => (
+                            <li key={idx} className="flex gap-2 text-sm text-muted-foreground items-start">
+                              <div className="mt-1.5 h-4 w-4 flex items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold shrink-0">
+                                {idx + 1}
+                              </div>
+                              <span className="leading-snug">{item}</span>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Resignation Script */}
+                  <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <MessagesSquare className="h-5 w-5 text-primary" />
+                      <h3 className="font-bold text-lg">Graceful Resignation Script</h3>
+                    </div>
+                    <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl">
+                      <p className="text-sm font-medium leading-relaxed italic text-foreground">
+                        "{planData.resignationScript}"
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3 text-center">
+                      (Remember: You don't owe them the real reason if it compromises your peace.)
+                    </p>
+                  </div>
+
+                </motion.div>
+              ) : (
+                <div key="empty" className="h-full min-h-[500px] flex items-center justify-center p-12 border-2 border-dashed border-border rounded-3xl text-center">
+                  <div className="max-w-md space-y-4">
+                    <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ShieldAlert className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-xl font-bold">No Plan Generated</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Describe your situation on the left. The AI will provide a highly strategic, covert escape plan to protect your career and your peace.
+                    </p>
                   </div>
                 </div>
-
-                {/* Resignation Script */}
-                <div className="p-6 glass rounded-3xl border border-border relative bg-background/40">
-                  <h3 className="text-base font-bold flex items-center gap-2 mb-3 text-foreground">
-                    <FileText className="h-5 w-5 text-blue-500" />
-                    Airtight Resignation Script
-                  </h3>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {currentPlan.escapeData.resignationScript}
-                  </p>
-                  <Button size="sm" variant="secondary" className="mt-4 rounded-xl" onClick={() => copyToClipboard(currentPlan.escapeData.resignationScript)}>
-                    Copy Script
-                  </Button>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 glass rounded-3xl border border-dashed border-red-500/30">
-                <ShieldAlert className="h-12 w-12 text-red-500/30 mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No escape plans yet.</p>
-                <p className="text-sm text-muted-foreground/60 max-w-sm mt-2">Describe what is happening at work, and we will help you build a strategy to leave.</p>
-              </div>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>
