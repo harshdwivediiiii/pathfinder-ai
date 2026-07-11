@@ -20,8 +20,7 @@ export async function generatePivotStrategy(currentRole, targetRole) {
 
   const prompt = buildSecurePrompt({
     context: "You are an expert career transition coach.",
-    task: `Analyze a career pivot from '${currentRole}' to '${targetRole}'. 
-    Identify the hidden transferable skills the candidate already has, the major skill gaps they need to close, and a step-by-step roadmap to make the transition.`,
+    task: "Analyze a career pivot from the user's current role to their target role. Identify the hidden transferable skills the candidate already has, the major skill gaps they need to close, and a step-by-step roadmap to make the transition.",
     untrustedData: [
       { label: "currentRole", value: currentRole, maxLength: 100 },
       { label: "targetRole", value: targetRole, maxLength: 100 },
