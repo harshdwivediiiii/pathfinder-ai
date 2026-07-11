@@ -19,7 +19,7 @@ export async function generateOnboardingPlan(company, role) {
 
   const prompt = buildSecurePrompt({
     context: "You are an expert executive coach and onboarding strategist.",
-    task: `Create a highly strategic 30-60-90 day onboarding plan for a candidate starting as a '${role}' at '${company}'.
+    task: "Create a highly strategic 30-60-90 day onboarding plan for a candidate starting in their new role at their company."
     The plan should focus on learning the culture in the first 30 days, contributing in the first 60 days, and leading/innovating by 90 days.`,
     untrustedData: [
       { label: "company", value: company, maxLength: 100 },

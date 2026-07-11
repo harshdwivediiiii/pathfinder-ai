@@ -27,7 +27,7 @@ export async function generateAssessmentStrategy(company, assessmentType) {
 
   const prompt = createAiPrompt({
     context: "You are an expert organizational psychologist and executive recruiter.",
-    task: `Analyze the '${assessmentType}' personality/behavioral test often used by '${company}'.
+    task: "Analyze the personality/behavioral test the candidate needs to prepare for."
     Explain what traits the company is screening for and provide specific strategies on how the candidate should approach the test.`,
     untrustedData: [
       { label: "company", value: company, maxLength: 100 },

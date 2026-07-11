@@ -22,8 +22,7 @@ export async function generatePromotionStrategy(achievements, targetRole) {
 
   const prompt = buildSecurePrompt({
     context: buildUserProfileContext(user) + "\nYou are an expert executive coach specializing in internal promotions and salary negotiation.",
-    task: `Generate a structured 'Brag Document' and a negotiation script for a candidate trying to get promoted to '${targetRole}'.
-    Analyze their achievements to calculate their implied ROI to the company. Provide a verbatim script they can use in a 1-on-1 with their manager.`,
+    task: "Generate a structured 'Brag Document' and a negotiation script for a candidate trying to get promoted to their target role. Analyze their achievements to calculate their implied ROI to the company. Provide a verbatim script they can use in a 1-on-1 with their manager.",
     untrustedData: [
       { label: "achievements", value: achievements, maxLength: 2000 },
       { label: "targetRole", value: targetRole, maxLength: 100 },

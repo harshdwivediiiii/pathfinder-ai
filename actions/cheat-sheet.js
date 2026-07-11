@@ -19,7 +19,7 @@ export async function generateCheatSheet(company, role) {
 
   const prompt = buildSecurePrompt({
     context: "You are an expert career strategist and executive interview coach.",
-    task: `Generate a 1-page 'Day Before' Interview Briefing for a candidate interviewing for ${role} at ${company}.
+    task: "Generate a 1-page 'Day Before' Interview Briefing for a candidate for their interview.
     Provide insights into the company's likely culture, common interview questions for this specific role, and 3 killer, highly strategic questions the candidate should ask at the end of the interview.`,
     untrustedData: [
       { label: "company", value: company, maxLength: 100 },
