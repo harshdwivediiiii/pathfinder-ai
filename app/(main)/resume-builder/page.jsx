@@ -8,13 +8,16 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { RESUME_TEMPLATES, DEFAULT_TEMPLATE } from "@/components/resume-templates";
+import DownloadPdf from "@/components/Download-pdf";
 
 export default function ResumeBuilderPage() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [activeResume, setActiveResume] = useState(null);
   const [jobDescription, setJobDescription] = useState("");
-  
+  const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_TEMPLATE);
+
   const resumeRef = useRef(null);
 
   useEffect(() => {
@@ -156,110 +159,37 @@ export default function ResumeBuilderPage() {
                   </Button>
                 </div>
 
-                <div className="bg-white text-black p-8 md:p-12 rounded-lg shadow-xl overflow-x-auto print:shadow-none print:p-0">
-                  {/* The actual resume content that will be converted to PDF */}
-                  <div ref={resumeRef} className="w-[8.5in] min-h-[11in] mx-auto bg-white" style={{ fontFamily: "Arial, sans-serif" }}>
-                    
-                    {/* Header */}
-                    <div className="text-center border-b-2 border-black pb-4 mb-4">
-                      <h1 className="text-3xl font-serif font-bold uppercase tracking-wide mb-2">{activeResume.personalInfo?.name}</h1>
-                      <div className="text-sm space-x-2 flex flex-wrap justify-center items-center">
-                        <span>{activeResume.personalInfo?.email}</span>
-                        <span>•</span>
-                        <span>{activeResume.personalInfo?.phone}</span>
-                        <span>•</span>
-                        <span>{activeResume.personalInfo?.location}</span>
-                        {activeResume.personalInfo?.linkedin && (
-                          <>
-                            <span>•</span>
-                            <span>{activeResume.personalInfo.linkedin}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Summary */}
-                    {activeResume.summary && (
-                      <div className="mb-6">
-                        <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 mb-2 pb-1">Professional Summary</h2>
-                        <p className="text-sm leading-relaxed">{activeResume.summary}</p>
-                      </div>
-                    )}
-
-                    {/* Skills */}
-                    {activeResume.skills && activeResume.skills.length > 0 && (
-                      <div className="mb-6">
-                        <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 mb-2 pb-1">Technical Skills</h2>
-                        <p className="text-sm leading-relaxed">
-                          {activeResume.skills.join(" • ")}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Experience */}
-                    {activeResume.experience && activeResume.experience.length > 0 && (
-                      <div className="mb-6">
-                        <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 mb-3 pb-1">Professional Experience</h2>
-                        <div className="space-y-4">
-                          {activeResume.experience.map((exp, idx) => (
-                            <div key={idx}>
-                              <div className="flex justify-between items-baseline mb-1">
-                                <h3 className="font-bold text-sm">{exp.title}</h3>
-                                <span className="text-sm font-medium">{exp.startDate} - {exp.endDate}</span>
-                              </div>
-                              <div className="flex justify-between items-baseline mb-2">
-                                <span className="text-sm italic">{exp.company}</span>
-                                <span className="text-sm italic">{exp.location}</span>
-                              </div>
-                              <ul className="list-disc list-outside ml-4 text-sm space-y-1">
-                                {exp.achievements?.map((achieve, aIdx) => (
-                                  <li key={aIdx} className="leading-snug">{achieve}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Projects */}
-                    {activeResume.projects && activeResume.projects.length > 0 && (
-                      <div className="mb-6">
-                        <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 mb-3 pb-1">Projects</h2>
-                        <div className="space-y-3">
-                          {activeResume.projects.map((proj, idx) => (
-                            <div key={idx}>
-                              <div className="flex items-baseline gap-2 mb-1">
-                                <h3 className="font-bold text-sm">{proj.name}</h3>
-                                <span className="text-xs italic text-gray-600">| {proj.technologies?.join(", ")}</span>
-                              </div>
-                              <p className="text-sm leading-snug">{proj.description}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Education */}
-                    {activeResume.education && activeResume.education.length > 0 && (
-                      <div className="mb-6">
-                        <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 mb-3 pb-1">Education</h2>
-                        <div className="space-y-2">
-                          {activeResume.education.map((edu, idx) => (
-                            <div key={idx} className="flex justify-between items-baseline">
-                              <div>
-                                <h3 className="font-bold text-sm">{edu.degree}</h3>
-                                <span className="text-sm">{edu.school}</span>
-                              </div>
-                              <span className="text-sm font-medium">{edu.graduationDate}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
+               <div className="flex justify-between items-center gap-3 flex-wrap">
+                <div className="flex gap-2">
+                  {Object.entries(RESUME_TEMPLATES).map(([key, tpl]) => (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedTemplate(key)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                        selectedTemplate === key
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
                 </div>
+
+                <DownloadPdf
+                  contentRefId="resume-preview-content"
+                  fileName={`${(activeResume.personalInfo?.name || "Resume").replace(/ /g, "_")}_Resume.pdf`}
+                />
+              </div>
+
+              <div className="bg-white text-black p-8 md:p-12 rounded-lg shadow-xl overflow-x-auto print:shadow-none print:p-0">
+                <div id="resume-preview-content">
+                  {(() => {
+                    const ActiveTemplate = RESUME_TEMPLATES[selectedTemplate].component;
+                    return <ActiveTemplate resume={activeResume} />;
+                  })()}
+                </div>
+              </div>
               </motion.div>
              )
             ) : (
