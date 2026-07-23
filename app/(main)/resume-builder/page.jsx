@@ -1,20 +1,22 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { generateResumeContent, getResumeHistory } from "@/actions/resume-builder";
-import { FileText, Download, Sparkles, Building, Briefcase } from "lucide-react";
+import { generateResumeContent, getResumeHistory,deleteResumeHistory } from "@/actions/resume-builder";
+import { FileText, Download, Sparkles, Building, Briefcase, Trash2, Clock } from "lucide-react";
 import { isValidResume } from "@/lib/auth/type-guards";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
+
 export default function ResumeBuilderPage() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [activeResume, setActiveResume] = useState(null);
   const [jobDescription, setJobDescription] = useState("");
-  
+  const [selectedId, setSelectedId] = useState(null);
+
   const resumeRef = useRef(null);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function ResumeBuilderPage() {
         if (res.success && res.data.length > 0) {
           setHistory(res.data);
           setActiveResume(res.data[0].content);
+          setSelectedId(res.data[0].id);
         }
       } catch (error) {
         console.error("Failed to load resume history:", error);
@@ -45,6 +48,7 @@ export default function ResumeBuilderPage() {
         toast.success("Resume generated successfully!");
         setHistory((prev) => [res.data, ...prev]);
         setActiveResume(res.data.content);
+        setSelectedId(res.data.id);
       } else {
         toast.error("Generated resume has an invalid format.");
       }
@@ -74,6 +78,37 @@ export default function ResumeBuilderPage() {
       console.error(err);
       toast.error("Failed to generate PDF");
     }
+  };
+
+  const handleSelectHistory = (item) => {
+  if (!isValidResume(item.content)) {
+    toast.error("This version has invalid data and can't be displayed.");
+    return;
+  }
+  setActiveResume(item.content);
+  setSelectedId(item.id);
+};
+
+const handleDeleteHistory = async (id, e) => {
+    e.stopPropagation(); // don't trigger select when clicking delete
+    const res = await deleteResumeHistory(id);
+    if (!res.success) {
+      toast.error(res.errors?._form?.[0] || "Failed to delete");
+      return;
+    }
+    const remaining = history.filter((h) => h.id !== id);
+    setHistory(remaining);
+
+    if (id === selectedId) {
+      if (remaining.length > 0) {
+        setActiveResume(remaining[0].content);
+        setSelectedId(remaining[0].id);
+      } else {
+        setActiveResume(null);
+        setSelectedId(null);
+      }
+    }
+    toast.success("Removed from history");
   };
 
   return (
@@ -128,8 +163,49 @@ export default function ResumeBuilderPage() {
                 </Button>
               </form>
             </div>
+          
+          {history.length > 0 && (
+              <div className="bg-card border border-border p-6 rounded-3xl shadow-sm">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> History ({history.length})
+                </h3>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                  {history.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleSelectHistory(item)}
+                      className={`w-full text-left p-3 rounded-xl border transition-colors group relative ${
+                        item.id === selectedId
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-muted"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold pr-6 line-clamp-1">
+                        {item.jobDescription?.slice(0, 60) || "Untitled"}
+                        {item.jobDescription?.length > 60 ? "..." : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(item.createdAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      <span
+                        onClick={(e) => handleDeleteHistory(item.id, e)}
+                        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive cursor-pointer"
+                        title="Delete this version"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-
           <div className="lg:col-span-8">
             {activeResume ? (
               !isValidResume(activeResume) ? (
