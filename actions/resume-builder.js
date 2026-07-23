@@ -133,3 +133,28 @@ export async function getResumeHistory() {
     throw error;
   }
 }
+
+export async function deleteResumeHistory(id) {
+  const { userId } = await auth();
+  if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  const user = await getResumeBuilderUser(userId);
+  if (!validateAuthenticatedUser(user)) {
+    return createErrorResponse("User not found");
+  }
+
+  try {
+    const record = await db.resumeGeneration.findUnique({ where: { id } });
+
+    // Ownership check — don't trust the client-supplied id alone
+    if (!record || record.userId !== user.id) {
+      return createErrorResponse("Resume not found");
+    }
+
+    await db.resumeGeneration.delete({ where: { id } });
+    revalidatePath("/resume-builder");
+    return { success: true };
+  } catch (error) {
+    return handleServerError(error, "resume-builder");
+  }
+}
