@@ -1,8 +1,12 @@
 import { db } from "@/lib/db/prisma";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
+import { auth } from "@clerk/nextjs/server";
 
 export async function GET() {
   try {
+    const { userId } = await auth();
+    if (!userId) return respondError(ERROR_CODES.UNAUTHORIZED);
+
     const [totalUsers, usersWithAssessments, assessmentStats] = await Promise.all([
       db.user.count(),
       db.assessment.groupBy({
