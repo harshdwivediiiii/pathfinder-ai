@@ -304,7 +304,7 @@ export async function syncJobApplicationsFromEmail() {
       if (existing) {
         // Update if status changed or new interview date
         const isNewStatus = existing.status !== status && status !== "Applied"; // Don't downgrade
-        const isNewDate = validDate && (!existing.interviewDate || existing.interviewDate.getTime() !== validDate.getTime());
+        const isNewDate = validDate && (!existing.interviewDate || existing.interviewDate.toISOString() !== validDate.toISOString());
         
         if (isNewStatus || isNewDate) {
           await db.jobApplication.update({
