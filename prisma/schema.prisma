@@ -106,6 +106,7 @@ model User {
   mockInterviewSessions MockInterviewSession[]
   issues                Issue[]
   agentRuns             AgentRun[]
+  projectWorkspaces     ProjectWorkspace[]
 }
 
 model Assessment {
@@ -909,4 +910,56 @@ model AgentRun {
   completedAt    DateTime?
   
   @@index([userId, startedAt(sort: Desc)])
+}
+
+model ProjectWorkspace {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  notes        ProjectNote[]
+  agentOutputs ProjectAgentOutput[]
+  activities   ProjectActivity[]
+
+  @@index([userId])
+}
+
+model ProjectNote {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  content     String   @db.Text
+  isPinned    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model ProjectAgentOutput {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  title       String
+  content     Json
+  isPinned    Boolean  @default(false)
+  agentRunId  String?  
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+}
+
+model ProjectActivity {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        String   
+  description String
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
 }
