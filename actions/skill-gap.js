@@ -7,6 +7,8 @@ import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { validateInput } from "@/lib/ai/validate";
+import { skillGapAnalysisSchema } from "@/lib/schemas/forms";
 
 export async function generateSkillGapAnalysis(data) {
   try {
@@ -17,6 +19,9 @@ export async function generateSkillGapAnalysis(data) {
     if (!limit.allowed) {
       throw new Error(`Limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
     }
+
+    const validation = validateInput(skillGapAnalysisSchema, data);
+    if (!validation.success) return { success: false, errors: validation.errors };
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
