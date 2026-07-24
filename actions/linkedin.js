@@ -11,6 +11,7 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { validateRequiredEnvVar } from "@/lib/security/env";
 
 export async function optimizeLinkedInProfile(data) {
   const { userId } = await auth();
@@ -37,14 +38,17 @@ export async function optimizeLinkedInProfile(data) {
   let profileContent = validation.data.profileContent;
 
   if (validation.data.profileUrl) {
-    if (!process.env.PROXYCURL_API_KEY) {
+    let proxycurlKey;
+    try {
+      proxycurlKey = validateRequiredEnvVar(process.env.PROXYCURL_API_KEY, "PROXYCURL_API_KEY");
+    } catch {
       return { success: false, errors: { _form: ["Proxycurl API key is not configured. Please add PROXYCURL_API_KEY to your environment variables."] } };
     }
 
     try {
       const response = await fetch(`https://nubela.co/proxycurl/api/v2/linkedin?url=${encodeURIComponent(validation.data.profileUrl)}`, {
         headers: {
-          'Authorization': `Bearer ${process.env.PROXYCURL_API_KEY}`
+          'Authorization': `Bearer ${proxycurlKey}`
         }
       });
       if (!response.ok) {
