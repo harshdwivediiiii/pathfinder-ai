@@ -44,16 +44,14 @@ export default function OnboardingPlanPage() {
     window.print();
   };
 
+  // ✅ Removed duplicate day badge from renderPhase
   const renderPhase = (title, days, data, colorClass, bgClass, borderClass) => (
     <div className={`p-6 rounded-3xl border-2 ${borderClass} ${bgClass} shadow-sm break-inside-avoid mb-6`}>
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`h-12 w-12 rounded-2xl ${colorClass} text-white flex items-center justify-center font-black text-xl shadow-inner`}>
-          {days}
-        </div>
-        <div>
-          <h3 className="font-bold text-lg">{title}</h3>
-          <p className="text-sm font-semibold opacity-80 uppercase tracking-widest">{data.focus}</p>
-        </div>
+      <div className="mb-4">
+        <h3 className="font-bold text-lg">{title}</h3>
+        <p className="text-sm font-semibold opacity-80 uppercase tracking-widest">
+          {data.focus}
+        </p>
       </div>
       <ul className="space-y-3 mt-6">
         {data.goals?.map((goal, idx) => (
@@ -63,6 +61,23 @@ export default function OnboardingPlanPage() {
           </li>
         ))}
       </ul>
+    </div>
+  );
+
+  // ✅ TimelineItem component with day indicator
+  const TimelineItem = ({ day, children }) => (
+    <div className="relative flex gap-6">
+      {/* Timeline Circle - Primary day indicator */}
+      <div className="relative z-10 flex-shrink-0">
+        <div className="h-12 w-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md">
+          {day}
+        </div>
+      </div>
+
+      {/* Phase Card */}
+      <div className="flex-1">
+        {children}
+      </div>
     </div>
   );
 
@@ -155,10 +170,44 @@ export default function OnboardingPlanPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-8">
-                    {renderPhase("Phase 1: Learn & Absorb", "30", activePlan.planContent.day30, "bg-blue-500", "bg-blue-50", "border-blue-100")}
-                    {renderPhase("Phase 2: Contribute & Build", "60", activePlan.planContent.day60, "bg-indigo-500", "bg-indigo-50", "border-indigo-100")}
-                    {renderPhase("Phase 3: Lead & Innovate", "90", activePlan.planContent.day90, "bg-purple-500", "bg-purple-50", "border-purple-100")}
+                  <div className="relative">
+                    {/* Timeline line aligned to center of circles */}
+                    <div className="absolute left-[22px] top-0 bottom-0 w-1 bg-gray-200 rounded-full" />
+
+                    <div className="space-y-10">
+                      <TimelineItem day="30">
+                        {renderPhase(
+                          "Phase 1: Learn & Absorb",
+                          "30",
+                          activePlan.planContent.day30,
+                          "bg-blue-500",
+                          "bg-blue-50",
+                          "border-blue-100"
+                        )}
+                      </TimelineItem>
+
+                      <TimelineItem day="60">
+                        {renderPhase(
+                          "Phase 2: Contribute & Build",
+                          "60",
+                          activePlan.planContent.day60,
+                          "bg-indigo-500",
+                          "bg-indigo-50",
+                          "border-indigo-100"
+                        )}
+                      </TimelineItem>
+
+                      <TimelineItem day="90">
+                        {renderPhase(
+                          "Phase 3: Lead & Innovate",
+                          "90",
+                          activePlan.planContent.day90,
+                          "bg-purple-500",
+                          "bg-purple-50",
+                          "border-purple-100"
+                        )}
+                      </TimelineItem>
+                    </div>
                   </div>
                 </div>
               </motion.div>
