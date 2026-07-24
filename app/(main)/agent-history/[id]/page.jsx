@@ -16,9 +16,10 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, AlertCircle, Clock, CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Play, AlertCircle, Clock, CheckCircle2, RotateCcw, FolderKanban } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { SaveToWorkspaceDialog } from "../_components/save-to-workspace-dialog";
 
 export default function AgentRunDetailsPage() {
   const { id } = useParams();
@@ -128,10 +129,20 @@ export default function AgentRunDetailsPage() {
                   Run ID: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{run.id}</code>
                 </CardDescription>
               </div>
-              <Button onClick={handleReplay} size="lg" className="gap-2">
-                <Play className="h-4 w-4" />
-                Run Again
-              </Button>
+              <div className="flex items-center gap-2">
+                {run.status === AgentRunStatus.Completed && (
+                  <SaveToWorkspaceDialog run={run}>
+                    <Button variant="outline" size="lg" className="gap-2">
+                      <FolderKanban className="h-4 w-4" />
+                      Save to Workspace
+                    </Button>
+                  </SaveToWorkspaceDialog>
+                )}
+                <Button onClick={handleReplay} size="lg" className="gap-2">
+                  <Play className="h-4 w-4" />
+                  Run Again
+                </Button>
+              </div>
             </div>
             <div className="flex gap-6 mt-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1.5">
