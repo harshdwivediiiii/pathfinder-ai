@@ -908,6 +908,7 @@ model AgentRun {
   errorMessage   String?  @db.Text
   startedAt      DateTime @default(now())
   completedAt    DateTime?
+  projectAgentOutputs ProjectAgentOutput[]
   
   @@index([userId, startedAt(sort: Desc)])
 }
@@ -948,16 +949,28 @@ model ProjectAgentOutput {
   content     Json
   isPinned    Boolean  @default(false)
   agentRunId  String?  
+  agentRun    AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([workspaceId])
+}
+
+enum ProjectActivityType {
+  CREATED
+  UPDATED
+  NOTE_ADDED
+  NOTE_UPDATED
+  NOTE_DELETED
+  PIN_TOGGLED
+  AGENT_OUTPUT_SAVED
 }
 
 model ProjectActivity {
   id          String   @id @default(cuid())
   workspaceId String
   workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  type        String   
+  type        ProjectActivityType   
   description String
   createdAt   DateTime @default(now())
 

@@ -18,6 +18,9 @@ export function NoteList({ workspaceId, notes = [] }) {
   const [editContent, setEditContent] = useState("");
   const [loadingEdit, setLoadingEdit] = useState(false);
 
+  const [inFlightDeletes, setInFlightDeletes] = useState(new Set());
+  const [inFlightPins, setInFlightPins] = useState(new Set());
+
   // Sorting: Pinned first, then newest
   const sortedNotes = [...notes].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
@@ -56,19 +59,33 @@ export function NoteList({ workspaceId, notes = [] }) {
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this note?")) return;
+    setInFlightDeletes(prev => new Set(prev).add(id));
     try {
       await deleteNote(id);
       toast.success("Note deleted");
     } catch (error) {
       toast.error("Failed to delete note");
+    } finally {
+      setInFlightDeletes(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
   const handleTogglePin = async (id) => {
+    setInFlightPins(prev => new Set(prev).add(id));
     try {
       await togglePin("note", id);
     } catch (error) {
       toast.error("Failed to toggle pin");
+    } finally {
+      setInFlightPins(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -122,15 +139,22 @@ export function NoteList({ workspaceId, notes = [] }) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleTogglePin(note.id)}
+                    disabled={inFlightPins.has(note.id)}
+                    aria-label={note.isPinned ? "Unpin note" : "Pin note"}
+                    title={note.isPinned ? "Unpin note" : "Pin note"}
                     className={cn(
                       "p-1.5 rounded-lg transition-colors",
                       note.isPinned
                         ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100",
+                      inFlightPins.has(note.id) && "opacity-50 cursor-not-allowed"
                     )}
-                    title={note.isPinned ? "Unpin note" : "Pin note"}
                   >
-                    <Pin className={cn("w-4 h-4", note.isPinned && "fill-current")} />
+                    {inFlightPins.has(note.id) ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Pin className={cn("w-4 h-4", note.isPinned && "fill-current")} />
+                    )}
                   </button>
                   <span className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}
@@ -140,6 +164,7 @@ export function NoteList({ workspaceId, notes = [] }) {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Edit note"
                     className="h-7 w-7 text-muted-foreground hover:text-primary"
                     onClick={() => {
                       setEditingNoteId(note.id);
@@ -151,10 +176,16 @@ export function NoteList({ workspaceId, notes = [] }) {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Delete note"
+                    disabled={inFlightDeletes.has(note.id)}
                     className="h-7 w-7 text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(note.id)}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    {inFlightDeletes.has(note.id) ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
                   </Button>
                 </div>
               </div>

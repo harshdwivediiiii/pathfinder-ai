@@ -4,6 +4,46 @@ import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Centralized authorization helpers
+ */
+async function getOwnedWorkspace(id, clerkUserId, include = {}) {
+  const workspace = await db.projectWorkspace.findFirst({
+    where: {
+      id,
+      user: { clerkUserId },
+    },
+    include,
+  });
+  if (!workspace) throw new Error("Workspace not found or unauthorized");
+  return workspace;
+}
+
+async function getOwnedNote(id, clerkUserId, include = {}) {
+  const note = await db.projectNote.findFirst({
+    where: {
+      id,
+      workspace: { user: { clerkUserId } },
+    },
+    include,
+  });
+  if (!note) throw new Error("Note not found or unauthorized");
+  return note;
+}
+
+async function getOwnedAgentOutput(id, clerkUserId, include = {}) {
+  const output = await db.projectAgentOutput.findFirst({
+    where: {
+      id,
+      workspace: { user: { clerkUserId } },
+    },
+    include,
+  });
+  if (!output) throw new Error("Agent output not found or unauthorized");
+  return output;
+}
+
+
 export async function getWorkspaces() {
   try {
     const { userId } = await auth();
@@ -32,30 +72,20 @@ export async function getWorkspace(id) {
       throw new Error("Unauthorized");
     }
 
-    const workspace = await db.projectWorkspace.findUnique({
-      where: {
-        id,
+    const workspace = await getOwnedWorkspace(id, userId, {
+      notes: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
       },
-      include: {
-        notes: {
-          orderBy: { createdAt: "desc" },
-        },
-        agentOutputs: {
-          orderBy: { createdAt: "desc" },
-        },
-        activities: {
-          orderBy: { createdAt: "desc" },
-          take: 20,
-        },
+      agentOutputs: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+      activities: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
       },
     });
-
-    // We can't directly filter by user on findUnique if user relation is to internal User id.
-    // Let's verify ownership:
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    if (!workspace || workspace.userId !== user?.id) {
-      throw new Error("Workspace not found or unauthorized");
-    }
 
     return workspace;
   } catch (error) {
@@ -101,19 +131,12 @@ export async function createWorkspace(data) {
 export async function updateWorkspace(id, data) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    if (!userId) throw new Error("Unauthorized");
 
-    // Verify ownership
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    const existing = await db.projectWorkspace.findUnique({ where: { id } });
-    if (!existing || existing.userId !== user?.id) {
-      throw new Error("Unauthorized");
-    }
+    const existing = await getOwnedWorkspace(id, userId);
 
     const workspace = await db.projectWorkspace.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         title: data.title,
         description: data.description,
@@ -138,18 +161,12 @@ export async function updateWorkspace(id, data) {
 export async function deleteWorkspace(id) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    if (!userId) throw new Error("Unauthorized");
 
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    const existing = await db.projectWorkspace.findUnique({ where: { id } });
-    if (!existing || existing.userId !== user?.id) {
-      throw new Error("Unauthorized");
-    }
+    const existing = await getOwnedWorkspace(id, userId);
 
     await db.projectWorkspace.delete({
-      where: { id },
+      where: { id: existing.id },
     });
 
     revalidatePath("/workspace");
@@ -163,27 +180,20 @@ export async function deleteWorkspace(id) {
 export async function createNote(workspaceId, content) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    if (!userId) throw new Error("Unauthorized");
     
-    // Verify ownership
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    const workspace = await db.projectWorkspace.findUnique({ where: { id: workspaceId } });
-    if (!workspace || workspace.userId !== user?.id) {
-      throw new Error("Unauthorized");
-    }
+    const workspace = await getOwnedWorkspace(workspaceId, userId);
 
     const note = await db.projectNote.create({
       data: {
-        workspaceId,
+        workspaceId: workspace.id,
         content,
       },
     });
 
     await db.projectActivity.create({
       data: {
-        workspaceId,
+        workspaceId: workspace.id,
         type: "NOTE_ADDED",
         description: "Added a new note",
       },
@@ -200,23 +210,12 @@ export async function createNote(workspaceId, content) {
 export async function updateNote(noteId, content) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    if (!userId) throw new Error("Unauthorized");
 
-    // Verify ownership
-    const note = await db.projectNote.findUnique({
-      where: { id: noteId },
-      include: { workspace: true },
-    });
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    
-    if (!note || note.workspace.userId !== user?.id) {
-      throw new Error("Unauthorized");
-    }
+    const note = await getOwnedNote(noteId, userId);
 
     const updatedNote = await db.projectNote.update({
-      where: { id: noteId },
+      where: { id: note.id },
       data: { content },
     });
 
@@ -239,22 +238,12 @@ export async function updateNote(noteId, content) {
 export async function deleteNote(noteId) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    if (!userId) throw new Error("Unauthorized");
 
-    const note = await db.projectNote.findUnique({
-      where: { id: noteId },
-      include: { workspace: true },
-    });
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    
-    if (!note || note.workspace.userId !== user?.id) {
-      throw new Error("Unauthorized");
-    }
+    const note = await getOwnedNote(noteId, userId);
 
     await db.projectNote.delete({
-      where: { id: noteId },
+      where: { id: note.id },
     });
 
     await db.projectActivity.create({
@@ -276,30 +265,23 @@ export async function deleteNote(noteId) {
 export async function togglePin(type, id) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+    if (!userId) throw new Error("Unauthorized");
     
     let workspaceId;
     if (type === "note") {
-      const note = await db.projectNote.findUnique({ where: { id }, include: { workspace: true } });
-      if (!note || note.workspace.userId !== user?.id) throw new Error("Unauthorized");
-      
-      await db.projectNote.update({
-        where: { id },
-        data: { isPinned: !note.isPinned },
-      });
+      const note = await getOwnedNote(id, userId);
       workspaceId = note.workspaceId;
-    } else if (type === "agentOutput") {
-      const output = await db.projectAgentOutput.findUnique({ where: { id }, include: { workspace: true } });
-      if (!output || output.workspace.userId !== user?.id) throw new Error("Unauthorized");
       
-      await db.projectAgentOutput.update({
-        where: { id },
-        data: { isPinned: !output.isPinned },
-      });
+      // Atomic raw update for nitpick requirement
+      await db.$executeRaw`UPDATE "ProjectNote" SET "isPinned" = NOT "isPinned" WHERE "id" = ${note.id}`;
+      
+    } else if (type === "agentOutput") {
+      const output = await getOwnedAgentOutput(id, userId);
       workspaceId = output.workspaceId;
+      
+      // Atomic raw update for nitpick requirement
+      await db.$executeRaw`UPDATE "ProjectAgentOutput" SET "isPinned" = NOT "isPinned" WHERE "id" = ${output.id}`;
+      
     } else {
       throw new Error("Invalid type");
     }
@@ -323,19 +305,13 @@ export async function togglePin(type, id) {
 export async function saveAgentOutput(workspaceId, title, content, agentRunId = null) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-    const workspace = await db.projectWorkspace.findUnique({ where: { id: workspaceId } });
+    if (!userId) throw new Error("Unauthorized");
     
-    if (!workspace || workspace.userId !== user?.id) {
-      throw new Error("Unauthorized");
-    }
+    const workspace = await getOwnedWorkspace(workspaceId, userId);
 
     const output = await db.projectAgentOutput.create({
       data: {
-        workspaceId,
+        workspaceId: workspace.id,
         title,
         content,
         agentRunId,
@@ -344,7 +320,7 @@ export async function saveAgentOutput(workspaceId, title, content, agentRunId = 
 
     await db.projectActivity.create({
       data: {
-        workspaceId,
+        workspaceId: workspace.id,
         type: "AGENT_OUTPUT_SAVED",
         description: `Saved agent output: ${title}`,
       },

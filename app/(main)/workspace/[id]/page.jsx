@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { getWorkspace } from "@/actions/workspace";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
@@ -16,17 +16,20 @@ import { WorkspaceDialog } from "../_components/workspace-dialog";
 import { NoteList } from "../_components/note-list";
 import { ActivityTimeline } from "../_components/activity-timeline";
 
+const getCachedWorkspace = cache(getWorkspace);
+
 export async function generateMetadata({ params }) {
   const { id } = await params;
   try {
-    const workspace = await getWorkspace(id);
+    const workspace = await getCachedWorkspace(id);
     return {
       title: `${workspace.title} | Project Workspace`,
     };
   } catch (e) {
-    return {
-      title: "Workspace Not Found",
-    };
+    if (e.message === "Workspace not found or unauthorized") {
+      return { title: "Workspace Not Found" };
+    }
+    throw e;
   }
 }
 
@@ -35,9 +38,12 @@ export default async function WorkspacePage({ params }) {
   let workspace;
   
   try {
-    workspace = await getWorkspace(id);
+    workspace = await getCachedWorkspace(id);
   } catch (error) {
-    notFound();
+    if (error.message === "Workspace not found or unauthorized") {
+      notFound();
+    }
+    throw error;
   }
 
   return (
