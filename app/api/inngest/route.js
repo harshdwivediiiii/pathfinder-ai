@@ -5,23 +5,27 @@ function isInngestConfigured() {
 async function getHandler(request) {
   const [
     { getInngest },
-    { getGenerateIndustryInsights, getProcessIndustryInsight, getSendInterviewReminders},
-    { cleanupRateLimits },
+    {
+      getGenerateIndustryInsights,
+      getProcessIndustryInsight,
+      getSendInterviewReminders,
+      getCleanupRateLimits,
+    },
     { serve },
   ] = await Promise.all([
     import("@/lib/inngest/client"),
     import("@/lib/jobs"),
-    import("@/.inngest/functions/cleanup-rate-limits"),
     import("inngest/next"),
   ]);
   const client = await getInngest();
   const cronFn = await getGenerateIndustryInsights();
   const workerFn = await getProcessIndustryInsight();
   const reminderFn = await getSendInterviewReminders();
+  const cleanupFn = await getCleanupRateLimits();
   return serve({
     client,
     signingKey: process.env.INNGEST_SIGNING_KEY,
-    functions: [cronFn, workerFn,reminderFn, cleanupRateLimits],
+    functions: [cronFn, workerFn, reminderFn, cleanupFn],
   });
 }
 

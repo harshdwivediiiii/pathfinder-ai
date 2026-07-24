@@ -39,6 +39,9 @@ yarn-error.log*
 !.env.example
 
 
+# inngest dev server (generated runtime, not application source)
+/.inngest/
+
 # vercel
 .vercel
 
