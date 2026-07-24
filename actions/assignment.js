@@ -20,9 +20,19 @@ import { buildHistoryResponse } from "@/lib/history/history-loader";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { getHistoryRecords } from "@/lib/history/history-query";
 import { USER_NOT_FOUND_RESPONSE } from "@/lib/errors/user-not-found";
+import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 
 /** Grade an assignment submission against a rubric or prompt. */
 export async function gradeAssignment(promptText, solutionText) {
+  const { userId } = await auth();
+  if (!userId) return USER_NOT_FOUND_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "assignment");
+  if (!limit.allowed) {
+    return { success: false, errors: { _form: [`Assignment grading limit reached. Resets in ${formatResetTime(limit.resetAt)}.`]
+    } };
+  }
+
   const init = await initializeAuthenticatedAction();
   if ("success" in init) return init;
 
