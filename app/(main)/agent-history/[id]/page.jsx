@@ -130,7 +130,7 @@ export default function AgentRunDetailsPage() {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                {run.status === AgentRunStatus.Completed && (
+                {run.status === AgentRunStatus.Completed && run.output && (
                   <SaveToWorkspaceDialog run={run}>
                     <Button variant="outline" size="lg" className="gap-2">
                       <FolderKanban className="h-4 w-4" />
