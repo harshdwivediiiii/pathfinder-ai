@@ -1,5 +1,5 @@
 "use client";
-
+import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -91,7 +91,7 @@ function Navbar() {
         className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl"
       >
         <div
-          className={`glass-pill rounded-full px-5 py-3 flex items-center justify-between transition-all duration-500 ${
+          className={`glass-pill relative overflow-hidden rounded-full px-5 py-3 flex items-center justify-between transition-all duration-500 ${
             scrolled
               ? "shadow-xl shadow-black/30 border-white/[0.12]"
               : "border-white/[0.08]"
@@ -161,6 +161,7 @@ function Navbar() {
               </AnimatePresence>
             </button>
           </div>
+          <ScrollProgress />
         </div>
       </motion.nav>
 
