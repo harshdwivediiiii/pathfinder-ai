@@ -31,12 +31,30 @@ export async function generateFounderReadiness(formData) {
     const riskTolerance = formData.get("riskTolerance");
     const skills = formData.get("skills");
 
+    if (typeof businessIdea !== "string" || typeof riskTolerance !== "string" || typeof skills !== "string") {
+      throw new Error("Invalid input: businessIdea, riskTolerance, and skills must be strings.");
+    }
+
+    const trimmedBusinessIdea = businessIdea.trim();
+    const trimmedRiskTolerance = riskTolerance.trim();
+    const trimmedSkills = skills.trim();
+
+    if (!trimmedBusinessIdea || trimmedBusinessIdea.length > 2000) {
+      throw new Error("Business idea is required and must be under 2000 characters.");
+    }
+    if (!trimmedRiskTolerance || trimmedRiskTolerance.length > 500) {
+      throw new Error("Risk tolerance is required and must be under 500 characters.");
+    }
+    if (!trimmedSkills || trimmedSkills.length > 500) {
+      throw new Error("Skills description is required and must be under 500 characters.");
+    }
+
     const prompt = buildSecurePrompt({
       context: `${buildUserProfileContext(user)}\n\n${FOUNDER_SYSTEM_CONTEXT}`,
       task: `Analyze the user's readiness to become a startup founder based on their profile and the following inputs:
-Business Idea/Space: "${businessIdea}"
-Risk Tolerance: "${riskTolerance}"
-Self-Assessed Core Skills: "${skills}"
+Business Idea/Space: "${trimmedBusinessIdea}"
+Risk Tolerance: "${trimmedRiskTolerance}"
+Self-Assessed Core Skills: "${trimmedSkills}"
 
 Provide a "Founder Score" (0-100), key strengths, critical blind spots with mitigation strategies, feedback on their business idea, and a 3-phase (Month 1, Month 2, Month 3) 90-day transition roadmap.
 
@@ -59,9 +77,9 @@ Respond ONLY with a valid JSON object in this exact format:
   ]
 }`,
       untrustedData: [
-        { label: "businessIdea", value: businessIdea, maxLength: 1000 },
-        { label: "riskTolerance", value: riskTolerance, maxLength: 100 },
-        { label: "skills", value: skills, maxLength: 1000 },
+        { label: "businessIdea", value: trimmedBusinessIdea, maxLength: 2000 },
+        { label: "riskTolerance", value: trimmedRiskTolerance, maxLength: 500 },
+        { label: "skills", value: trimmedSkills, maxLength: 500 },
       ],
     });
 
@@ -88,9 +106,9 @@ Respond ONLY with a valid JSON object in this exact format:
     const readiness = await db.founderReadiness.create({
       data: {
         userId: user.id,
-        businessIdea,
-        riskTolerance,
-        skills,
+        businessIdea: trimmedBusinessIdea,
+        riskTolerance: trimmedRiskTolerance,
+        skills: trimmedSkills,
         readinessData: result.data,
       },
     });
