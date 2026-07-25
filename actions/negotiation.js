@@ -19,6 +19,10 @@ export async function chatSalaryNegotiation(history, userMessage) {
     };
   }
 
+  if (!Array.isArray(history)) {
+    return { success: false, error: "Invalid input: history must be an array." };
+  }
+
   // Format history for Gemini
   const formattedHistory = history.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
   
@@ -51,6 +55,10 @@ export async function evaluateNegotiation(history) {
       success: false,
       error: `Salary negotiation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`,
     };
+  }
+
+  if (!Array.isArray(history)) {
+    return { success: false, error: "Invalid input: history must be an array." };
   }
 
   const formattedHistory = history.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
