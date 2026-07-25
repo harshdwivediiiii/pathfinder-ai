@@ -30,22 +30,36 @@ export async function startCoffeeChat(industry, targetRole) {
   if (!user) {
     return createErrorResponse("User not found");
   }
-  if (!industry || !targetRole) {
+  const trimmedIndustry = industry?.trim();
+  const trimmedTargetRole = targetRole?.trim();
+
+  if (!trimmedIndustry || !trimmedTargetRole) {
     return {
       success: false,
-      errors: { _form: ["Industry and target role are required."] },
+      errors: { _form: ["Industry and target role are required and must be non-empty strings."] },
     };
   }
+
+  if (trimmedIndustry.length > 200 || trimmedTargetRole.length > 200) {
+    return {
+      success: false,
+      errors: { _form: ["Industry and target role must be under 200 characters."] },
+    };
+  }
+
+  const sanitizedIndustry = trimmedIndustry.replace(/[\n\r\t]/g, " ");
+  const sanitizedTargetRole = trimmedTargetRole.replace(/[\n\r\t]/g, " ");
+
   const initialMessage = {
     role: "assistant",
-    content: `Hi there! Thanks for reaching out. I'"'"'m a Senior Executive in ${industry} overseeing ${targetRole}s. What would you like to know about the industry or the role?`,
+    content: `Hi there! Thanks for reaching out. I'"'"'m a Senior Executive in ${sanitizedIndustry} overseeing ${sanitizedTargetRole}s. What would you like to know about the industry or the role?`,
   };
   try {
     const record = await db.coffeeChatSession.create({
       data: {
         userId: user.id,
-        industry,
-        targetRole,
+        industry: sanitizedIndustry,
+        targetRole: sanitizedTargetRole,
         chatHistory: [initialMessage],
       },
     });
