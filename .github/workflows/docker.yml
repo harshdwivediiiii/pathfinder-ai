@@ -31,6 +31,8 @@ jobs:
 
       - name: Validate Prisma schema
         run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
 
       - name: Run tests
         run: npm run test:ci # Assuming `test:ci` runs both unit and e2e tests

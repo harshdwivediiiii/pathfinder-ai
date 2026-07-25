@@ -20,9 +20,6 @@
     "seed": "node seed.js",
     "postinstall": "prisma generate"
   },
-  "prisma": {
-    "seed": "node seed.js"
-  },
   "dependencies": {
     "@clerk/nextjs": "^7.4.3",
     "@clerk/themes": "^2.2.50",

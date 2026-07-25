@@ -40,6 +40,8 @@ jobs:
         fi
     - name: Generate Prisma client
       run: npx prisma generate
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
     - name: Lint
       run: npm run lint
     - run: npx playwright install --with-deps chromium
