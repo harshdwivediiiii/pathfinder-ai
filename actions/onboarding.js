@@ -21,10 +21,10 @@ export async function generateOnboardingPlan(company, role) {
   const trimmedCompany = company?.trim();
   const trimmedRole = role?.trim();
 
-  if (!trimmedCompany || trimmedCompany.length > 100) {
+  if (!trimmedCompany || trimmedCompany?.length > 100) {
     return { success: false, errors: { _form: ["Company name is required and must be under 100 characters."] } };
   }
-  if (!trimmedRole || trimmedRole.length > 100) {
+  if (!trimmedRole || trimmedRole?.length > 100) {
     return { success: false, errors: { _form: ["Job title is required and must be under 100 characters."] } };
   }
 
