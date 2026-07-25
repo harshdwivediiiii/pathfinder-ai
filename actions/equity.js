@@ -24,6 +24,11 @@ export async function decodeEquityOffer(offerDetails) {
     return { success: false, errors: { _form: ["Equity details are required."] } };
   }
 
+  const validEquityTypes = ["RSU", "ISO", "ESPP", "Phantom", "Stock Options", "Restricted Stock"];
+  if (!validEquityTypes.includes(offerDetails.equityType)) {
+    return { success: false, errors: { _form: ["Invalid equity type. Accepted types: " + validEquityTypes.join(", ") + "."] } };
+  }
+
   const prompt = buildSecurePrompt({
     context: "You are an expert startup equity compensation consultant and financial advisor.",
     task: `Analyze the following equity offer details provided by the candidate.
