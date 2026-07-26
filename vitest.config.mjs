@@ -23,6 +23,8 @@ export default defineConfig({
     mockReset: true,
     env: {
       NODE_ENV: "test",
+      DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+      GEMINI_API_KEY: "test-api-key",
     },
   },
 });
