@@ -8,12 +8,19 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { validateInput } from "@/lib/ai/validate";
+import { assertFeatureEnabled } from "@/lib/ai/ai-gating";
 import { skillGapAnalysisSchema } from "@/lib/schemas/forms";
 
 export async function generateSkillGapAnalysis(data) {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
+
+    try {
+      assertFeatureEnabled("skillGapAnalysis");
+    } catch (err) {
+      return handleServerError(err, "skill-gap");
+    }
 
     const limit = await checkRateLimit(userId, "skill-gap");
     if (!limit.allowed) {
