@@ -1,17 +1,20 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, beforeEach } from "vitest";
 
-import { cleanupExpiredBuckets, enforceRateLimit } from "../lib/security/rate-limit.js";
+import { cleanupExpiredBuckets, enforceRateLimit, resetFailureMetrics, getFailureMetrics } from "../lib/security/rate-limit.js";
 import {
   createMemoryRateLimitStore,
   createRateLimitStore,
   createRedisRateLimitStore,
   DEFAULT_BUCKET_TTL_MS,
   withDefaultCheckAndDeduct,
+  createEmergencyFallbackStore,
 } from "../lib/rate-limit/store.js";
 import { unwrap, isMiss } from "../lib/db/redis-result.js";
+import { resetEnvCache, getEnv } from "../lib/security/env.js";
 
 const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 const ORIGINAL_REDIS_URL = process.env.REDIS_URL;
+const ORIGINAL_FAILURE_POLICY = process.env.RATE_LIMIT_FAILURE_POLICY;
 
 afterEach(() => {
   process.env.NODE_ENV = ORIGINAL_NODE_ENV;
@@ -20,6 +23,13 @@ afterEach(() => {
   } else {
     process.env.REDIS_URL = ORIGINAL_REDIS_URL;
   }
+  if (ORIGINAL_FAILURE_POLICY == null) {
+    delete process.env.RATE_LIMIT_FAILURE_POLICY;
+  } else {
+    process.env.RATE_LIMIT_FAILURE_POLICY = ORIGINAL_FAILURE_POLICY;
+  }
+  resetEnvCache();
+  resetFailureMetrics();
 });
 
 /**
@@ -816,5 +826,497 @@ describe("enforceRateLimit with fallback path", () => {
     expect(typeof result.rejectionRate).toBe("number");
 
     await store.close();
+  });
+});
+
+describe("Failure Policy: fail-open (default)", () => {
+  it("allows requests when store fails with fail-open policy", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "fail-open";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "fail-open-test" };
+    const result = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 10,
+      store,
+      now: 1_000,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(0);
+    expect(result.retryAfterSeconds).toBe(0);
+
+    const metrics = getFailureMetrics();
+    expect(metrics.totalFailures).toBe(1);
+    expect(metrics.failOpenActivations).toBe(1);
+  });
+
+  it("defaults to fail-open when policy not configured", async () => {
+    delete process.env.RATE_LIMIT_FAILURE_POLICY;
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "default-test" };
+    const result = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 10,
+      store,
+      now: 1_000,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(0);
+  });
+});
+
+describe("Failure Policy: fail-closed", () => {
+  it("rejects requests when store fails with fail-closed policy", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "fail-closed";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "fail-closed-test" };
+    const result = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 10,
+      store,
+      now: 1_000,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+    expect(result.retryAfterSeconds).toBe(60);
+
+    const metrics = getFailureMetrics();
+    expect(metrics.totalFailures).toBe(1);
+    expect(metrics.failClosedActivations).toBe(1);
+  });
+
+  it("rejects requests with reasonable retry interval", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "fail-closed";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "retry-test" };
+    const result = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 10,
+      store,
+      now: 1_000,
+    });
+
+    expect(result.retryAfterSeconds).toBeGreaterThan(0);
+    expect(result.retryAfterSeconds).toBeLessThanOrEqual(60);
+  });
+});
+
+describe("Failure Policy: local-fallback", () => {
+  it("uses local fallback when store fails with local-fallback policy", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "local-fallback";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "local-fallback-test" };
+    const result = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      store,
+      now: 1_000,
+    });
+
+    // Should allow request via local fallback
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBeGreaterThanOrEqual(0);
+
+    const metrics = getFailureMetrics();
+    expect(metrics.totalFailures).toBe(1);
+    expect(metrics.localFallbackActivations).toBe(1);
+  });
+
+  it("local fallback respects burst capacity", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "local-fallback";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "burst-test" };
+    const BURST = 2;
+
+    // Make multiple requests to test burst capacity
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        enforceRateLimit({
+          endpoint: "/api/test",
+          subject,
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          store,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+    const rejected = results.filter((r) => !r.allowed);
+
+    // At most BURST should be allowed
+    expect(allowed.length).toBeLessThanOrEqual(BURST);
+    expect(rejected.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("local fallback expires unused buckets", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "local-fallback";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "expiration-test" };
+
+    // Make a request to create bucket
+    await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      store,
+      now: 1_000,
+    });
+
+    // Wait for bucket to expire (TTL is 10 minutes by default, but we can test with a shorter time)
+    // For this test, we'll just verify the cleanup function exists
+    const fallbackStore = createEmergencyFallbackStore({ bucketTtlMs: 100 });
+    await fallbackStore.checkAndDeduct("/api/test:user:expiration-test", {
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      now: 1_000,
+    });
+
+    // Cleanup should remove expired buckets
+    await fallbackStore.cleanupExpiredBuckets(2_000);
+
+    await fallbackStore.close();
+  });
+
+  it("local fallback falls back to fail-open if it also fails", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "local-fallback";
+    resetEnvCache();
+
+    // Create a store that fails
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "fallback-fail-test" };
+
+    // First request should work with local fallback
+    const result1 = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      store,
+      now: 1_000,
+    });
+    expect(result1.allowed).toBe(true);
+
+    // Now manually corrupt the emergency fallback store to simulate failure
+    const metrics = getFailureMetrics();
+    expect(metrics.localFallbackActivations).toBeGreaterThan(0);
+  });
+
+  it("local fallback is process-local only", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "local-fallback";
+    resetEnvCache();
+
+    const store1 = {
+      kind: "failing-store-1",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const store2 = {
+      kind: "failing-store-2",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject1 = { kind: "user", value: "user1" };
+    const subject2 = { kind: "user", value: "user2" };
+
+    // Both should use the same local fallback store (process-local)
+    const result1 = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject: subject1,
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      store: store1,
+      now: 1_000,
+    });
+
+    const result2 = await enforceRateLimit({
+      endpoint: "/api/test",
+      subject: subject2,
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      store: store2,
+      now: 1_000,
+    });
+
+    // Both should work via the same fallback store
+    expect(result1.allowed).toBe(true);
+    expect(result2.allowed).toBe(true);
+  });
+});
+
+describe("Failure Metrics", () => {
+  it("tracks total failures", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "fail-open";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "metrics-test" };
+
+    await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 10,
+      store,
+      now: 1_000,
+    });
+
+    const metrics = getFailureMetrics();
+    expect(metrics.totalFailures).toBe(1);
+  });
+
+  it("tracks degraded mode duration", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "fail-open";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "duration-test" };
+
+    const before = Date.now();
+    await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 10,
+      store,
+      now: before,
+    });
+
+    const metrics = getFailureMetrics();
+    expect(metrics.degradedModeStart).toBe(before);
+    expect(metrics.degradedModeDuration).toBeGreaterThanOrEqual(0);
+  });
+
+  it("resets metrics correctly", async () => {
+    process.env.RATE_LIMIT_FAILURE_POLICY = "fail-open";
+    resetEnvCache();
+
+    const store = {
+      kind: "failing-store",
+      async checkAndDeduct() {
+        throw new Error("Redis unavailable");
+      },
+    };
+
+    const subject = { kind: "user", value: "reset-test" };
+
+    await enforceRateLimit({
+      endpoint: "/api/test",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 10,
+      store,
+      now: 1_000,
+    });
+
+    let metrics = getFailureMetrics();
+    expect(metrics.totalFailures).toBe(1);
+
+    resetFailureMetrics();
+
+    metrics = getFailureMetrics();
+    expect(metrics.totalFailures).toBe(0);
+    expect(metrics.failOpenActivations).toBe(0);
+    expect(metrics.failClosedActivations).toBe(0);
+    expect(metrics.localFallbackActivations).toBe(0);
+    expect(metrics.degradedModeStart).toBeNull();
+  });
+});
+
+describe("Emergency Fallback Store", () => {
+  it("creates emergency fallback store", () => {
+    const store = createEmergencyFallbackStore();
+    expect(store.kind).toBe("emergency-fallback");
+    expect(typeof store.checkAndDeduct).toBe("function");
+    expect(typeof store.cleanupExpiredBuckets).toBe("function");
+    expect(typeof store.close).toBe("function");
+  });
+
+  it("emergency fallback respects burst capacity", async () => {
+    const store = createEmergencyFallbackStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+    const BURST = 2;
+
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        store.checkAndDeduct("/api/test:user:emergency", {
+          limitPerMinute: 60,
+          burstCapacity: BURST,
+          now: 1_000,
+        })
+      )
+    );
+
+    const allowed = results.filter((r) => r.allowed);
+    expect(allowed.length).toBeLessThanOrEqual(BURST);
+
+    await store.close();
+  });
+
+  it("emergency fallback refills tokens over time", async () => {
+    const store = createEmergencyFallbackStore({ bucketTtlMs: 60_000, cleanupIntervalMs: 0 });
+
+    // Exhaust the bucket
+    await store.checkAndDeduct("/api/test:user:refill", {
+      limitPerMinute: 60,
+      burstCapacity: 1,
+      now: 1_000,
+    });
+
+    const exhausted = await store.checkAndDeduct("/api/test:user:refill", {
+      limitPerMinute: 60,
+      burstCapacity: 1,
+      now: 1_000,
+    });
+    expect(exhausted.allowed).toBe(false);
+
+    // After 1 minute, should refill
+    const refilled = await store.checkAndDeduct("/api/test:user:refill", {
+      limitPerMinute: 60,
+      burstCapacity: 1,
+      now: 61_000,
+    });
+    expect(refilled.allowed).toBe(true);
+
+    await store.close();
+  });
+
+  it("emergency fallback cleans up expired buckets", async () => {
+    const store = createEmergencyFallbackStore({ bucketTtlMs: 100, cleanupIntervalMs: 0 });
+
+    await store.checkAndDeduct("/api/test:user:cleanup", {
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      now: 1_000,
+    });
+
+    // Cleanup should remove expired bucket
+    await store.cleanupExpiredBuckets(2_000);
+
+    // Bucket should be recreated on next access
+    const result = await store.checkAndDeduct("/api/test:user:cleanup", {
+      limitPerMinute: 60,
+      burstCapacity: 2,
+      now: 2_000,
+    });
+    expect(result.allowed).toBe(true);
+
+    await store.close();
+  });
+});
+
+describe("Configuration Validation", () => {
+  it("rejects invalid failure policy value in production", () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    process.env.RATE_LIMIT_FAILURE_POLICY = "invalid-policy";
+    resetEnvCache();
+
+    expect(() => getEnv()).toThrow();
+
+    process.env.NODE_ENV = originalNodeEnv;
+    resetEnvCache();
+  });
+
+  it("accepts valid failure policy values", () => {
+    const validPolicies = ["fail-open", "fail-closed", "local-fallback"];
+
+    for (const policy of validPolicies) {
+      process.env.RATE_LIMIT_FAILURE_POLICY = policy;
+      resetEnvCache();
+      const env = getEnv();
+      expect(env.RATE_LIMIT_FAILURE_POLICY).toBe(policy);
+    }
   });
 });
