@@ -17,16 +17,6 @@ export async function generateFounderReadiness(formData) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
-    const limit = await checkRateLimit(userId, "founder_readiness");
-    if (!limit.allowed) {
-      throw new Error(`Founder readiness generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
-    }
-
-    const user = await db.user.findUnique({
-      where: { clerkUserId: userId },
-    });
-    if (!user) throw new Error("User not found");
-
     const businessIdea = formData.get("businessIdea");
     const riskTolerance = formData.get("riskTolerance");
     const skills = formData.get("skills");
@@ -48,6 +38,16 @@ export async function generateFounderReadiness(formData) {
     if (!trimmedSkills || trimmedSkills.length > 500) {
       throw new Error("Skills description is required and must be under 500 characters.");
     }
+
+    const limit = await checkRateLimit(userId, "founder_readiness");
+    if (!limit.allowed) {
+      throw new Error(`Founder readiness generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+    }
+
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) throw new Error("User not found");
 
     const prompt = buildSecurePrompt({
       context: `${buildUserProfileContext(user)}\n\n${FOUNDER_SYSTEM_CONTEXT}`,
