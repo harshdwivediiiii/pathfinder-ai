@@ -14,6 +14,13 @@ export async function calculateRate(skills, experience, targetIncome) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
+  const user = await getAuthenticatedUser(userId);
+  if (!user) return createErrorResponse("User not found");
+
+  if (!skills || !experience || !targetIncome) {
+    return { success: false, errors: { _form: ["Skills, experience, and target income are required."] } };
+  }
+
   const limit = await checkRateLimit(userId, "freelanceRate");
   if (!limit.allowed) {
     return {
@@ -22,13 +29,6 @@ export async function calculateRate(skills, experience, targetIncome) {
         _form: [`Freelance rate calculation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
       },
     };
-  }
-
-  const user = await getAuthenticatedUser(userId);
-  if (!user) return createErrorResponse("User not found");
-
-  if (!skills || !experience || !targetIncome) {
-    return { success: false, errors: { _form: ["Skills, experience, and target income are required."] } };
   }
 
   const prompt = buildSecurePrompt({
