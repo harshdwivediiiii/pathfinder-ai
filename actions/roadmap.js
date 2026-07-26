@@ -182,13 +182,21 @@ export async function toggleMilestoneCompletion(milestoneId, isCompleted) {
     const { userId } = await auth();
     if (!userId) throw new AppError("Unauthorized", 401);
 
-    const milestone = await db.roadmapMilestone.update({
+    // Verify ownership: fetch the milestone and its parent roadmap
+    const milestone = await db.roadmapMilestone.findUnique({
+      where: { id: milestoneId },
+      include: { roadmap: { select: { userId: true } } },
+    });
+    if (!milestone) throw new AppError("Milestone not found", 404);
+    if (milestone.roadmap.userId !== userId) throw new AppError("Forbidden", 403);
+
+    const updated = await db.roadmapMilestone.update({
       where: { id: milestoneId },
       data: { isCompleted },
     });
 
     revalidatePath("/roadmap");
-    return { milestone, error: null };
+    return { milestone: updated, error: null };
   } catch (error) {
     return handleServerError(error, "roadmap");
   }
