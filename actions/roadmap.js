@@ -10,6 +10,7 @@ import { validateOutput } from "@/lib/ai/validate";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
 import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { AppError } from "@/lib/errors/app-error";
 
 const ROADMAP_SYSTEM_CONTEXT = `You are a senior career strategist and technical mentor. Your expertise is creating personalized, actionable career roadmaps that break down long-term goals into concrete milestones. Each milestone should be a stepping stone that builds on the previous one, with clear skills to develop and a realistic time frame.`;
 
@@ -57,17 +58,20 @@ export async function generateCareerRoadmap() {
   try {
     const { userId } = await auth();
     authUserId = userId;
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new AppError("Unauthorized", 401);
 
     const limit = await checkRateLimit(userId, "roadmap");
     if (!limit.allowed) {
-      throw new Error(`Roadmap generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      throw new AppError(
+        `Roadmap generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`,
+        429
+      );
     }
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
     });
-    if (!user) throw new Error(USER_NOT_FOUND_MESSAGE);
+    if (!user) throw new AppError(USER_NOT_FOUND_MESSAGE, 404);
 
     const prompt = buildSecurePrompt({
       context: `${buildUserProfileContext(user)}\n\n${ROADMAP_SYSTEM_CONTEXT}`,
@@ -116,7 +120,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
 
     if (!result.success) {
       console.error("Career roadmap output validation failed:", result.errors);
-      throw new Error("AI returned an unexpected format.");
+      throw new AppError("AI returned an unexpected format.", 500);
     }
 
     const parsedData = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
@@ -176,7 +180,7 @@ import { revalidatePath } from "next/cache";
 export async function toggleMilestoneCompletion(milestoneId, isCompleted) {
   try {
     const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new AppError("Unauthorized", 401);
 
     const milestone = await db.roadmapMilestone.update({
       where: { id: milestoneId },
