@@ -14,16 +14,6 @@ export async function startCoffeeChat(industry, targetRole) {
     return { success: false, errors: { _form: ["Unauthorized"] } };
   }
 
-  const limit = await checkRateLimit(userId, "coffeeChat");
-  if (!limit.allowed) {
-    return {
-      success: false,
-      errors: {
-        _form: [`Coffee Chat limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
-      },
-    };
-  }
-
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
   });
@@ -54,6 +44,17 @@ export async function startCoffeeChat(industry, targetRole) {
     role: "assistant",
     content: `Hi there! Thanks for reaching out. I'"'"'m a Senior Executive in ${sanitizedIndustry} overseeing ${sanitizedTargetRole}s. What would you like to know about the industry or the role?`,
   };
+
+  const limit = await checkRateLimit(userId, "coffeeChat");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Coffee Chat limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
   try {
     const record = await db.coffeeChatSession.create({
       data: {
