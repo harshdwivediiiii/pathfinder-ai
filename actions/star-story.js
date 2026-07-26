@@ -16,6 +16,14 @@ export async function generateStarStory(rawExperience) {
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
+  if (!rawExperience || rawExperience.trim().length < 20) {
+    return { success: false, errors: { _form: ["Please provide a valid experience description."] } };
+  }
+
+  if (rawExperience.trim().length > 3000) {
+    return { success: false, errors: { _form: ["Experience description must be under 3000 characters."] } };
+  }
+
   const limit = await checkRateLimit(userId, "starStory");
   if (!limit.allowed) {
     return {
@@ -24,14 +32,6 @@ export async function generateStarStory(rawExperience) {
         _form: [`STAR story generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
       },
     };
-  }
-
-  if (!rawExperience || rawExperience.trim().length < 20) {
-    return { success: false, errors: { _form: ["Please provide a valid experience description."] } };
-  }
-
-  if (rawExperience.trim().length > 3000) {
-    return { success: false, errors: { _form: ["Experience description must be under 3000 characters."] } };
   }
 
   const prompt = buildSecurePrompt({
