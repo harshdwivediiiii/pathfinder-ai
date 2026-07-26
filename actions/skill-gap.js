@@ -61,8 +61,13 @@ export async function generateSkillGapAnalysis(data) {
     // Clean up potential markdown formatting
     if (rawText.startsWith('```json')) rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     if (rawText.startsWith('```')) rawText = rawText.replace(/```/g, '').trim();
-    
-    const analysisJson = JSON.parse(rawText);
+
+    let analysisJson;
+    try {
+      analysisJson = JSON.parse(rawText);
+    } catch {
+      throw new Error("Failed to parse AI response as JSON");
+    }
 
     const saved = await db.skillGapAnalysis.upsert({
       where: { userId: user.id },
