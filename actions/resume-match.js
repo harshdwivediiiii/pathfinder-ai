@@ -97,7 +97,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     });
 
     const aiResult = await generateGeminiContent(prompt);
-    const parsedAnalysis = parseAIJson(result.response.text());
+    const parsedAnalysis = parseAIJson(aiResult.response.text());
 
     const record = await db.resumeMatchAnalysis.create({
       data: {
