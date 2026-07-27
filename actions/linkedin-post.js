@@ -23,7 +23,7 @@ export async function generateLinkedInPosts(topic) {
   });
   if (!user) return createErrorResponse("User not found");
 
-  const rateLimitResult = await checkRateLimit(userId, "linkedin");
+  const rateLimitResult = await checkRateLimit(userId, "linkedinPost");
   if (!rateLimitResult.allowed) {
     return {
       success: false,
