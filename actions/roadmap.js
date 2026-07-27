@@ -179,8 +179,13 @@ import { revalidatePath } from "next/cache";
 
 export async function toggleMilestoneCompletion(milestoneId, isCompleted) {
   try {
-    const { userId } = await auth();
-    if (!userId) throw new AppError("Unauthorized", 401);
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) throw new AppError("Unauthorized", 401);
+
+    const user = await db.user.findUnique({
+      where: { clerkUserId },
+    });
+    if (!user) throw new AppError(USER_NOT_FOUND_MESSAGE, 404);
 
     // Verify ownership: fetch the milestone and its parent roadmap
     const milestone = await db.roadmapMilestone.findUnique({
@@ -188,7 +193,7 @@ export async function toggleMilestoneCompletion(milestoneId, isCompleted) {
       include: { roadmap: { select: { userId: true } } },
     });
     if (!milestone) throw new AppError("Milestone not found", 404);
-    if (milestone.roadmap.userId !== userId) throw new AppError("Forbidden", 403);
+    if (milestone.roadmap.userId !== user.id) throw new AppError("Forbidden", 403);
 
     const updated = await db.roadmapMilestone.update({
       where: { id: milestoneId },
