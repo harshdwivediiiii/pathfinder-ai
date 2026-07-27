@@ -9,6 +9,7 @@ import { fetchRecentJobEmails } from "@/lib/google/gmail";
 import { extractJobApplicationFromEmail } from "@/lib/ai/gemini";
 import { validateInput } from "@/lib/ai/validate";
 import { jobApplicationSchema, jobApplicationUpdateStatusSchema } from "@/lib/schemas/forms";
+import { JOB_APPLICATION_STATUS } from "@/lib/constants/job-application-status";
 
 export async function getJobApplications() {
   const { userId } = await auth();
@@ -199,9 +200,9 @@ export async function getJobAnalytics() {
 
     jobs.forEach(job => {
       let normalizedStatus = job.status;
-      if (normalizedStatus === "Interviewing") normalizedStatus = "Interview";
-      if (normalizedStatus === "Offer Received") normalizedStatus = "Offer";
-      if (normalizedStatus === "Wishlist") normalizedStatus = "Saved";
+      if (normalizedStatus === JOB_APPLICATION_STATUS.INTERVIEWING) normalizedStatus = JOB_APPLICATION_STATUS.INTERVIEW;
+      if (normalizedStatus === JOB_APPLICATION_STATUS.OFFER_RECEIVED) normalizedStatus = JOB_APPLICATION_STATUS.OFFER;
+      if (normalizedStatus === JOB_APPLICATION_STATUS.WISHLIST) normalizedStatus = JOB_APPLICATION_STATUS.SAVED;
 
       statusCounts[normalizedStatus] = (statusCounts[normalizedStatus] || 0) + 1;
 
@@ -214,7 +215,11 @@ export async function getJobAnalytics() {
 
       if (!roleStats[roleGroup]) roleStats[roleGroup] = { total: 0, responses: 0 };
       roleStats[roleGroup].total += 1;
-      const isResponse = ["Online Assessment (OA)", "Interview", "Offer"].includes(normalizedStatus);
+      const isResponse = [
+        JOB_APPLICATION_STATUS.ONLINE_ASSESSMENT,
+        JOB_APPLICATION_STATUS.INTERVIEW,
+        JOB_APPLICATION_STATUS.OFFER,
+      ].includes(normalizedStatus);
       if (isResponse) {
         roleStats[roleGroup].responses += 1;
       }
@@ -303,7 +308,7 @@ export async function syncJobApplicationsFromEmail() {
 
       if (existing) {
         // Update if status changed or new interview date
-        const isNewStatus = existing.status !== status && status !== "Applied"; // Don't downgrade
+        const isNewStatus = existing.status !== status && status !== JOB_APPLICATION_STATUS.APPLIED; // Don't downgrade
         const isNewDate = validDate && (!existing.interviewDate || existing.interviewDate.toISOString() !== validDate.toISOString());
         
         if (isNewStatus || isNewDate) {
@@ -322,7 +327,7 @@ export async function syncJobApplicationsFromEmail() {
             userId: user.id,
             companyName,
             jobTitle: jobTitle || "Unknown Role",
-            status: status || "Applied",
+            status: status || JOB_APPLICATION_STATUS.APPLIED,
             interviewDate: validDate,
             notes: `Auto-synced from email: ${email.subject}`
           }
