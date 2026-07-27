@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db/prisma";
 import { isIndustryInsightStale } from "@/lib/misc/industry-insights";
+import { getIndustryInsights, getActivityStreak } from "@/actions/dashboard";
 import { getIndustryInsights } from "@/actions/dashboard";
 import { getUserHistory } from "@/lib/history/history-query";
 import { DashboardContent } from "./_components/dashboard-content";
@@ -33,19 +34,21 @@ async function getUpcomingInterviews(userId) {
 
 export const dynamic = "force-dynamic";
 
+export const dynamic = "force-dynamic";
+
 async function getDashboardData() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
-    include: { industryInsight: true },
+    include: { industryInsights: true },   // fixed: was industryInsight
   });
 
   if (!user) redirect("/onboarding");
   if (!user.industry) redirect("/onboarding");
 
-  let insight = user.industryInsight;
+  let insight = user.industryInsights?.find((i) => i.industry === user.industry) || null; // fixed: array, so find the matching one
 
   if (!insight || isIndustryInsightStale(insight)) {
     insight = await getIndustryInsights();
@@ -63,12 +66,11 @@ export default async function DashboardPage() {
 
   if (!insight) return <EmptyState userName={user.name || user.email} />;
 
-  const upcomingInterviews = await getUpcomingInterviews(user.id);
-  const recentDecisions = await getUserHistory(
-    db.careerDecisionSimulation,
-    user.id,
-    { createdAt: "desc" }
-  );
+  const [upcomingInterviews, recentDecisions, { streak, weeklyCount }] = await Promise.all([
+    getUpcomingInterviews(user.id),
+    getUserHistory(db.careerDecisionSimulation, user.id, { createdAt: "desc" }),
+    getActivityStreak(),
+  ]);
 
   return (
     <DashboardContent
@@ -82,6 +84,8 @@ export default async function DashboardPage() {
       insight={insight}
       upcomingInterviews={upcomingInterviews}
       recentDecisions={recentDecisions.slice(0, 3)}
+      streak={streak}
+      weeklyCount={weeklyCount}
     />
   );
 }
