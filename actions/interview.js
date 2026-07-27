@@ -15,6 +15,7 @@ import { interviewQuestionsOutputSchema, voiceFeedbackOutputSchema, videoFeedbac
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { translations } from "@/lib/misc/translations";
 import { unwrap } from "@/lib/db/redis-result";
+import { logActivity } from "@/lib/activity";
 
 // Fallback MCQ questions in case Gemini generation fails, categorized by industry
 const TECH_FALLBACK_QUESTIONS = [
@@ -623,6 +624,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     const cacheStore = getCacheStore();
     const cacheKey = generateCacheKey("quiz-session", userId, sessionId);
     await cacheStore.set(cacheKey, questions, QUIZ_CACHE_TTL_MS);
+    await logActivity(user.id, "INTERVIEW_PRACTICED");
 
     return { sessionId, questions, isFallback };
   } catch (error) {

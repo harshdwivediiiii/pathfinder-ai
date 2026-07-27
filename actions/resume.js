@@ -12,6 +12,7 @@ import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
 import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { logActivity } from "@/lib/activity";
 
 export async function saveResume(rawContent) {
   const { userId } = await auth();
@@ -37,6 +38,8 @@ export async function saveResume(rawContent) {
       },
     });
 
+    await logActivity(user.id, "RESUME_GENERATED");
+    
     revalidatePath("/resume");
     return { success: true, data: resume };
   } catch (error) {
