@@ -4,7 +4,7 @@ import { handleServerError } from "@/lib/errors/error-handler";
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, decrementRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 
 export async function chatSalaryNegotiation(history, userMessage) {
@@ -25,7 +25,7 @@ export async function chatSalaryNegotiation(history, userMessage) {
 
   // Format history for Gemini
   const formattedHistory = history.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
-  
+
   const prompt = buildSecurePrompt({
   context: "You are a tough, realistic HR representative at a tech company negotiating a salary offer with a candidate. Your goal is to get the best deal for the company, but you are willing to concede if the candidate makes strong, data-backed arguments (e.g., market rate, specific skills).",
   task: "Continue the salary negotiation. Do NOT break character.",
@@ -41,6 +41,7 @@ export async function chatSalaryNegotiation(history, userMessage) {
     const aiResult = await generateGeminiContent(prompt);
     return { success: true, response: aiResult.response.text() };
   } catch (error) {
+    await decrementRateLimit(userId, "negotiation");
     return handleServerError(error, "negotiation");
   }
 }
@@ -62,7 +63,7 @@ export async function evaluateNegotiation(history) {
   }
 
   const formattedHistory = history.map(msg => `${msg.role === 'user' ? 'Candidate' : 'HR'}: ${msg.content}`).join("\n");
-  
+
   const prompt = buildSecurePrompt({
     context: "You are an expert career coach evaluating a salary negotiation transcript.",
     task: "Analyze the transcript and provide structured feedback.",
@@ -83,6 +84,7 @@ export async function evaluateNegotiation(history) {
     const parsedData = parseAIJson(aiResult.response.text());
     return { success: true, data: parsedData };
   } catch (error) {
+    await decrementRateLimit(userId, "negotiation");
     return handleServerError(error, "negotiation");
   }
 }
