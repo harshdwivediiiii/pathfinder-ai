@@ -15,6 +15,7 @@ import { atsAnalysisOutputSchema } from "@/lib/schemas";
 import { normalizeAtsSuggestions } from "@/lib/resume/ats";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
+import { logActivity } from "@/lib/activity";
 
 /**
  * Runs an ATS analysis using Gemini AI and persists the result safely.
@@ -151,6 +152,9 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
       },
     });
 
+     await logActivity(user.id, "ATS_ANALYZED");
+
+     
     revalidatePath("/ats-analyzer");
     return { success: true, data: record };
   } catch (error) {

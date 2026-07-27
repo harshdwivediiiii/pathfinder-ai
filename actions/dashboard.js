@@ -10,6 +10,8 @@ import {
   isIndustryInsightStale,
 } from "@/lib/misc/industry-insights";
 
+import { logActivity } from "@/lib/activity"; 
+
 export async function getDashboardStats() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -17,17 +19,65 @@ export async function getDashboardStats() {
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
     include: {
-      resumes: true,
-      coverLetters: true,
-      interviews: true,
+      resume: true,
+      coverLetter: true,
+      mockInterviewSessions: true,
     },
   });
 
+  const activity = user ? await getActivityStats(user.id) : { streak: 0, weeklyCount: 0 };
+
   return {
-    totalResumes: user?.resumes?.length || 0,
-    totalCoverLetters: user?.coverLetters?.length || 0,
-    totalInterviews: user?.interviews?.length || 0,
+    totalResumes: user?.resume ? 1 : 0,
+    totalCoverLetters: user?.coverLetter?.length || 0,
+    totalInterviews: user?.mockInterviewSessions?.length || 0,
+    ...activity,
   };
+}
+
+export async function getActivityStreak() {
+  const { userId } = await auth();
+  if (!userId) return { streak: 0, weeklyCount: 0 };
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+    select: { id: true },
+  });
+  if (!user) return { streak: 0, weeklyCount: 0 };
+
+  return getActivityStats(user.id);
+}
+
+async function getActivityStats(userId) {
+  const since = new Date();
+  since.setDate(since.getDate() - 90);
+
+  const logs = await db.activityLog.findMany({
+    where: { userId, createdAt: { gte: since } },
+    select: { createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const activeDays = new Set(logs.map((l) => l.createdAt.toISOString().slice(0, 10)));
+
+  let streak = 0;
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  if (!activeDays.has(cursor.toISOString().slice(0, 10))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  while (activeDays.has(cursor.toISOString().slice(0, 10))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weeklyCount = logs.filter((l) => l.createdAt >= weekAgo).length;
+
+  return { streak, weeklyCount };
 }
 
 /**

@@ -13,9 +13,11 @@ import { QuickActions } from "./quick-actions";
 import { cn } from "@/lib/misc/utils";
 import { Calendar, Split } from "lucide-react";
 import Link from "next/link";
+import { StreakCard } from "./streak-card";
 
 const sectionDefs = [
   { id: "overview", label: "Overview" },
+  { id: "streak", label: "Streak" },   
   { id: "intelligence", label: "Intelligence" },
   { id: "snapshot", label: "Analytics" },
   { id: "salary", label: "Salary" },
@@ -107,6 +109,8 @@ export function DashboardContent({
   insight,
   upcomingInterviews = [],
   recentDecisions = [],
+  streak = 0,          
+  weeklyCount = 0,
 }) {
   const scores = useMemo(() => computeScores(insight), [insight]);
 
@@ -125,6 +129,7 @@ export function DashboardContent({
 
   const sections = [
     { id: "overview", Component: WelcomeHero, props: { userName, currentRole, targetRole, insight, ...scores } },
+    { id: "streak", Component: StreakCard, props: { streak, weeklyCount } },
     { id: "intelligence", Component: IndustryIntelligence, props: { insight } },
     { id: "snapshot", Component: AnalyticsSnapshot, props: { insight, topRole, medianSalary, demandTrend } },
     { id: "salary", Component: SalaryAnalytics, props: { insight } },

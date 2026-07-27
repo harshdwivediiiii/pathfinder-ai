@@ -101,6 +101,7 @@ model User {
 
   exportRecords         ExportRecord[]
   auditLogs             AuditLog[]
+  activityLogs          ActivityLog[]
   resumeMatchAnalyses   ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
   mockInterviewSessions MockInterviewSession[]
@@ -982,4 +983,21 @@ model ProjectActivity {
   createdAt   DateTime @default(now())
 
   @@index([workspaceId])
+}
+
+enum ActivityAction {
+  RESUME_GENERATED
+  COVER_LETTER_GENERATED
+  INTERVIEW_PRACTICED
+  ATS_ANALYZED
+}
+
+model ActivityLog {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    ActivityAction
+  createdAt DateTime       @default(now())
+
+  @@index([userId, createdAt])
 }
