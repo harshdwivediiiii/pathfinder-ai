@@ -141,13 +141,17 @@ export async function POST(request) {
     return buildCorsDeniedResponse();
   }
   const { userId } = await auth();
+  if (!userId) {
+    return respondSseError(request, ERROR_CODES.UNAUTHORIZED);
+  }
+
   const endpoint = "/api/generate";
   const subject = getRateLimitIdentifier(request, userId);
   const rateLimit = await enforceRateLimit({
     endpoint,
     subject,
-    limitPerMinute: userId ? 20 : 5,
-    burstCapacity: userId ? 10 : 5,
+    limitPerMinute: 20,
+    burstCapacity: 10,
   });
 
   console.info("rate-limit-check", {
@@ -165,10 +169,6 @@ export async function POST(request) {
       retryAfterSeconds: rateLimit.retryAfterSeconds,
       sse: true,
     });
-  }
-
-  if (!userId) {
-    return respondSseError(request, ERROR_CODES.UNAUTHORIZED);
   }
 
  if (!isFeatureEnabled("chat")) {

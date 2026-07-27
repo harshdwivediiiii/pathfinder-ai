@@ -1,15 +1,16 @@
 "use server";
 import { handleServerError } from "@/lib/errors/error-handler";
-import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
-import { validateInput } from "@/lib/ai/validate";
+import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { assertFeatureEnabled } from "@/lib/ai/ai-gating";
 import { skillGapAnalysisSchema } from "@/lib/schemas/forms";
+import { skillGapAnalysisOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
+import { AppError } from "@/lib/errors/app-error";
 
 export async function generateSkillGapAnalysis(data) {
   try {
@@ -22,11 +23,6 @@ export async function generateSkillGapAnalysis(data) {
       return handleServerError(err, "skill-gap");
     }
 
-    const limit = await checkRateLimit(userId, "skill-gap");
-    if (!limit.allowed) {
-      throw new Error(`Limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
-    }
-
     const validation = validateInput(skillGapAnalysisSchema, data);
     if (!validation.success) return { success: false, errors: validation.errors };
 
@@ -34,6 +30,11 @@ export async function generateSkillGapAnalysis(data) {
       where: { clerkUserId: userId },
     });
     if (!user) throw new Error("User not found");
+
+    const limit = await checkRateLimit(userId, "skill-gap");
+    if (!limit.allowed) {
+      throw new Error(`Limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+    }
 
     const profileContext = buildUserProfileContext(user);
 
@@ -46,35 +47,26 @@ export async function generateSkillGapAnalysis(data) {
         { label: "jobDescription", value: data.jobDescription || "Not provided", maxLength: 3000 },
         { label: "learningDuration", value: data.learningDuration || "1 month", maxLength: 100 },
       ],
-      outputRules: `Output ONLY a valid JSON object matching exactly this schema, without markdown code fences or extra text:
-{
-  "matchPercentage": 75,
-  "matchedSkills": ["Skill 1", "Skill 2"],
-  "missingSkills": [
-    { "skill": "Missing Skill", "priority": "High" }
-  ],
-  "weeklyRoadmap": [
-    { "week": "Week 1", "focus": "Topic", "tasks": ["Task 1", "Task 2"] }
-  ],
-  "suggestedProjects": [
-    { "name": "Project Name", "description": "Desc", "skillsPracticed": ["Skill"] }
-  ],
-  "interviewFocus": ["Topic 1"]
-}`,
+      outputRules: SCHEMA_DESCRIPTIONS.skillGapAnalysis,
     });
 
-    const aiResult = await generateGeminiContent(prompt);
-    let rawText = aiResult.response.text();
-    // Clean up potential markdown formatting
-    if (rawText.startsWith('```json')) rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    if (rawText.startsWith('```')) rawText = rawText.replace(/```/g, '').trim();
+    const result = await generateWithStructuredOutput({
+      prompt,
+      schemaDescription: SCHEMA_DESCRIPTIONS.skillGapAnalysis,
+      schema: skillGapAnalysisOutputSchema,
+      generateFn: async (p) => {
+        const raw = await generateGeminiContent(p);
+        return raw.response.text().trim();
+      },
+      validateFn: validateOutput,
+    });
 
-    let analysisJson;
-    try {
-      analysisJson = JSON.parse(rawText);
-    } catch {
-      throw new Error("Failed to parse AI response as JSON");
+    if (!result.success) {
+      console.error("Skill gap analysis output validation failed:", result.errors);
+      throw new AppError("AI returned an unexpected format.", 500);
     }
+
+    const analysisJson = typeof result.data === "string" ? JSON.parse(result.data) : result.data;
 
     const saved = await db.skillGapAnalysis.upsert({
       where: { userId: user.id },
