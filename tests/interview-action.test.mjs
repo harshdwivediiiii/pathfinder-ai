@@ -15,7 +15,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: actionMocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: actionMocks.findUnique,
@@ -26,11 +26,11 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));
@@ -42,12 +42,17 @@ vi.mock("@/lib/cache", async () => {
     cacheStore: {
       get: actionMocks.cacheGet,
       delete: actionMocks.cacheDelete,
-      set: vi.fn(async (key, value) => ({ status: "success", value: true, isSuccess: true, isMiss: false, isError: false })),
+      set: vi.fn(async () => ({ status: "success", value: true, isSuccess: true, isMiss: false, isError: false })),
     },
+    getCacheStore: () => ({
+      get: actionMocks.cacheGet,
+      delete: actionMocks.cacheDelete,
+      set: vi.fn(async () => ({ status: "success", value: true, isSuccess: true, isMiss: false, isError: false })),
+    }),
   };
 });
 
-describe("saveQuizResult", () => {
+describe("saveQuizResult integration test", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -64,7 +69,6 @@ describe("saveQuizResult", () => {
       industry: "Healthcare",
     });
 
-    // Make Gemini API call fail to trigger catch block fallback tip
     actionMocks.generateGeminiContent.mockRejectedValue(new Error("AI service unavailable"));
 
     actionMocks.assessmentCreate.mockImplementation(({ data }) => Promise.resolve({

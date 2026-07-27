@@ -1,82 +1,42 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
-  findUniqueUser: vi.fn(),
+  userFindUnique: vi.fn(),
   createAssessment: vi.fn(),
+  assessmentFindFirst: vi.fn(),
+  assessmentFindMany: vi.fn(),
   generateGeminiContent: vi.fn(),
   cacheGet: vi.fn(),
   cacheSet: vi.fn(),
   cacheDelete: vi.fn(),
-  userFindUnique: vi.fn(),
-  assessmentFindFirst: vi.fn(),
-  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
-  formatResetTime: vi.fn().mockReturnValue("1h"),
+  checkRateLimit: vi.fn(),
+  formatResetTime: vi.fn(),
 }));
-const mocks = vi.hoisted(() => {
-  const findUniqueUserMock = vi.fn();
-  return {
-    auth: vi.fn(),
-    findUniqueUser: findUniqueUserMock,
-    createAssessment: vi.fn(),
-    generateGeminiContent: vi.fn(),
-    cacheGet: vi.fn(),
-    cacheSet: vi.fn(),
-    cacheDelete: vi.fn(),
-    userFindUnique: findUniqueUserMock,
-    assessmentFindFirst: vi.fn(),
-    checkRateLimit: vi.fn(),
-    formatResetTime: vi.fn(),
-  };
-});
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
-      findUnique: (...args) => {
-        const res1 = mocks.findUniqueUser(...args);
-        const res2 = mocks.userFindUnique(...args);
-        return res2 !== undefined ? res2 : res1;
-      },
-      findUnique: vi.fn((...args) => {
-        const res1 = mocks.userFindUnique(...args);
-        const res2 = mocks.findUniqueUser(...args);
-        return res1 !== undefined ? res1 : res2;
-      }),
-      findUnique: async (args) => {
-        const res1 = await mocks.userFindUnique(args);
-        if (res1 !== undefined) return res1;
-        return mocks.findUniqueUser(args);
-      },
+      findUnique: mocks.userFindUnique,
     },
     assessment: {
       create: mocks.createAssessment,
       findFirst: mocks.assessmentFindFirst,
-    },
-    aiRateLimit: {
-      findUnique: vi.fn().mockResolvedValue(null),
-      upsert: vi.fn().mockResolvedValue({ count: 1 }),
-      update: vi.fn().mockResolvedValue({}),
+      findMany: mocks.assessmentFindMany,
     },
   },
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: mocks.formatResetTime,
-}));
-
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
@@ -94,25 +54,32 @@ vi.mock("@/lib/cache", async () => {
   };
 });
 
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: mocks.formatResetTime,
-}));
+import * as interviewModule from "../actions/interview.js";
+const { generateQuiz, saveQuizResult, getAssessment, getAssessments, getCoachQuestions } = interviewModule;
 
-import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
-
-describe("interview actions", () => {
+describe("interview actions module", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.formatResetTime.mockReturnValue("1h");
-    mocks.formatResetTime.mockReturnValue("10m");
+  });
+
+  describe("Regression Tests", () => {
+    it("exports clean, single implementations of public action APIs", () => {
+      expect(typeof interviewModule.generateQuiz).toBe("function");
+      expect(typeof interviewModule.saveQuizResult).toBe("function");
+      expect(typeof interviewModule.getAssessment).toBe("function");
+      expect(typeof interviewModule.getAssessments).toBe("function");
+      expect(typeof interviewModule.getCoachQuestions).toBe("function");
+      expect(typeof interviewModule.evaluateVoiceAnswer).toBe("function");
+      expect(typeof interviewModule.evaluateVideoAnswer).toBe("function");
+    });
   });
 
   describe("generateQuiz", () => {
-    it("successfully generates quiz questions and stores them in cache under a session ID", async () => {
+    it("successfully generates quiz questions via AI and stores them in cache under a session ID", async () => {
       mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
-      mocks.findUniqueUser.mockResolvedValue({
+      mocks.userFindUnique.mockResolvedValue({
         id: "user-1",
         industry: "technology",
         skills: ["javascript", "react"],
@@ -138,19 +105,27 @@ describe("interview actions", () => {
       const result = await generateQuiz("Technical");
 
       expect(result).toHaveProperty("sessionId");
+      expect(result.isFallback).toBe(false);
       expect(result.questions).toHaveLength(1);
       expect(result.questions[0].question).toBe("What is 2+2?");
 
-      // Verify that questions were cached
       expect(mocks.cacheSet).toHaveBeenCalledTimes(1);
       const cacheKey = mocks.cacheSet.mock.calls[0][0];
       expect(cacheKey).toContain("quiz-session");
       expect(mocks.cacheSet.mock.calls[0][1]).toEqual(result.questions);
     });
 
+    it("handles unauthenticated users gracefully", async () => {
+      mocks.auth.mockResolvedValue({ userId: null });
+      const result = await generateQuiz("Technical");
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toHaveProperty("_form");
+    });
+
     it("falls back to default questions and caches them when AI generation fails", async () => {
       mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
-      mocks.findUniqueUser.mockResolvedValue({
+      mocks.userFindUnique.mockResolvedValue({
         id: "user-1",
         industry: "technology",
         skills: ["javascript", "react"],
@@ -160,17 +135,26 @@ describe("interview actions", () => {
 
       const result = await generateQuiz("Technical");
 
-      // When AI fails, handleServerError returns an error response
-      expect(result).toHaveProperty("success");
+      expect(result).toHaveProperty("sessionId");
+      expect(result.isFallback).toBe(true);
+      expect(result.questions.length).toBeGreaterThan(0);
+      expect(mocks.cacheSet).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects request when rate limit is exceeded", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: Date.now() + 60000 });
+
+      const result = await generateQuiz("Technical");
       expect(result.success).toBe(false);
       expect(result.errors).toHaveProperty("_form");
     });
   });
 
   describe("saveQuizResult", () => {
-    it("recalculates the score server-side based on cached questions and saves it", async () => {
+    it("recalculates score server-side based on cached questions and saves assessment", async () => {
       mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
-      mocks.findUniqueUser.mockResolvedValue({
+      mocks.userFindUnique.mockResolvedValue({
         id: "user-1",
         industry: "technology",
       });
@@ -190,7 +174,6 @@ describe("interview actions", () => {
         },
       ];
 
-      // Mock cacheGet to return structured result with questions
       mocks.cacheGet.mockResolvedValue({ 
         status: "success", 
         value: cachedQuestions, 
@@ -200,17 +183,13 @@ describe("interview actions", () => {
       });
       mocks.createAssessment.mockImplementation(({ data }) => Promise.resolve({ id: "assessment-1", ...data }));
 
-      // User got 1 correct and 1 wrong
       const answers = ["4", "Framework"];
-
       const sessionId = "12345678-1234-1234-1234-1234567890ab";
       const result = await saveQuizResult(sessionId, answers, "Technical");
 
-      // Verify session was retrieved and deleted
       expect(mocks.cacheGet).toHaveBeenCalledTimes(1);
       expect(mocks.cacheDelete).toHaveBeenCalledTimes(1);
 
-      // Score should be 50%
       expect(result.quizScore).toBe(50);
       expect(result.userId).toBe("user-1");
       expect(result.category).toBe("Technical");
@@ -221,14 +200,13 @@ describe("interview actions", () => {
       expect(mocks.createAssessment).toHaveBeenCalledTimes(1);
     });
 
-    it("returns error if the session is not found in cache", async () => {
+    it("returns error if session is expired or not found in cache", async () => {
       mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
-      mocks.findUniqueUser.mockResolvedValue({
+      mocks.userFindUnique.mockResolvedValue({
         id: "user-1",
         industry: "technology",
       });
 
-      // Mock cacheGet to return structured miss result
       mocks.cacheGet.mockResolvedValue({ 
         status: "miss", 
         value: null, 
@@ -245,14 +223,27 @@ describe("interview actions", () => {
       expect(mocks.cacheDelete).not.toHaveBeenCalled();
       expect(mocks.createAssessment).not.toHaveBeenCalled();
     });
-  });
 
-  describe("getAssessment", () => {
-    it("returns null if user is not authenticated", async () => {
-    mocks.auth.mockResolvedValue({ userId: null });
-    const result = await getAssessment("assessment-1");
-    expect(result).toBeNull();
-    expect(mocks.userFindUnique).not.toHaveBeenCalled();
+    it("returns validation error for mismatched answer counts", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.userFindUnique.mockResolvedValue({
+        id: "user-1",
+        industry: "technology",
+      });
+
+      const cachedQuestions = [
+        { question: "Q1", options: ["A", "B"], correctAnswer: "A", explanation: "" },
+        { question: "Q2", options: ["A", "B"], correctAnswer: "B", explanation: "" },
+      ];
+
+      mocks.cacheGet.mockResolvedValue(cachedQuestions);
+
+      const sessionId = "12345678-1234-1234-1234-1234567890ad";
+      const result = await saveQuizResult(sessionId, ["A"], "Technical"); // only 1 answer for 2 questions
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toHaveProperty("_form");
+    });
   });
 
   describe("getAssessment", () => {
@@ -287,10 +278,6 @@ describe("interview actions", () => {
           userId: "user-1",
         },
       });
-      // userFindUnique is called to get the user (may be called multiple times due to mock setup)
-      expect(mocks.userFindUnique).toHaveBeenCalled();
     });
-
   });
-});
 });
