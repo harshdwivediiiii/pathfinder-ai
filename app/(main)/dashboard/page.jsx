@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db/prisma";
 import { isIndustryInsightStale } from "@/lib/misc/industry-insights";
 import { getIndustryInsights, getActivityStreak } from "@/actions/dashboard";
-import { getIndustryInsights } from "@/actions/dashboard";
+
 import { getUserHistory } from "@/lib/history/history-query";
 import { DashboardContent } from "./_components/dashboard-content";
 import { EmptyState } from "./_components/empty-state";
@@ -31,8 +31,6 @@ async function getUpcomingInterviews(userId) {
     return interviewTime >= now && interviewTime <= threeDaysFromNow;
   });
 }
-
-export const dynamic = "force-dynamic";
 
 export const dynamic = "force-dynamic";
 

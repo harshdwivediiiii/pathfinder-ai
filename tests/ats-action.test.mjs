@@ -36,7 +36,7 @@ vi.mock("@/lib/db/prisma", async () => {
   };
 });
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));

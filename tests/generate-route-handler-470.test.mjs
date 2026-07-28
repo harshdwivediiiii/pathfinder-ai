@@ -21,7 +21,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: vi.fn(async () => ({ userId: "user_test_470" })),
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContentStream: vi.fn(async () => ({
     stream: (async function* () {
       yield { text: () => "hello " };

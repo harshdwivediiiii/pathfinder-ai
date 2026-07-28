@@ -11,15 +11,21 @@ const mocks = vi.hoisted(() => ({
       aggregate: vi.fn(),
     },
   },
+  auth: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: mocks.db,
+}));
+
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: mocks.auth,
 }));
 
 describe("GET /api/stats", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
   });
 
   it("returns real metrics when database has users and assessments", async () => {

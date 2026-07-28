@@ -15,7 +15,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: mocks.clerkClient,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.userFindUnique,
@@ -85,7 +85,7 @@ describe("updateUser action", () => {
 
     const result = await updateUser(validProfileData);
 
-    expect(mocks.generateAIInsights).toHaveBeenCalledWith("Quantum Computing");
+    expect(mocks.generateAIInsights).toHaveBeenCalledWith("Quantum Computing", expect.any(Object));
     expect(mocks.industryInsightUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { industry: "Quantum Computing" },
@@ -137,7 +137,7 @@ describe("updateUser action", () => {
 
     const result = await updateUser(validProfileData);
 
-    expect(mocks.generateAIInsights).toHaveBeenCalledWith("Quantum Computing");
+    expect(mocks.generateAIInsights).toHaveBeenCalledWith("Quantum Computing", expect.any(Object));
     expect(mocks.industryInsightUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { industry: "Quantum Computing" },

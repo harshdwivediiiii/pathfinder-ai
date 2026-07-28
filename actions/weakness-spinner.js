@@ -1,15 +1,12 @@
 "use server";
-import { handleServerError } from "@/lib/error-handler";
-import { validateAuthenticatedUser } from "@/lib/auth-user";
-import { isValidAIOutput } from "@/lib/ai-validation";
-import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
-import { getUserByClerkId } from "@/lib/user";
+import { getUserByClerkId } from "@/lib/auth/user";
+const UNAUTHORIZED_RESPONSE = { success: false, errors: { _form: ["Unauthorized"] } };
 import { auth } from "@clerk/nextjs/server";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { validateOutput } from "@/lib/validate";
-import { generateGeminiContent } from "@/lib/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
-import { createErrorResponse } from "@/lib/action-errors";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { validateOutput } from "@/lib/ai/validate";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { z } from "zod";
 
 const weaknessSpinnerSchema = z.object({
@@ -47,7 +44,7 @@ export async function spinWeakness(targetRole, rawWeakness) {
   }
   
   const user = await getUserByClerkId(userId);
-  if (!validateAuthenticatedUser(user)) {
+  if (!user) {
     return createErrorResponse("User not found");
   }
 
@@ -88,13 +85,14 @@ export async function spinWeakness(targetRole, rawWeakness) {
     const aiResult = await generateGeminiContent(prompt);
     const validation = validateOutput(weaknessSpinnerSchema, aiResult.response.text());
     
-    if (!isValidAIOutput(validation)) {
+    if (!validation.success) {
       console.error("Weakness Spinner validation failed:", validation.errors);
       return createErrorResponse("AI returned an unexpected format. Please try again.");
     }
 
     return { success: true, data: validation.data };
   } catch (error) {
-    return handleServerError(error, "weakness-spinner");
+    console.error("weakness-spinner error:", error);
+    return createErrorResponse("An unexpected error occurred.");
   }
 }
