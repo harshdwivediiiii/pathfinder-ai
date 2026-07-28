@@ -2,7 +2,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
-  getAuthenticatedUserId: vi.fn(),
   findUniqueUser: vi.fn(),
   careerPivotCreate: vi.fn(),
   generateGeminiContent: vi.fn(),
@@ -12,20 +11,20 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/auth-userid", () => ({
-  getAuthenticatedUserId: mocks.getAuthenticatedUserId,
-}));
-
-vi.mock("@/lib/prisma", () => ({
-  db: {
-    user: {
-      findUnique: mocks.findUniqueUser,
+vi.mock("@/lib/db/prisma", async () => {
+  const actual = await vi.importActual("@/lib/db/prisma");
+  return {
+    ...actual,
+    db: {
+      user: {
+        findUnique: mocks.findUniqueUser,
+      },
+      careerPivot: {
+        create: mocks.careerPivotCreate,
+      },
     },
-    careerPivot: {
-      create: mocks.careerPivotCreate,
-    },
-  },
-}));
+  };
+});
 
 vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
