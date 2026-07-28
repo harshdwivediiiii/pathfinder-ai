@@ -12,7 +12,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.findUnique,
@@ -20,7 +20,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/security/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions.js", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: vi.fn().mockReturnValue("10m"),
 }));
@@ -39,7 +39,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { improveWithAI } from "../actions/resume.js";
-import { buildUserProfileContext } from "../lib/ai-context.js";
+import { buildUserProfileContext } from "@/lib/ai/ai-context.js";
 
 describe("improveWithAI", () => {
   beforeEach(() => {

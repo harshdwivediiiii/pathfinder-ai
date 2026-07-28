@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import {
   buildConversationContext,
   buildUserProfileContext,
-} from "../lib/ai-context.js";
+} from "@/lib/ai/ai-context.js";
 
 it("buildUserProfileContext formats the expected profile fields", () => {
   const context = buildUserProfileContext({
