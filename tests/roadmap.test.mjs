@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "../lib/schemas/outputs.js";
-import { validateOutput } from "../lib/validate.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+import { validateOutput } from "../lib/ai/validate.js";
+import { buildFormatCorrectionPrompt } from "../lib/ai/prompt-safety.js";
 
 // ── Output Schema Validation ───────────────────────────────────────────────
 
@@ -180,41 +180,50 @@ describe("SCHEMA_DESCRIPTIONS.careerRoadmap", () => {
 
 const actionMocks = vi.hoisted(() => ({
   auth: vi.fn(),
-  findUnique: vi.fn(),
+  userFindUnique: vi.fn(),
   roadmapFindUnique: vi.fn(),
-  upsert: vi.fn(),
+  roadmapUpsert: vi.fn(),
+  roadmapMilestoneDeleteMany: vi.fn(),
+  milestoneFindUnique: vi.fn(),
+  milestoneUpdate: vi.fn(),
   generateGeminiContent: vi.fn(),
   checkRateLimit: vi.fn(),
   formatResetTime: vi.fn(),
+  revalidatePath: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: actionMocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
-      findUnique: actionMocks.findUnique,
+      findUnique: actionMocks.userFindUnique,
     },
     roadmap: {
       findUnique: actionMocks.roadmapFindUnique,
-      upsert: actionMocks.upsert,
+      upsert: actionMocks.roadmapUpsert,
+    },
+    roadmapMilestone: {
+      deleteMany: actionMocks.roadmapMilestoneDeleteMany,
+      findUnique: actionMocks.milestoneFindUnique,
+      update: actionMocks.milestoneUpdate,
     },
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));
 
 vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
+  revalidatePath: actionMocks.revalidatePath,
 }));
 
 describe("generateCareerRoadmap", () => {
@@ -227,7 +236,7 @@ describe("generateCareerRoadmap", () => {
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
     actionMocks.checkRateLimit.mockResolvedValue({ allowed: true });
-    actionMocks.findUnique
+    actionMocks.userFindUnique
       .mockResolvedValueOnce({
         id: "db-user-1",
         clerkUserId: "user-1",
@@ -271,7 +280,7 @@ describe("generateCareerRoadmap", () => {
         }),
       },
     });
-    actionMocks.upsert.mockResolvedValue({
+    actionMocks.roadmapUpsert.mockResolvedValue({
       id: "roadmap-1",
       content: {
         milestones: [],
@@ -284,9 +293,9 @@ describe("generateCareerRoadmap", () => {
 
     expect(actionMocks.auth).toHaveBeenCalled();
     expect(actionMocks.checkRateLimit).toHaveBeenCalledWith("user-1", "roadmap");
-    expect(actionMocks.findUnique).toHaveBeenCalled();
+    expect(actionMocks.userFindUnique).toHaveBeenCalled();
     expect(actionMocks.generateGeminiContent).toHaveBeenCalled();
-    expect(actionMocks.upsert).toHaveBeenCalled();
+    expect(actionMocks.roadmapUpsert).toHaveBeenCalled();
     expect(result.id).toBe("roadmap-1");
   });
 
@@ -319,7 +328,7 @@ describe("generateCareerRoadmap", () => {
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
     actionMocks.checkRateLimit.mockResolvedValue({ allowed: true });
-    actionMocks.findUnique
+    actionMocks.userFindUnique
       .mockResolvedValueOnce({
         id: "db-user-1",
         clerkUserId: "user-1",
@@ -350,7 +359,7 @@ describe("getRoadmap", () => {
     const { getRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
-    actionMocks.findUnique.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
+    actionMocks.userFindUnique.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
     actionMocks.roadmapFindUnique.mockResolvedValue({
       id: "roadmap-1",
       content: { milestones: [], totalEstimatedTime: "12 months", summary: "Test" },
@@ -359,9 +368,14 @@ describe("getRoadmap", () => {
     const result = await getRoadmap();
 
     expect(actionMocks.auth).toHaveBeenCalled();
-    expect(actionMocks.findUnique).toHaveBeenCalled();
+    expect(actionMocks.userFindUnique).toHaveBeenCalled();
     expect(actionMocks.roadmapFindUnique).toHaveBeenCalledWith({
       where: { userId: "db-user-1" },
+      include: {
+        milestones: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
     expect(result.roadmap?.id).toBe("roadmap-1");
     expect(result.error).toBeNull();
@@ -380,9 +394,128 @@ describe("getRoadmap", () => {
     const { getRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
-    actionMocks.findUnique.mockResolvedValue(null);
+    actionMocks.userFindUnique.mockResolvedValue(null);
 
     const result = await getRoadmap();
     expect(result).toEqual({ roadmap: null, error: null });
+  });
+});
+
+describe("toggleMilestoneCompletion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 401 error response when user is unauthenticated", async () => {
+    const { toggleMilestoneCompletion } = await import("../actions/roadmap.js");
+
+    actionMocks.auth.mockResolvedValue({ userId: null });
+
+    const result = await toggleMilestoneCompletion("milestone-1", true);
+
+    expect(actionMocks.auth).toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toContain("Unauthorized");
+  });
+
+  it("returns 404 error response when Clerk ID is not found in database", async () => {
+    const { toggleMilestoneCompletion } = await import("../actions/roadmap.js");
+
+    actionMocks.auth.mockResolvedValue({ userId: "user_clerk123" });
+    actionMocks.userFindUnique.mockResolvedValue(null);
+
+    const result = await toggleMilestoneCompletion("milestone-1", true);
+
+    expect(actionMocks.auth).toHaveBeenCalled();
+    expect(actionMocks.userFindUnique).toHaveBeenCalledWith({
+      where: { clerkUserId: "user_clerk123" },
+    });
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toContain("User not found");
+  });
+
+  it("returns 404 error response when milestone does not exist", async () => {
+    const { toggleMilestoneCompletion } = await import("../actions/roadmap.js");
+
+    actionMocks.auth.mockResolvedValue({ userId: "user_clerk123" });
+    actionMocks.userFindUnique.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      clerkUserId: "user_clerk123",
+    });
+    actionMocks.milestoneFindUnique.mockResolvedValue(null);
+
+    const result = await toggleMilestoneCompletion("nonexistent-milestone", true);
+
+    expect(actionMocks.milestoneFindUnique).toHaveBeenCalledWith({
+      where: { id: "nonexistent-milestone" },
+      include: { roadmap: { select: { userId: true } } },
+    });
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toContain("Milestone not found");
+  });
+
+  it("returns 403 error response when attempting to update another user's milestone", async () => {
+    const { toggleMilestoneCompletion } = await import("../actions/roadmap.js");
+
+    actionMocks.auth.mockResolvedValue({ userId: "user_clerk123" });
+    actionMocks.userFindUnique.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      clerkUserId: "user_clerk123",
+    });
+    actionMocks.milestoneFindUnique.mockResolvedValue({
+      id: "milestone-other-user",
+      roadmap: { userId: "99999999-e29b-41d4-a716-446655449999" },
+    });
+
+    const result = await toggleMilestoneCompletion("milestone-other-user", true);
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toContain("Forbidden");
+    expect(actionMocks.milestoneUpdate).not.toHaveBeenCalled();
+  });
+
+  it("successfully toggles milestone completion when user owns the milestone", async () => {
+    const { toggleMilestoneCompletion } = await import("../actions/roadmap.js");
+
+    const internalUserId = "550e8400-e29b-41d4-a716-446655440000";
+    const clerkUserId = "user_2abcXYZ123456";
+
+    actionMocks.auth.mockResolvedValue({ userId: clerkUserId });
+    actionMocks.userFindUnique.mockResolvedValue({
+      id: internalUserId,
+      clerkUserId: clerkUserId,
+    });
+    actionMocks.milestoneFindUnique.mockResolvedValue({
+      id: "milestone-101",
+      roadmap: { userId: internalUserId },
+    });
+    actionMocks.milestoneUpdate.mockResolvedValue({
+      id: "milestone-101",
+      isCompleted: true,
+      title: "Assess Current Skills",
+    });
+
+    const result = await toggleMilestoneCompletion("milestone-101", true);
+
+    // Verify Clerk ID resolves to database user
+    expect(actionMocks.userFindUnique).toHaveBeenCalledWith({
+      where: { clerkUserId },
+    });
+    // Verify ownership validation compares internal database user ID (UUID)
+    expect(actionMocks.milestoneUpdate).toHaveBeenCalledWith({
+      where: { id: "milestone-101" },
+      data: { isCompleted: true },
+    });
+    // Verify cache revalidation
+    expect(actionMocks.revalidatePath).toHaveBeenCalledWith("/roadmap");
+    // Verify return format
+    expect(result).toEqual({
+      milestone: {
+        id: "milestone-101",
+        isCompleted: true,
+        title: "Assess Current Skills",
+      },
+      error: null,
+    });
   });
 });
