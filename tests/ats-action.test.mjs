@@ -40,6 +40,10 @@ vi.mock("@/lib/cache", () => ({
   cachedGenerateGeminiContent: mocks.cachedGenerateGeminiContent,
   generateCacheKey: mocks.generateCacheKey,
   ATS_ANALYSIS_CACHE_TTL_MS: 3600000,
+  DEFAULT_CACHE_TTL_MS: 600000,
+  getCacheStore: vi.fn(() => ({ get: vi.fn(() => Promise.resolve(null)), set: vi.fn(() => Promise.resolve()) })),
+  getOrCreatePendingRequest: vi.fn(),
+  deletePendingRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/ai/ai-gating", () => ({
@@ -58,6 +62,21 @@ vi.mock("@/lib/ai/prompt-safety", () => ({
 
 vi.mock("@/lib/ai/ai-context", () => ({
   buildUserProfileContext: vi.fn(() => "mocked-context"),
+}));
+
+vi.mock("@/lib/ai/gemini", () => ({
+  generateGeminiContent: vi.fn(() => Promise.resolve({
+    response: {
+      text: () => JSON.stringify({
+        atsScore: 85,
+        matchedKeywords: ["React", "Node.js"],
+        missingKeywords: ["GraphQL"],
+        suggestions: [{ category: "Skills", tip: "Add GraphQL" }],
+        highlights: [{ type: "weak_impact", text: "Experienced Developer...", suggestion: "Quantify your achievements." }],
+        overallFeedback: "Great match!",
+      }),
+    },
+  })),
 }));
 
 vi.mock("next/cache", () => ({
