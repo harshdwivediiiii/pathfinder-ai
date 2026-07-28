@@ -120,4 +120,15 @@ describe("generateRemotePitch", () => {
     expect(result.success).toBe(true);
     expect(result.data.id).toBe("pitch-1");
   });
+
+  it("rejects whitespace-only role and reasons", async () => {
+    const { generateRemotePitch } = await import("../actions/remote-work.js");
+
+    actionMocks.auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await generateRemotePitch("   ", "   ");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("required and must be non-empty");
+  });
 });
