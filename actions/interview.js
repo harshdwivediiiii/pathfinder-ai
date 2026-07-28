@@ -1,20 +1,19 @@
 "use server";
-import { handleServerError } from "@/lib/errors/error-handler";
 
 import crypto from "crypto";
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { cachedGenerateGeminiContent, QUIZ_CACHE_TTL_MS, generateCacheKey, getCacheStore } from "@/lib/cache";
+import { QUIZ_CACHE_TTL_MS, generateCacheKey, getCacheStore } from "@/lib/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { parseAIJson } from "@/lib/ai/validate";
 import { validateInput, validateOutput } from "@/lib/ai/validate";
-import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
+import { quizCategorySchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
 import { interviewQuestionsOutputSchema, voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { translations } from "@/lib/misc/translations";
 import { unwrap } from "@/lib/db/redis-result";
+import { handleServerError } from "@/lib/errors/error-handler";
 import { logActivity } from "@/lib/activity";
 
 // Fallback MCQ questions in case Gemini generation fails, categorized by industry
@@ -472,6 +471,7 @@ const BUSINESS_FALLBACK_QUESTIONS = [
 
 const FallbackQuizPool = {
   tech: TECH_FALLBACK_QUESTIONS,
+  technology: TECH_FALLBACK_QUESTIONS,
   software: TECH_FALLBACK_QUESTIONS,
   healthcare: HEALTHCARE_FALLBACK_QUESTIONS,
   finance: FINANCE_FALLBACK_QUESTIONS,
@@ -491,22 +491,26 @@ const FallbackQuizPool = {
  * replacing the industry-matched questions.
  */
 export async function getCoachQuestions(locale = "en") {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-    select: { industry: true },
-  });
-  const key = user?.industry?.toLowerCase() || "tech";
-  const pool = (FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS).map((q) => q.question);
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+      select: { industry: true },
+    });
+    const key = user?.industry?.toLowerCase() || "tech";
+    const pool = (FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS).map((q) => q.question);
 
-  if (locale !== "en" && translations[locale]?.interviewQuestion) {
-    const localized = translations[locale].interviewQuestion;
-    return [localized, ...pool.filter((q) => q !== localized)];
+    if (locale !== "en" && translations[locale]?.interviewQuestion) {
+      const localized = translations[locale].interviewQuestion;
+      return [localized, ...pool.filter((q) => q !== localized)];
+    }
+
+    return pool;
+  } catch (error) {
+    return handleServerError(error, "interview");
   }
-
-  return pool;
 }
 
 /**
@@ -610,14 +614,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
       console.error("AI Quiz generation failed, using fallback questions:", error);
       const industryId = user.industry?.split("-")[0]?.toLowerCase() || "tech";
       questions = FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS;
-    }
-
-    const sessionId = crypto.randomUUID();
-
-      questions = quizValidation.data.questions.slice(0, 10);
-      isFallback = false;
-    } catch (error) {
-      return handleServerError(error, "interview");
+      isFallback = true;
     }
 
     const sessionId = crypto.randomUUID();
@@ -629,13 +626,6 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     return { sessionId, questions, isFallback };
   } catch (error) {
     console.error("Quiz generation top-level error:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    return {
-      success: false,
-      error: error.message || "Failed to generate quiz."
-    };
     return handleServerError(error, "interview");
   }
 }
@@ -648,46 +638,26 @@ export async function saveQuizResult(sessionId, answers, category = "Technical")
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
-    const user = await db.user.findUnique({
-      where: { clerkUserId: userId },
+    let targetSessionId = sessionId;
+    let targetAnswers = answers;
+    let targetCategory = category;
+
+    if (typeof sessionId === "object" && sessionId !== null && !Array.isArray(sessionId)) {
+      targetSessionId = sessionId.sessionId;
+      targetAnswers = sessionId.answers ?? answers;
+      targetCategory = sessionId.category ?? category;
+    }
+
+    if (!targetSessionId || typeof targetSessionId !== "string") {
+      throw new Error("Session ID is required.");
+    }
+
+    const validation = validateInput(quizResultSaveSessionSchema, {
+      sessionId: targetSessionId,
+      answers: targetAnswers,
+      category: targetCategory,
     });
-    if (!user) throw new Error("User not found");
-
-    if (!sessionId) {
-      throw new Error("Session ID is required.");
-    }
-
-    let questions;
-    let isCached = false;
-    let cacheKey = null;
-
-    if (typeof sessionId === "string") {
-      cacheKey = generateCacheKey("quiz-session", userId, sessionId);
-      questions = await cacheStore.get(cacheKey);
-      if (!questions) {
-        throw new Error("Quiz session expired or not found. Please start a new quiz.");
-      }
-      isCached = true;
-    } else if (Array.isArray(sessionId)) {
-      questions = sessionId;
-    } else {
-      throw new Error("Session ID or questions array is required.");
-    }
-export async function saveQuizResult(sessionIdOrQuestions, answers, category = "Technical") {
-  try {
-    const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
-
-    if (!sessionId) {
-      throw new Error("Session ID is required.");
-    }
-
-    const validation = validateInput(quizResultSaveSessionSchema, { sessionId, answers, category });
     if (!validation.success) return { success: false, errors: validation.errors };
-
-    const sanitizedAnswers = Array.isArray(answers)
-      ? answers.slice(0, questions.length)
-      : [];
 
     const {
       sessionId: validatedSessionId,
@@ -703,7 +673,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     const cacheStore = getCacheStore();
     const cacheKey = generateCacheKey("quiz-session", userId, validatedSessionId);
     const questionsResult = await cacheStore.get(cacheKey);
-    const questions = unwrap(questionsResult);
+    const questions = unwrap(questionsResult) ?? (Array.isArray(questionsResult) ? questionsResult : null);
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
       throw new Error("Quiz session expired or not found. Please start a new quiz.");
@@ -720,7 +690,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     const profileContext = buildUserProfileContext(user);
 
-    // Map user answers to question outcomes and compute score server-side
     const sanitizedAnswers = Array.isArray(validatedAnswers)
       ? validatedAnswers.slice(0, questions.length)
       : [];
@@ -746,7 +715,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         question: q.question.trim(),
         options: q.options,
         correctAnswer: q.correctAnswer,
-        userAnswer: userAnswer,
+        userAnswer: userAnswer ?? null,
         isCorrect,
         explanation: q.explanation || "",
       };
@@ -758,7 +727,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       }
     });
 
-    const computedScore = questions.length > 0
     const score = questions.length > 0
       ? Math.round((correctCount / questions.length) * 100)
       : 0;
@@ -776,8 +744,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         task: "You are a supportive career mentor. The candidate completed a quiz. Provide an encouraging, actionable improvement tip (strictly max 2 sentences) recommending key learning areas. Be positive, warm, and professional. Do not refer to question indexes or speak critically.",
         untrustedData: [
           { label: "industry", value: user.industry || "software", maxLength: 200 },
-          { label: "category", value: category, maxLength: 200 },
-          { label: "score", value: String(computedScore), maxLength: 50 },
           { label: "category", value: validatedCategory, maxLength: 200 },
           { label: "score", value: String(score), maxLength: 50 },
           { label: "wrongAnswers", value: wrongText, maxLength: 4000 },
@@ -790,10 +756,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       } catch (e) {
         console.error("Failed to generate custom AI improvement tip:", e);
         const industryText = user.industry ? `in ${user.industry.toLowerCase()}` : "in your field";
-        improvementTip = `Focus on reviewing core ${category.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
-      }
-    return handleServerError(e, "interview");
-  }
         improvementTip = `Focus on reviewing core ${validatedCategory.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
       }
     }
@@ -803,16 +765,11 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         userId: user.id,
         quizScore: score,
         questions: questionResults,
-        category: category,
-        category,
         category: validatedCategory,
         improvementTip,
       },
     });
 
-    if (isCached && cacheKey) {
-      await cacheStore.delete(cacheKey);
-    }
     await cacheStore.delete(cacheKey);
 
     return assessment;
@@ -820,8 +777,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     return handleServerError(error, "interview");
   }
 }
-
-
 
 /**
  * Fetches all assessments for the signed-in user, newest first.
@@ -836,7 +791,7 @@ export async function getAssessments() {
     });
     if (!user) return [];
 
-    return db.assessment.findMany({
+    return await db.assessment.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     });
@@ -858,7 +813,7 @@ export async function getAssessment(id) {
     });
     if (!user) return null;
 
-    return db.assessment.findFirst({
+    return await db.assessment.findFirst({
       where: {
         id,
         userId: user.id,
@@ -873,30 +828,31 @@ export async function getAssessment(id) {
  * Evaluates a transcribed voice answer.
  */
 export async function evaluateVoiceAnswer(question, transcribedAnswer) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
 
-  const voiceLimit = await checkRateLimit(userId, "voiceEvaluation");
-  if (!voiceLimit.allowed) {
-    return { success: false, error: `Voice evaluation limit reached. Resets in ${formatResetTime(voiceLimit.resetAt)}.` };
-  }
+    const voiceLimit = await checkRateLimit(userId, "voiceEvaluation");
+    if (!voiceLimit.allowed) {
+      return { success: false, error: `Voice evaluation limit reached. Resets in ${formatResetTime(voiceLimit.resetAt)}.` };
+    }
 
-  const prompt = buildSecurePrompt({
-  context: "You are an expert interview coach evaluating a spoken answer from a candidate.",
-  task: "Evaluate the transcribed answer based on confidence, filler words, and content quality.",
-  untrustedData: [
-    { label: "question",          value: question,          maxLength: 1000 },
-    { label: "transcribedAnswer", value: transcribedAnswer, maxLength: 3000 },
-  ],
-  outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+    const prompt = buildSecurePrompt({
+      context: "You are an expert interview coach evaluating a spoken answer from a candidate.",
+      task: "Evaluate the transcribed answer based on confidence, filler words, and content quality.",
+      untrustedData: [
+        { label: "question",          value: question,          maxLength: 1000 },
+        { label: "transcribedAnswer", value: transcribedAnswer, maxLength: 3000 },
+      ],
+      outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
 {
   "score": 85,
   "fillerWordsCount": 3,
   "confidence": "High",
   "feedback": "Your answer was very structured, but you used 'um' a few times."
 }`,
-});
-  try {
+    });
+
     const aiResult = await generateGeminiContent(prompt);
     const validation = validateOutput(voiceFeedbackOutputSchema, aiResult.response.text());
     if (!validation.success) {
@@ -913,25 +869,26 @@ export async function evaluateVoiceAnswer(question, transcribedAnswer) {
  * Evaluates a transcribed video answer along with basic body language metrics.
  */
 export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) {
-  const { userId } = await auth();
-  if (!userId && process.env.SKIP_AUTH !== "true") throw new Error("Unauthorized");
+  try {
+    const { userId } = await auth();
+    if (!userId && process.env.SKIP_AUTH !== "true") throw new Error("Unauthorized");
 
-  if (userId) {
-    const videoLimit = await checkRateLimit(userId, "videoEvaluation");
-    if (!videoLimit.allowed) {
-      return { success: false, error: `Video evaluation limit reached. Resets in ${videoLimit.resetInMinutes}m.` };
+    if (userId) {
+      const videoLimit = await checkRateLimit(userId, "videoEvaluation");
+      if (!videoLimit.allowed) {
+        return { success: false, error: `Video evaluation limit reached. Resets in ${formatResetTime(videoLimit.resetAt)}.` };
+      }
     }
-  }
 
-  const prompt = buildSecurePrompt({
-    context: "You are an expert interview coach evaluating a video interview response.",
-    task: "Evaluate the transcribed answer and the provided facial metrics (e.g., face detected percentage).",
-    untrustedData: [
-      { label: "question",           value: question,                    maxLength: 1000 },
-      { label: "transcribedAnswer",  value: transcribedAnswer,           maxLength: 3000 },
-      { label: "metrics",            value: JSON.stringify(metrics),     maxLength: 500  },
-    ],
-    outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+    const prompt = buildSecurePrompt({
+      context: "You are an expert interview coach evaluating a video interview response.",
+      task: "Evaluate the transcribed answer and the provided facial metrics (e.g., face detected percentage).",
+      untrustedData: [
+        { label: "question",           value: question,                    maxLength: 1000 },
+        { label: "transcribedAnswer",  value: transcribedAnswer,           maxLength: 3000 },
+        { label: "metrics",            value: JSON.stringify(metrics),     maxLength: 500  },
+      ],
+      outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
 {
   "score": 85,
   "fillerWordsCount": 3,
@@ -939,9 +896,8 @@ export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) 
   "bodyLanguageFeedback": "You maintained great eye contact and presence.",
   "verbalFeedback": "Your answer was very structured, but you used 'um' a few times."
 }`,
-  }); 
+    });
 
-  try {
     const aiResult = await generateGeminiContent(prompt);
     const validation = validateOutput(videoFeedbackOutputSchema, aiResult.response.text());
     if (!validation.success) {
