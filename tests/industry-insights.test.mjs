@@ -5,8 +5,8 @@ const mocks = vi.hoisted(() => ({
   cachedGenerateGeminiContent: vi.fn(),
 }));
 
-vi.mock("@/lib/ai/prompt-safety", async () => {
-  const actual = await vi.importActual("@/lib/ai/prompt-safety");
+vi.mock("@/lib/ai/prompt-safety.js", async () => {
+  const actual = await vi.importActual("@/lib/ai/prompt-safety.js");
   return {
     ...actual,
     buildSecurePrompt: mocks.buildSecurePrompt,

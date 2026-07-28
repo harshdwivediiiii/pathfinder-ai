@@ -36,7 +36,7 @@ vi.mock("@/lib/db/prisma", async () => {
   };
 });
 
-vi.mock("@/lib/security/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions.js", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));
@@ -57,8 +57,8 @@ vi.mock("@/lib/ai/ai-gating", () => ({
 }));
 
 // Use vi.importActual so validateInput calls the REAL implementation
-vi.mock("@/lib/ai/validate", async () => {
-  const actual = await vi.importActual("@/lib/ai/validate");
+vi.mock("@/lib/ai/validate.js", async () => {
+  const actual = await vi.importActual("@/lib/ai/validate.js");
   mocks.validateInput = actual.validateInput;
   return {
     ...actual,
@@ -67,12 +67,12 @@ vi.mock("@/lib/ai/validate", async () => {
   };
 });
 
-vi.mock("@/lib/ai/prompt-safety", () => ({
+vi.mock("@/lib/ai/prompt-safety.js", () => ({
   buildSecurePrompt: vi.fn(() => "mocked-prompt"),
   parseAIJson: vi.fn(),
 }));
 
-vi.mock("@/lib/ai/ai-context", () => ({
+vi.mock("@/lib/ai/ai-context.js", () => ({
   buildUserProfileContext: vi.fn(() => "mocked-context"),
 }));
 
