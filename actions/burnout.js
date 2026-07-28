@@ -16,7 +16,8 @@ import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
 
 /** Assess burnout risk based on user survey responses. */
 export async function assessBurnout(symptoms, workload) {
-  const { userId } = await auth();
+  const authResult = await auth();
+  const userId = authResult?.userId;
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
   const user = await db.user.findUnique(buildUserLookup(userId));

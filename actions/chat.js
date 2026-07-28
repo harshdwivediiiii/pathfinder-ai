@@ -9,14 +9,14 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { enforceRateLimit, getRateLimitIdentifier } from "@/lib/security/rate-limit";
 import { validateInput } from "@/lib/ai/validate";
-import { chatPromptSchema } from "@/lib/schemas/forms";
+import { chatPromptSchema } from "@/lib/schemas/chat";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 
 export async function chatWithGemini(prompt) {
   try {
-    const validation = validateInput(chatPromptSchema, { prompt });
+    const validation = validateInput(chatPromptSchema, prompt);
     if (!validation.success) {
-      return { success: false, errors: validation.errors };
+      return { success: false, errors: { prompt: validation.errors.input ?? [] } };
     }
 
     const authResult = await auth();
@@ -59,7 +59,7 @@ export async function chatWithGemini(prompt) {
       context: buildUserProfileContext(user),
       task: "You are Pathfinder AI, a career-focused assistant. Only answer career-related questions. Politely refuse unrelated questions.",
       untrustedData: [
-        { label: "userQuery", value: validation.data.prompt, maxLength: 4000 },
+        { label: "userQuery", value: prompt, maxLength: 4000 },
       ],
     });
 
