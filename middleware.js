@@ -4,6 +4,10 @@ import { getAuthDecision } from "./lib/auth/routes";
 import { validateDevBypass, validateVideoCoachBypass } from "./lib/auth/dev-bypass";
 
 function addSecureHeaders(response) {
+  // Note: 'unsafe-inline' and 'unsafe-eval' are required for Next.js client-side
+  // hydration, Clerk components, and dynamic route loading. These should be removed
+  // or replaced with nonces/hashes if the app is migrated away from Next.js or if
+  // all inline scripts are migrated to static files.
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.pathfinder.ai https://*.clerk.com https://*.clerk.accounts.dev https://challenges.cloudflare.com https://accounts.google.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-scripts.com",
