@@ -13,7 +13,7 @@ import { QuickActions } from "./quick-actions";
 import { cn } from "@/lib/misc/utils";
 import { Calendar, Split } from "lucide-react";
 import Link from "next/link";
-import { StreakCard } from "./streak-card";
+import { StreakCard } from "../streak-card";
 
 const sectionDefs = [
   { id: "overview", label: "Overview" },

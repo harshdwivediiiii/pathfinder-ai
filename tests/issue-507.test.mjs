@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { generateCacheKey } from "../lib/cache/utils.js";
-import { buildUserProfileContext } from "../lib/ai-context.js";
+import { buildUserProfileContext } from "@/lib/ai/ai-context.js";
 
 it("different users with same inputs have different cache keys for resume improvement", () => {
   const userA = {

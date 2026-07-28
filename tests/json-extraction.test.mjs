@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { extractJSON, parseAIJson, validateOutput } from "@/lib/validate";
+import { extractJSON, parseAIJson, validateOutput } from "@/lib/ai/validate.js";
 
 describe("extractJSON", () => {
   it("returns a pure JSON object string unchanged (trimmed)", () => {

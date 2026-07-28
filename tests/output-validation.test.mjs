@@ -1,12 +1,12 @@
 import { expect, it } from "vitest";
 
-import { stripMarkdownFences, validateOutput } from "../lib/validate.js";
+import { stripMarkdownFences, validateOutput } from "@/lib/ai/validate.js";
 import {
   resumeImprovementOutputSchema,
   coverLetterOutputSchema,
   interviewQuestionsOutputSchema,
-} from "../lib/schemas/outputs.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+} from "@/lib/schemas/outputs.js";
+import { buildFormatCorrectionPrompt } from "@/lib/ai/prompt-safety.js";
 
 // ── stripMarkdownFences ────────────────────────────────────────────────────
 
