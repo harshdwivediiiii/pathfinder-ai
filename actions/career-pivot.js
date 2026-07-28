@@ -31,7 +31,8 @@ import { getAuthenticatedUser } from "@/lib/auth/authenticated-history";
 
 /** Generate a career pivot strategy based on user goals. */
 export async function generatePivotStrategy(currentRole, targetRole) {
-  const { userId } = await auth();
+  const authResult = await auth();
+  const userId = authResult?.userId;
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });

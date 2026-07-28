@@ -33,7 +33,8 @@ import { buildParsedResult } from "@/lib/ai/parsed-ai";
 
 /** Generate a career break plan based on user preferences. */
 export async function planCareerBreak(duration, reason, returnGoals) {
-  const { userId } = await auth();
+  const authResult = await auth();
+  const userId = authResult?.userId;
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });

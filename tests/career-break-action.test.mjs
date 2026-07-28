@@ -27,7 +27,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
@@ -43,7 +43,7 @@ describe("planCareerBreak", () => {
   });
 
   it("successfully generates a career break plan", async () => {
-    mocks.getAuthenticatedUserId.mockResolvedValue("user-1");
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
     mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
     mocks.generateGeminiContent.mockResolvedValue({
       response: {

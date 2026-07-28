@@ -7,12 +7,14 @@ const mocks = vi.hoisted(() => ({
   headers: vi.fn(),
   enforceRateLimit: vi.fn(),
   getRateLimitIdentifier: vi.fn(),
+  checkRateLimit: vi.fn(),
+  formatResetTime: vi.fn(),
   db: {
     user: {
       findUnique: vi.fn(),
     },
   },
-  consoleError: vi.fn(),
+  validateInput: null, // set in mock factory using vi.importActual
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -28,25 +30,28 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitIdentifier: mocks.getRateLimitIdentifier,
 }));
 
+vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: mocks.checkRateLimit,
+  formatResetTime: mocks.formatResetTime,
+}));
+
 vi.mock("@/lib/prisma", () => ({
   db: mocks.db,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/prompt-safety", async () => {
-  const actual = await vi.importActual("@/lib/prompt-safety");
-  return {
-    ...actual,
-    buildSecurePrompt: mocks.buildSecurePrompt,
-  };
-});
+vi.mock("@/lib/prompt-safety", () => ({
+  buildSecurePrompt: mocks.buildSecurePrompt,
+}));
 
-// const consoleErrorSpy = vi
-//   .spyOn(console, "error")
-//   .mockImplementation(() => {});
+vi.mock("@/lib/ai/validate", async () => {
+  const actual = await vi.importActual("@/lib/ai/validate");
+  mocks.validateInput = actual.validateInput;
+  return actual;
+});
 
 import { chatWithGemini } from "../actions/chat.js";
 
@@ -58,6 +63,8 @@ describe("chatWithGemini", () => {
     mocks.headers.mockResolvedValue(new Map());
     mocks.getRateLimitIdentifier.mockReturnValue({ kind: "ip", value: "127.0.0.1" });
     mocks.enforceRateLimit.mockResolvedValue({ allowed: true, remaining: 10, retryAfterSeconds: 0 });
+    mocks.checkRateLimit.mockResolvedValue({ allowed: true });
+    mocks.formatResetTime.mockReturnValue("10m");
   });
 
   it("returns validation errors for an empty prompt", async () => {

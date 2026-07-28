@@ -4,13 +4,13 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   findUniqueUser: vi.fn(),
   atsAnalysisCreate: vi.fn(),
-  aiRateLimitFindUnique: vi.fn(),
-  aiRateLimitUpsert: vi.fn(),
-  aiRateLimitUpdate: vi.fn(),
   cachedGenerateGeminiContent: vi.fn(),
   generateCacheKey: vi.fn(),
   checkRateLimit: vi.fn(),
   formatResetTime: vi.fn(),
+  isFeatureEnabled: vi.fn(),
+  validateOutput: vi.fn(),
+  logActivity: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -25,12 +25,8 @@ vi.mock("@/lib/prisma", () => ({
     atsAnalysis: {
       create: mocks.atsAnalysisCreate,
     },
-    aiRateLimit: {
-      findUnique: () => Promise.resolve(null),
-      upsert: () => Promise.resolve({ count: 1 }),
-      findUnique: mocks.aiRateLimitFindUnique,
-      upsert: mocks.aiRateLimitUpsert,
-      update: mocks.aiRateLimitUpdate,
+    activityLog: {
+      create: vi.fn(),
     },
   },
 }));
@@ -40,28 +36,57 @@ vi.mock("@/lib/rate-limit-actions", () => ({
   formatResetTime: mocks.formatResetTime,
 }));
 
-vi.mock("@/lib/cache", async () => {
-  const actual = await vi.importActual("@/lib/cache");
-  return {
-    ...actual,
-    cachedGenerateGeminiContent: mocks.cachedGenerateGeminiContent,
-    generateCacheKey: mocks.generateCacheKey,
-  };
-});
+vi.mock("@/lib/cache", () => ({
+  cachedGenerateGeminiContent: mocks.cachedGenerateGeminiContent,
+  generateCacheKey: mocks.generateCacheKey,
+  ATS_ANALYSIS_CACHE_TTL_MS: 3600000,
+  DEFAULT_CACHE_TTL_MS: 600000,
+  getCacheStore: vi.fn(() => ({ get: vi.fn(() => Promise.resolve(null)), set: vi.fn(() => Promise.resolve()) })),
+  getOrCreatePendingRequest: vi.fn(),
+  deletePendingRequest: vi.fn(),
+}));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: mocks.formatResetTime,
+vi.mock("@/lib/ai/ai-gating", () => ({
+  isFeatureEnabled: mocks.isFeatureEnabled,
+  isAiEnabled: vi.fn(() => true),
+}));
+
+vi.mock("@/lib/ai/validate", () => ({
+  validateInput: vi.fn((schema, data) => ({ success: true, data })),
+  validateOutput: mocks.validateOutput,
+}));
+
+vi.mock("@/lib/ai/prompt-safety", () => ({
+  buildSecurePrompt: vi.fn(() => "mocked-prompt"),
+}));
+
+vi.mock("@/lib/ai/ai-context", () => ({
+  buildUserProfileContext: vi.fn(() => "mocked-context"),
+}));
+
+vi.mock("@/lib/ai/gemini", () => ({
+  generateGeminiContent: vi.fn(() => Promise.resolve({
+    response: {
+      text: () => JSON.stringify({
+        atsScore: 85,
+        matchedKeywords: ["React", "Node.js"],
+        missingKeywords: ["GraphQL"],
+        suggestions: [{ category: "Skills", tip: "Add GraphQL" }],
+        highlights: [{ type: "weak_impact", text: "Experienced Developer...", suggestion: "Quantify your achievements." }],
+        overallFeedback: "Great match!",
+      }),
+    },
+  })),
 }));
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: vi.fn(),
+vi.mock("@/lib/activity", () => ({
+  logActivity: mocks.logActivity,
 }));
+
 process.env.GEMINI_API_KEY = "dummy-api-key";
 
 import { analyzeATS } from "../actions/ats.js";
@@ -70,9 +95,10 @@ describe("analyzeATS", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.GEMINI_API_KEY = "dummy-api-key";
-    mocks.checkRateLimit.mockResolvedValue({ allowed: true });
+    mocks.isFeatureEnabled.mockReturnValue(true);
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.formatResetTime.mockReturnValue("10m");
+    mocks.validateOutput.mockReturnValue({ success: true, data: {} });
   });
 
   it("uses cachedGenerateGeminiContent with a specific cache key", async () => {
@@ -84,9 +110,7 @@ describe("analyzeATS", () => {
     };
 
     mocks.auth.mockResolvedValue({ userId: "user-1" });
-    mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
-    mocks.aiRateLimitUpsert.mockResolvedValue({ count: 1 });
     mocks.generateCacheKey.mockReturnValue("ats:test-key");
     mocks.cachedGenerateGeminiContent.mockResolvedValue({
       response: {
@@ -104,6 +128,17 @@ describe("analyzeATS", () => {
           ],
           overallFeedback: "Great match!",
         }),
+      },
+    });
+    mocks.validateOutput.mockReturnValue({
+      success: true,
+      data: {
+        atsScore: 85,
+        matchedKeywords: ["React", "Node.js"],
+        missingKeywords: ["GraphQL"],
+        suggestions: [{ category: "Skills", tip: "Add GraphQL" }],
+        highlights: [{ type: "weak_impact", text: "Experienced Developer...", suggestion: "Quantify your achievements." }],
+        overallFeedback: "Great match!",
       },
     });
     mocks.atsAnalysisCreate.mockResolvedValue({ id: "analysis-1" });
