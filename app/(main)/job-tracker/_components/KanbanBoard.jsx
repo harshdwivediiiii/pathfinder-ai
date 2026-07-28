@@ -7,14 +7,15 @@ import { updateJobApplicationStatus } from "@/actions/job-tracker";
 import { Plus, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { JOB_STATUSES } from "@/lib/schemas/forms";
+import { JOB_APPLICATION_STATUS } from "@/lib/constants/job-application-status";
 
 const COLUMN_CONFIG = {
-  "Saved": { label: "Saved", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
-  "Applied": { label: "Applied", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
-  "Online Assessment (OA)": { label: "Online Assessment", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
-  "Interview": { label: "Interview", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
-  "Offer": { label: "Offer Received", color: "bg-green-500/10 text-green-500 border-green-500/20" },
-  "Rejected": { label: "Rejected", color: "bg-red-500/10 text-red-500 border-red-500/20" },
+  [JOB_APPLICATION_STATUS.SAVED]: { label: "Saved", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
+  [JOB_APPLICATION_STATUS.APPLIED]: { label: "Applied", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
+  [JOB_APPLICATION_STATUS.ONLINE_ASSESSMENT]: { label: "Online Assessment", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
+  [JOB_APPLICATION_STATUS.INTERVIEW]: { label: "Interview", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
+  [JOB_APPLICATION_STATUS.OFFER]: { label: "Offer Received", color: "bg-green-500/10 text-green-500 border-green-500/20" },
+  [JOB_APPLICATION_STATUS.REJECTED]: { label: "Rejected", color: "bg-red-500/10 text-red-500 border-red-500/20" },
 };
 
 const COLUMNS = JOB_STATUSES.map(status => ({
@@ -94,7 +95,10 @@ export default function KanbanBoard({ initialJobs, setJobs }) {
       <div className="flex h-full overflow-x-auto gap-6 pb-4 custom-scrollbar snap-x">
         {COLUMNS.map(column => {
           const columnJobs = initialJobs.filter(j => 
-            j.status === column.id || (column.id === "Saved" && j.status === "Wishlist")
+            j.status === column.id || 
+            (column.id === JOB_APPLICATION_STATUS.INTERVIEW && j.status === JOB_APPLICATION_STATUS.INTERVIEWING) ||
+            (column.id === JOB_APPLICATION_STATUS.OFFER && j.status === JOB_APPLICATION_STATUS.OFFER_RECEIVED) ||
+            (column.id === JOB_APPLICATION_STATUS.SAVED && j.status === JOB_APPLICATION_STATUS.WISHLIST)
           );
           
           return (
