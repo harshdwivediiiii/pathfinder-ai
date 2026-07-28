@@ -71,13 +71,36 @@ describe("calculateRate", () => {
 
   it("fails to calculate rate when rate limit is exceeded", async () => {
     mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.getAuthenticatedUser.mockResolvedValue({ id: "db-user-1" });
     mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date() });
 
     const result = await calculateRate("React, Node", "5 years", "$100k");
 
     expect(result.success).toBe(false);
     expect(result.errors._form[0]).toContain("Freelance rate calculation limit reached");
-    expect(mocks.getAuthenticatedUser).not.toHaveBeenCalled();
+    expect(mocks.getAuthenticatedUser).toHaveBeenCalledWith("user-1");
     expect(mocks.freelanceRateCreate).not.toHaveBeenCalled();
+  });
+
+  it("fails when user is not found in database", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.getAuthenticatedUser.mockResolvedValue(null);
+
+    const result = await calculateRate("React, Node", "5 years", "$100k");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("User not found");
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+    expect(mocks.freelanceRateCreate).not.toHaveBeenCalled();
+  });
+
+  it("fails when required inputs are missing", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await calculateRate("", "", "");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("Skills, experience, and target income are required");
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
   });
 });
