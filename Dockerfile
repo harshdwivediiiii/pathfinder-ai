@@ -27,6 +27,7 @@ COPY --from=deps /app/prisma ./prisma
 
 COPY . .
 
+ENV BUILD_STANDALONE="true"
 RUN npm run build
 
 # Stage 4: Production runner
