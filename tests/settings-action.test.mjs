@@ -70,4 +70,14 @@ describe("Settings Actions", () => {
     expect(result.settings.notifications).toBe(false);
     expect(result.settings.emailAlerts).toBe(true);
   });
+
+  it("returns error when user is not found in database", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.getUserByClerkId.mockResolvedValue(null);
+
+    const result = await updateUserSettings({ notifications: true });
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("User not found");
+  });
 });
