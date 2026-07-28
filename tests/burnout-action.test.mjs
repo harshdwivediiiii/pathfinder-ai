@@ -13,18 +13,22 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  db: {
-    user: {
-      findUnique: mocks.findUniqueUser,
+vi.mock("@/lib/db/prisma", async () => {
+  const actual = await vi.importActual("@/lib/db/prisma");
+  return {
+    ...actual,
+    db: {
+      user: {
+        findUnique: mocks.findUniqueUser,
+      },
+      burnoutAssessment: {
+        create: mocks.burnoutAssessmentCreate,
+      },
     },
-    burnoutAssessment: {
-      create: mocks.burnoutAssessmentCreate,
-    },
-  },
-}));
+  };
+});
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
