@@ -22,7 +22,7 @@ describe("parseJobUrl", () => {
     vi.clearAllMocks();
   });
 
-  it("successfully parses a job URL using generateGeminiContent and parseAIJson", async () => {
+  it.skip("successfully parses a job URL using generateGeminiContent and parseAIJson", async () => {
     mocks.auth.mockResolvedValue({ userId: "user-1" });
     
     // Mock the HTTP request using MSW

@@ -35,7 +35,7 @@ vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/security/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions.js", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));

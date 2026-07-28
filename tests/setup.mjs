@@ -36,3 +36,8 @@ vi.mock("next/cache", () => ({
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+// Globally mock rate limiting so tests that forget to mock it don't hit the DB
+vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  formatResetTime: vi.fn().mockReturnValue("60 minutes"),
+}));

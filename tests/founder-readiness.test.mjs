@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { founderReadinessOutputSchema, SCHEMA_DESCRIPTIONS } from "../lib/schemas/outputs.js";
-import { validateOutput } from "../lib/validate.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+import { founderReadinessOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs.js";
+import { validateOutput } from "@/lib/ai/validate.js";
+import { buildFormatCorrectionPrompt } from "@/lib/ai/prompt-safety.js";
 
 // ── Output Schema Validation ───────────────────────────────────────────────
 
@@ -72,7 +72,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: actionMocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: actionMocks.findUnique,
@@ -88,7 +88,7 @@ vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/security/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions.js", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));
