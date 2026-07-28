@@ -71,13 +71,33 @@ describe("generateStarStory", () => {
 
   it("fails when rate limit is exceeded", async () => {
     mocks.auth.mockResolvedValue({ userId: "user-1" });
-    mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date() });
     mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
+    mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date() });
 
     const result = await generateStarStory("I was responsible for upgrading the system architecture to support more users.");
 
     expect(result.success).toBe(false);
     expect(result.errors._form[0]).toContain("limit reached");
     expect(mocks.starStoryCreate).not.toHaveBeenCalled();
+  });
+
+  it("fails when experience description is too short", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await generateStarStory("Too short");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("Please provide a valid experience");
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("fails when experience description is whitespace-only", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await generateStarStory("          ");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("Please provide a valid experience");
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
   });
 });
