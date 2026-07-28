@@ -45,11 +45,6 @@ jobs:
     - name: Lint
       run: npm run lint
     - run: npx playwright install --with-deps chromium
-    - name: Run Playwright tests
-      run: npm run test:e2e
-      env:
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
-        CLERK_SECRET_KEY: sk_test_dummy
     - name: Run tests
       run: npm run test:unit
       env:
@@ -58,7 +53,8 @@ jobs:
       env:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
         CLERK_SECRET_KEY: sk_test_dummy
-    - run: npm run test:e2e
+    - name: Run Playwright tests
+      run: npm run test:e2e
       env:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
         CLERK_SECRET_KEY: sk_test_dummy
