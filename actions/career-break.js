@@ -17,6 +17,7 @@ import { parseAiResponse } from "@/lib/ai/ai-json";
 import { createPrompt } from "@/lib/ai/prompt-wrapper";
 import { createRecord } from "@/lib/db/record-create";
 import { completePersistence } from "@/lib/persistence/persistence-complete";
+import { withParsedData } from "@/lib/persistence/persistence-data";
 import { auth } from "@clerk/nextjs/server";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { revalidatePath } from "next/cache";
