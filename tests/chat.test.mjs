@@ -43,7 +43,7 @@ vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/prompt-safety", () => ({
+vi.mock("@/lib/ai/prompt-safety", () => ({
   buildSecurePrompt: mocks.buildSecurePrompt,
 }));
 

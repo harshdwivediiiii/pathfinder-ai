@@ -11,25 +11,30 @@ const mocks = vi.hoisted(() => ({
   isFeatureEnabled: vi.fn(),
   validateOutput: vi.fn(),
   logActivity: vi.fn(),
+  validateInput: null, // set via vi.importActual in async mock
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  db: {
-    user: {
-      findUnique: mocks.findUniqueUser,
+vi.mock("@/lib/db/prisma", async () => {
+  const actual = await vi.importActual("@/lib/db/prisma");
+  return {
+    ...actual,
+    db: {
+      user: {
+        findUnique: mocks.findUniqueUser,
+      },
+      atsAnalysis: {
+        create: mocks.atsAnalysisCreate,
+      },
+      activityLog: {
+        create: vi.fn(),
+      },
     },
-    atsAnalysis: {
-      create: mocks.atsAnalysisCreate,
-    },
-    activityLog: {
-      create: vi.fn(),
-    },
-  },
-}));
+  };
+});
 
 vi.mock("@/lib/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
@@ -51,13 +56,20 @@ vi.mock("@/lib/ai/ai-gating", () => ({
   isAiEnabled: vi.fn(() => true),
 }));
 
-vi.mock("@/lib/ai/validate", () => ({
-  validateInput: vi.fn((schema, data) => ({ success: true, data })),
-  validateOutput: mocks.validateOutput,
-}));
+// Use vi.importActual so validateInput calls the REAL implementation
+vi.mock("@/lib/ai/validate", async () => {
+  const actual = await vi.importActual("@/lib/ai/validate");
+  mocks.validateInput = actual.validateInput;
+  return {
+    ...actual,
+    validateInput: actual.validateInput,
+    validateOutput: mocks.validateOutput,
+  };
+});
 
 vi.mock("@/lib/ai/prompt-safety", () => ({
   buildSecurePrompt: vi.fn(() => "mocked-prompt"),
+  parseAIJson: vi.fn(),
 }));
 
 vi.mock("@/lib/ai/ai-context", () => ({

@@ -23,6 +23,7 @@ import { createOutputRules } from "@/lib/ai/output-rules";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { completePersistence } from "@/lib/persistence/persistence-complete";
 import { createRecord } from "@/lib/db/record-create";
+import { withParsedData } from "@/lib/persistence/persistence-data";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
