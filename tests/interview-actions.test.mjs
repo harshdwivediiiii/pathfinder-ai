@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   createAssessment: vi.fn(),
   assessmentFindFirst: vi.fn(),
   assessmentFindMany: vi.fn(),
+  createActivityLog: vi.fn(),
   generateGeminiContent: vi.fn(),
   cacheGet: vi.fn(),
   cacheSet: vi.fn(),
@@ -32,6 +33,9 @@ vi.mock("@/lib/db/prisma", () => ({
       create: mocks.createAssessment,
       findFirst: mocks.assessmentFindFirst,
       findMany: mocks.assessmentFindMany,
+    },
+    activityLog: {
+      create: mocks.createActivityLog,
     },
   },
 }));
@@ -62,6 +66,7 @@ describe("interview actions module", () => {
     vi.clearAllMocks();
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.formatResetTime.mockReturnValue("1h");
+    mocks.createActivityLog.mockResolvedValue({ id: "activity-1" });
   });
 
   describe("Regression Tests", () => {
@@ -113,6 +118,81 @@ describe("interview actions module", () => {
       const cacheKey = mocks.cacheSet.mock.calls[0][0];
       expect(cacheKey).toContain("quiz-session");
       expect(mocks.cacheSet.mock.calls[0][1]).toEqual(result.questions);
+    });
+
+    it("includes 'id' in the Prisma user query select clause", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.userFindUnique.mockResolvedValue({
+        id: "user-1",
+        industry: "technology",
+        skills: ["javascript"],
+      });
+      mocks.generateGeminiContent.mockRejectedValue(new Error("AI error"));
+
+      await generateQuiz("Technical");
+
+      expect(mocks.userFindUnique).toHaveBeenCalledWith({
+        where: { clerkUserId: "clerk-user-1" },
+        select: expect.objectContaining({
+          id: true,
+          name: true,
+          industry: true,
+          currentRole: true,
+          targetRole: true,
+          careerGoals: true,
+          experience: true,
+          bio: true,
+          skills: true,
+        }),
+      });
+    });
+
+    it("passes valid database user ID to logActivity after quiz generation", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.userFindUnique.mockResolvedValue({
+        id: "db-user-id-999",
+        industry: "technology",
+        skills: ["javascript"],
+      });
+      mocks.generateGeminiContent.mockRejectedValue(new Error("AI error"));
+
+      const executionOrder = [];
+      mocks.cacheSet.mockImplementation(async () => {
+        executionOrder.push("cacheSet");
+      });
+      mocks.createActivityLog.mockImplementation(async () => {
+        executionOrder.push("createActivityLog");
+      });
+
+      const result = await generateQuiz("Technical");
+
+      expect(result).toHaveProperty("sessionId");
+      expect(result.isFallback).toBe(true);
+      expect(mocks.createActivityLog).toHaveBeenCalledWith({
+        data: {
+          userId: "db-user-id-999",
+          action: "INTERVIEW_PRACTICED",
+        },
+      });
+      expect(executionOrder).toEqual(["cacheSet", "createActivityLog"]);
+    });
+
+    it("succeeds and does not propagate exception when activityLog.create fails", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.userFindUnique.mockResolvedValue({
+        id: "user-1",
+        industry: "technology",
+        skills: ["javascript"],
+      });
+      mocks.generateGeminiContent.mockRejectedValue(new Error("AI error"));
+      mocks.createActivityLog.mockRejectedValue(new Error("Database connection lost"));
+
+      const result = await generateQuiz("Technical");
+
+      expect(result).toHaveProperty("sessionId");
+      expect(result).toHaveProperty("questions");
+      expect(result).toHaveProperty("isFallback", true);
+      expect(result.success).not.toBe(false);
     });
 
     it("handles unauthenticated users gracefully", async () => {

@@ -532,6 +532,7 @@ export async function generateQuiz(category = "Technical") {
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
       select: {
+        id: true,
         name: true,
         industry: true,
         currentRole: true,
