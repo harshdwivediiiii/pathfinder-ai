@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
       findUnique: vi.fn(),
     },
   },
-  consoleError: vi.fn(),
+  validateInput: null, // set in mock factory using vi.importActual
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -39,13 +39,19 @@ vi.mock("@/lib/prisma", () => ({
   db: mocks.db,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
 vi.mock("@/lib/prompt-safety", () => ({
   buildSecurePrompt: mocks.buildSecurePrompt,
 }));
+
+vi.mock("@/lib/ai/validate", async () => {
+  const actual = await vi.importActual("@/lib/ai/validate");
+  mocks.validateInput = actual.validateInput;
+  return actual;
+});
 
 import { chatWithGemini } from "../actions/chat.js";
 
