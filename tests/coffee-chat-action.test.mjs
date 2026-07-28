@@ -67,6 +67,37 @@ describe("coffee chat actions", () => {
         },
       });
     });
+
+    it("fails when user is not found in database", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.findUniqueUser.mockResolvedValue(null);
+
+      const result = await startCoffeeChat("Tech", "Engineer");
+      expect(result.success).toBe(false);
+      expect(result.errors._form[0]).toContain("User not found");
+      expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+    });
+
+    it("fails when industry or targetRole is whitespace-only", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.findUniqueUser.mockResolvedValue({ id: "user-1" });
+
+      const result = await startCoffeeChat("   ", "Engineer");
+      expect(result.success).toBe(false);
+      expect(result.errors._form[0]).toContain("required");
+      expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+    });
+
+    it("fails when rate limit is exceeded after validation passes", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.findUniqueUser.mockResolvedValue({ id: "user-1" });
+      mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date() });
+
+      const result = await startCoffeeChat("Tech", "Engineer");
+      expect(result.success).toBe(false);
+      expect(result.errors._form[0]).toContain("limit reached");
+      expect(mocks.createSession).not.toHaveBeenCalled();
+    });
   });
 
   describe("sendCoffeeChatMessage", () => {
