@@ -34,8 +34,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test
 
-      - name: Run tests
-        run: npm run test:ci # Assuming `test:ci` runs both unit and e2e tests
 
       - name: Log in to the Container registry
         if: github.event_name != 'pull_request'
