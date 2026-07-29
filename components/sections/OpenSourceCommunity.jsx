@@ -39,7 +39,8 @@ export function OpenSourceCommunity() {
         setContributors(Array.isArray(data) ? data : []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => setLoading(false))
+      .catch(err => console.warn("[OpenSourceCommunity] Failed:", err));
   }, []);
 
   return (
