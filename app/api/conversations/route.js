@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db/prisma";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 import { conversationCreateSchema } from "@/lib/schemas/forms";
+import { resolveCorsPolicy, buildCorsDeniedResponse } from "@/lib/security/cors";
 
 export async function GET() {
   try {
@@ -39,7 +40,16 @@ export async function GET() {
   }
 }
 
+export async function OPTIONS(request) {
+  const cors = resolveCorsPolicy(request);
+  if (cors.headers) return new Response(null, { headers: cors.headers });
+  return new Response(null, { status: 204 });
+}
+
 export async function POST(request) {
+  const cors = resolveCorsPolicy(request);
+  if (!cors.allowed) return buildCorsDeniedResponse();
+
   try {
     const { userId } = await auth();
 
@@ -103,7 +113,10 @@ export async function POST(request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request) {
+  const cors = resolveCorsPolicy(request);
+  if (!cors.allowed) return buildCorsDeniedResponse();
+
   try {
     const { userId } = await auth();
 

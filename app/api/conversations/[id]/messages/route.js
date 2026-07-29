@@ -4,8 +4,18 @@ import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 import { messageCreateSchema, messageUpdateSchema } from "@/lib/schemas/forms";
 import { validateId } from "@/lib/ai/validate";
 import { sanitizeInput } from "@/lib/security/sanitize";
+import { resolveCorsPolicy, buildCorsDeniedResponse } from "@/lib/security/cors";
+
+export async function OPTIONS(request) {
+  const cors = resolveCorsPolicy(request);
+  if (cors.headers) return new Response(null, { headers: cors.headers });
+  return new Response(null, { status: 204 });
+}
 
 export async function POST(request, context) {
+  const cors = resolveCorsPolicy(request);
+  if (!cors.allowed) return buildCorsDeniedResponse();
+
   const params = await context.params;
   const idValidation = validateId(params.id);
 
@@ -86,6 +96,9 @@ export async function POST(request, context) {
 }
 
 export async function PATCH(request, context) {
+  const cors = resolveCorsPolicy(request);
+  if (!cors.allowed) return buildCorsDeniedResponse();
+
   const params = await context.params;
   const idValidation = validateId(params.id);
 
@@ -168,6 +181,9 @@ export async function PATCH(request, context) {
 }
 
 export async function DELETE(request, context) {
+  const cors = resolveCorsPolicy(request);
+  if (!cors.allowed) return buildCorsDeniedResponse();
+
   const params = await context.params;
   const idValidation = validateId(params.id);
 
