@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContentStream } from "@/lib/ai/gemini";
 import { db } from "@/lib/db/prisma";
+import { sanitizeInput } from "@/lib/security/sanitize";
 
 // Note: in-memory rate limit resets on every cold start and doesn't work across
 // serverless instances. For production, consider using the shared enforceRateLimit
@@ -88,7 +89,7 @@ Guidelines:
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
             if (chunkText) {
-              controller.enqueue(encoder.encode(chunkText));
+              controller.enqueue(encoder.encode(sanitizeInput(chunkText)));
             }
           }
           controller.close();

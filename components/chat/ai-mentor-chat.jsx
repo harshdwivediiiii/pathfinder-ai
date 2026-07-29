@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, X, Send, Bot, User, Sparkles, Loader2, ChevronDown } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 
 export default function AIMentorChat() {
   const [isOpen, setIsOpen] = useState(false);
@@ -168,9 +169,9 @@ export default function AIMentorChat() {
                       >
                         {msg.role === "assistant" ? (
                           <div className="prose prose-sm dark:prose-invert prose-p:my-1 prose-pre:my-2 prose-ul:my-1 max-w-none break-words">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {msg.content}
-                            </ReactMarkdown>
+<ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+  {msg.content}
+</ReactMarkdown>
                           </div>
                         ) : (
                           msg.content
