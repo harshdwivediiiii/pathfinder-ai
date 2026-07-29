@@ -91,7 +91,7 @@ export function CareerScrollScene({ scrollProgress }) {
 
     Promise.all(images).then((imgs) => {
       if (!cancelled) framesRef.current = imgs;
-    });
+    }).catch(err => console.warn("[CareerScroll] Image load failed:", err));
 
     return () => { cancelled = true; };
   }, []);
