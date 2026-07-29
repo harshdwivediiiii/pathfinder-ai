@@ -89,11 +89,7 @@ export async function GET(request, context) {
       }),
     ]);
 
-    console.log("Conversation exported", {
-      userId: user.id,
-      conversationId: conversation.id,
-      format,
-    });
+    console.info("[Export] Conversation exported");
 
     // Sanitize filename to remove unsafe characters
     const sanitizedTitle = conversation.title
