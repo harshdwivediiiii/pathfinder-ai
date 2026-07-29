@@ -41,7 +41,8 @@ export async function optimizeLinkedInProfile(data) {
     let proxycurlKey;
     try {
       proxycurlKey = validateRequiredEnvVar(process.env.PROXYCURL_API_KEY, "PROXYCURL_API_KEY");
-    } catch {
+    } catch (err) {
+      console.warn("[linkedin] Missing PROXYCURL_API_KEY:", err);
       return { success: false, errors: { _form: ["Proxycurl API key is not configured. Please add PROXYCURL_API_KEY to your environment variables."] } };
     }
 
