@@ -113,8 +113,8 @@ const extractChunkText = (chunk) => {
     if (typeof rawText === "string") return rawText;
 
     return String(rawText);
-  } catch {
-    return "";
+  } catch (error) {
+    console.warn('[generate] Failed to extract chunk text:', error);
   }
 };
 
