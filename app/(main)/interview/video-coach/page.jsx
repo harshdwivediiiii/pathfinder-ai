@@ -83,7 +83,7 @@ export default function VideoCoachPage() {
     return () => {
       // Stop speech recognition to release its WebSocket connection
       if (recognitionRef.current) {
-        try { recognitionRef.current.abort(); } catch {}
+        try { recognitionRef.current.abort(); } catch { console.warn("[VideoCoach] Speech recognition abort failed"); }
         recognitionRef.current.onresult = null;
         recognitionRef.current.onerror = null;
         recognitionRef.current = null;
