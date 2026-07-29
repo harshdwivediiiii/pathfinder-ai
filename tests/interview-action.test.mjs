@@ -23,6 +23,9 @@ vi.mock("@/lib/db/prisma", () => ({
     assessment: {
       create: actionMocks.assessmentCreate,
     },
+    activityLog: {
+      create: vi.fn(),
+    },
   },
 }));
 
