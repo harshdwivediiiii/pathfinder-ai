@@ -44,7 +44,8 @@ export async function POST(request, context) {
     let body;
     try {
       body = await request.json();
-    } catch {
+    } catch (error) {
+      console.warn("[messages] Failed to parse request body in POST:", error);
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid request body");
     }
 
