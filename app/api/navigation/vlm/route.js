@@ -62,6 +62,6 @@ Standard instruction: "${instruction}"
     });
   } catch (error) {
     console.error("VLM Navigation Error:", error);
-    return respondError(ERROR_CODES.INTERNAL_ERROR, "Failed to generate landmark instructions.");
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR, "Failed to generate landmark instructions.");
   }
 }
