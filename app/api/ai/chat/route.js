@@ -2,6 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContentStream } from "@/lib/ai/gemini";
 import { db } from "@/lib/db/prisma";
 
+// Note: in-memory rate limit resets on every cold start and doesn't work across
+// serverless instances. For production, consider using the shared enforceRateLimit
+// from lib/security/rate-limit.js which uses a persistent store.
 const rateLimitMap = new Map();
 
 export async function POST(req) {
@@ -20,7 +23,13 @@ export async function POST(req) {
     } else {
       rateData.count++;
       if (rateData.count > 10) {
-        return new Response(JSON.stringify({ error: "Too many requests" }), { status: 429 });
+        return new Response(JSON.stringify({
+          error: "Too many requests. Please wait before sending another message.",
+          retryAfter: Math.ceil((rateData.resetTime - now) / 1000),
+        }), {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rateData.resetTime - now) / 1000)) },
+        });
       }
     }
     rateLimitMap.set(userId, rateData);

@@ -53,7 +53,7 @@ export default function Error({ error, reset }) {
         </div>
 
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-          Ref ID: {Math.random().toString(36).substring(7).toUpperCase()}
+          Ref ID: {typeof crypto !== "undefined" ? crypto.randomUUID() : "N/A"}
         </p>
       </motion.div>
     </div>
