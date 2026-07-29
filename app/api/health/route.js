@@ -11,7 +11,8 @@ export async function GET() {
   try {
     await db.$queryRaw`SELECT 1`;
     checks.database = true;
-  } catch {
+  } catch (error) {
+    console.error("[health] Database health check failed:", error?.message);
     checks.database = false;
   }
 
