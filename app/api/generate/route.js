@@ -418,6 +418,9 @@ Rules:
           controller.close();
         }
       },
+      cancel(reason) {
+        console.warn("[dedup] SSE stream cancelled while waiting for pending request:", reason);
+      },
     });
 
     return new Response(dedupStream, {
@@ -516,6 +519,7 @@ Rules:
       } catch (error) {
         if (abortController.signal.aborted) {
           safeClose();
+          rejectPending(error);
           return;
         }
         console.error("Gemini streaming error:", error?.message || error);
@@ -533,6 +537,7 @@ Rules:
     cancel(reason) {
       console.warn("SSE stream cancelled by client connection abort:", reason);
       abortController.abort();
+      rejectPending(new Error("SSE stream cancelled by client connection abort"));
     },
   });
 

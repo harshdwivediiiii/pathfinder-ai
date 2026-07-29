@@ -1,11 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContentStream } from "@/lib/ai/gemini";
 import { db } from "@/lib/db/prisma";
-
-// Note: in-memory rate limit resets on every cold start and doesn't work across
-// serverless instances. For production, consider using the shared enforceRateLimit
-// from lib/security/rate-limit.js which uses a persistent store.
-const rateLimitMap = new Map();
+import {
+  getRateLimitIdentifier,
+  enforceRateLimit,
+  buildRateLimitResponse,
+} from "@/lib/security/rate-limit";
 
 export async function POST(req) {
   try {
@@ -15,24 +15,19 @@ export async function POST(req) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    const now = Date.now();
-    const rateData = rateLimitMap.get(userId) || { count: 0, resetTime: now + 60000 };
-    if (now > rateData.resetTime) {
-      rateData.count = 1;
-      rateData.resetTime = now + 60000;
-    } else {
-      rateData.count++;
-      if (rateData.count > 10) {
-        return new Response(JSON.stringify({
-          error: "Too many requests. Please wait before sending another message.",
-          retryAfter: Math.ceil((rateData.resetTime - now) / 1000),
-        }), {
-          status: 429,
-          headers: { "Retry-After": String(Math.ceil((rateData.resetTime - now) / 1000)) },
-        });
-      }
+    const rateLimitResult = await enforceRateLimit({
+      endpoint: "ai/chat",
+      subject: getRateLimitIdentifier(req, userId),
+      limitPerMinute: 10,
+      burstCapacity: 10,
+    });
+
+    if (!rateLimitResult.allowed) {
+      return buildRateLimitResponse({
+        message: "Too many requests. Please wait before sending another message.",
+        retryAfterSeconds: rateLimitResult.retryAfterSeconds,
+      });
     }
-    rateLimitMap.set(userId, rateData);
 
     const body = await req.json();
     let { messages, currentPage, userRole } = body;
