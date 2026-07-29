@@ -35,7 +35,7 @@ export async function parseJobUrl(url) {
       };
     }
 
-    const html = await response.text();
+    const html = response.text;
     const dom = new JSDOM(html);
     const document = dom.window.document;
 
