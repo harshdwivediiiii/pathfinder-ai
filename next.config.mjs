@@ -27,7 +27,7 @@ const nextConfig = {
   serverExternalPackages: ["@prisma/client"],
 
   experimental: {},
-  output: "standalone",
+  output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
 };
 
 export default withSentryConfig(nextConfig, {
