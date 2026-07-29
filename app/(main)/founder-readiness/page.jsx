@@ -47,7 +47,7 @@ export default function FounderReadinessPage() {
 
       const res = await generateFounderReadiness(formData);
 
-console.log("Founder Readiness Response:", res);
+console.info("[FounderReadiness] Response received");
 
 if (res?.error) {
   toast.error(res.error);
