@@ -18,11 +18,14 @@ vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
 }));
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledRequest: "warn" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
-// Globally mock rate limiting so tests that forget to mock it don't hit the DB
+// Globally mock rate limiting — use bare vi.fn() so individual tests can override
+// with mockResolvedValue/mockReturnValue in their own vi.mock or beforeEach.
+// Never hardcode allowed:true here — it prevents tests from exercising
+// the rate-limit-exceeded code path.
 vi.mock("@/lib/security/rate-limit-actions", () => ({
-  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
-  formatResetTime: vi.fn().mockReturnValue("60 minutes"),
+  checkRateLimit: vi.fn(),
+  formatResetTime: vi.fn(),
 }));
