@@ -48,7 +48,7 @@ export default function CoffeeChatPage() {
     setIsStarting(true);
     try {
       const res = await startCoffeeChat(industry, targetRole);
-      console.log("Coffee Chat Response:", res);
+      console.info("[CoffeeChat] Response received");
       if (res.success) {
         setIndustry("");
         setTargetRole("");
