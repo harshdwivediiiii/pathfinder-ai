@@ -90,6 +90,7 @@ export function CareerScrollScene({ scrollProgress }) {
     }
 
     Promise.all(images).then((imgs) => {
+.catch(err => console.error(err))
       if (!cancelled) framesRef.current = imgs;
     });
 
