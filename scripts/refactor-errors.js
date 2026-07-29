@@ -63,7 +63,7 @@ function refactorFile(filePath) {
 
   if (content !== newContent) {
     fs.writeFileSync(filePath, newContent, 'utf8');
-    console.log(`Refactored: ${fileName}`);
+    console.info(`Refactored: ${fileName}`);
   }
 }
 
