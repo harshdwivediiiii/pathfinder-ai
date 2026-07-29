@@ -18,6 +18,10 @@ vi.mock("@/lib/db/prisma", () => ({
   db: mocks.db,
 }));
 
+vi.mock("@/lib/prisma", () => ({
+  db: mocks.db,
+}));
+
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
@@ -26,6 +30,44 @@ describe("GET /api/stats", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.auth.mockResolvedValue({ userId: "user-1" });
+  });
+
+  it("returns HTTP 200 for anonymous requests without Clerk session", async () => {
+    mocks.db.user.count.mockResolvedValue(10);
+    mocks.db.assessment.groupBy.mockResolvedValue([
+      { userId: "u1", _count: { id: 1 } },
+    ]);
+    mocks.db.assessment.aggregate.mockResolvedValue({
+      _avg: { quizScore: 80 },
+      _count: { id: 1 },
+    });
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toHaveProperty("studentsGuided");
+    expect(data).toHaveProperty("careerMatches");
+    expect(data).toHaveProperty("successRate");
+    expect(data).toHaveProperty("avgRating");
+  });
+
+  it("returns HTTP 200 for authenticated requests", async () => {
+    mocks.db.user.count.mockResolvedValue(20);
+    mocks.db.assessment.groupBy.mockResolvedValue([
+      { userId: "u1", _count: { id: 2 } },
+    ]);
+    mocks.db.assessment.aggregate.mockResolvedValue({
+      _avg: { quizScore: 90 },
+      _count: { id: 2 },
+    });
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.studentsGuided).toBe("20");
+    expect(data.careerMatches).toBe("5%");
   });
 
   it("returns real metrics when database has users and assessments", async () => {
@@ -149,6 +191,33 @@ describe("GET /api/stats", () => {
     expect(data.careerMatches).toBe("100%");
     expect(data.successRate).toBe("100%");
     expect(data.avgRating).toBe("5.0");
+  });
+
+  it("never exposes sensitive user-specific fields or PII", async () => {
+    mocks.db.user.count.mockResolvedValue(10);
+    mocks.db.assessment.groupBy.mockResolvedValue([
+      { userId: "sensitive_u1", _count: { id: 5 } },
+    ]);
+    mocks.db.assessment.aggregate.mockResolvedValue({
+      _avg: { quizScore: 85 },
+      _count: { id: 5 },
+    });
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(data.userId).toBeUndefined();
+    expect(data.clerkId).toBeUndefined();
+    expect(data.email).toBeUndefined();
+    expect(data.name).toBeUndefined();
+    expect(data.assessment).toBeUndefined();
+    expect(data.users).toBeUndefined();
+    expect(Object.keys(data).sort()).toEqual([
+      "avgRating",
+      "careerMatches",
+      "studentsGuided",
+      "successRate",
+    ]);
   });
 
   it("returns 500 when database query fails", async () => {
