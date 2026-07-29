@@ -55,6 +55,3 @@ jobs:
         CLERK_SECRET_KEY: sk_live_dummy
     - name: Run Playwright tests
       run: npm run test:e2e
-      env:
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsuY2xlcmsuY2xlcmsuY2xlcmsk
-        CLERK_SECRET_KEY: sk_live_dummy

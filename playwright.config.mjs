@@ -12,16 +12,15 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: isCI
-      ? "npm run start -- --port 3000"
-      : "npm run dev -- --port 3000",
+    command: "npm run dev -- --port 3000",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !isCI,
     timeout: 180000,
     stdout: "pipe",
     stderr: "pipe",
     env: {
-      NODE_ENV: isCI ? "production" : "development",
+      NODE_ENV: "development",
+      CI: "",
     },
   },
 });

@@ -30,6 +30,7 @@ const NAV_ITEMS = [
 const GROWTH_TOOLS = [
   { name: "AI Assistant", icon: Bot, href: "/ai-assistant" },
   { name: "ATS Analyzer", icon: ScanSearch, href: "/ats-analyzer" },
+  { name: "Landmark Navigation", icon: Compass, href: "/navigation/vlm" },
   { name: "Mock Interview", icon: Mic, href: "/interview/mock" },
   { name: "Career Coaching", icon: Briefcase, href: "/ai-assistant" },
   { name: "Explore Careers", icon: Compass, href: "/explore" },
