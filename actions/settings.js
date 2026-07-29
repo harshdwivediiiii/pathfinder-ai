@@ -68,6 +68,10 @@ export async function updateUserSettings(data) {
     }
 
     const user = await getUserByClerkId(userId);
+    if (!user) {
+      return { success: false, errors: { _form: ["User not found"] } };
+    }
+
     const settingsData = validation.data;
 
     const settings = await db.userSettings.upsert({
@@ -102,6 +106,10 @@ export async function updateAccessibilitySettings(data) {
     }
 
     const user = await getUserByClerkId(userId);
+    if (!user) {
+      return { success: false, errors: { _form: ["User not found"] } };
+    }
+
     const settingsData = validation.data;
 
     const settings = await db.userSettings.upsert({
