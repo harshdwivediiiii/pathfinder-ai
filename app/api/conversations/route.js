@@ -60,7 +60,8 @@ export async function POST(request) {
     let body;
     try {
       body = await request.json();
-    } catch {
+    } catch (error) {
+      console.warn("[conversations] Failed to parse request body:", error);
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid request body");
     }
 
