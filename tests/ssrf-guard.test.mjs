@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { safeFetch } from "../lib/safe-fetch.js";
+import { safeFetch } from "@/lib/security/safe-fetch.js";
 import dns from "dns/promises";
 
 // Mock the DNS module to simulate restricted IPs

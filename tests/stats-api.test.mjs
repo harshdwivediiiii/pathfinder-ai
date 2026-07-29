@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
       aggregate: vi.fn(),
     },
   },
+  auth: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -21,9 +22,14 @@ vi.mock("@/lib/prisma", () => ({
   db: mocks.db,
 }));
 
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: mocks.auth,
+}));
+
 describe("GET /api/stats", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
   });
 
   it("returns HTTP 200 for anonymous requests without Clerk session", async () => {

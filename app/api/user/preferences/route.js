@@ -65,6 +65,14 @@ export async function PATCH(request) {
     }
 
     try {
+      const existingUser = await db.user.findUnique({
+        where: { clerkUserId: userId },
+      });
+
+      if (!existingUser) {
+        return respondError(ERROR_CODES.USER_NOT_FOUND, "User profile not found. Please complete registration first.");
+      }
+
       const updatedUser = await db.user.update({
         where: { clerkUserId: userId },
         data: { saveChatHistory: validation.data.saveChatHistory },
@@ -76,10 +84,6 @@ export async function PATCH(request) {
       });
     } catch (dbError) {
       console.error("[Preferences API] Prisma error on PATCH:", dbError.message);
-
-      if (dbError.code === "P2025") {
-        return respondError(ERROR_CODES.USER_NOT_FOUND);
-      }
 
       return respondError(
         ERROR_CODES.INTERNAL_SERVER_ERROR,

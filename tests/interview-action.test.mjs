@@ -23,6 +23,9 @@ vi.mock("@/lib/db/prisma", () => ({
     assessment: {
       create: actionMocks.assessmentCreate,
     },
+    activityLog: {
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -30,7 +33,7 @@ vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/security/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions.js", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));

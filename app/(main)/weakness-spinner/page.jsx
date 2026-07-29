@@ -44,28 +44,28 @@ export default function WeaknessSpinnerPage() {
   };
 
   const renderAngleCard = (title, icon, data, index, colorClass, bgClass, borderClass) => (
-    <div className={\`bg-card border \${borderClass} rounded-3xl p-6 shadow-sm relative group transition-all hover:shadow-md\`}>
+    <div className={`bg-card border ${borderClass} rounded-3xl p-6 shadow-sm relative group transition-all hover:shadow-md`}>
       <div className="flex items-center gap-3 mb-4">
-        <div className={\`h-10 w-10 rounded-full \${bgClass} flex items-center justify-center\`}>
+        <div className={`h-10 w-10 rounded-full ${bgClass} flex items-center justify-center`}>
           {icon}
         </div>
         <div>
           <h3 className="font-bold text-lg leading-tight">{title}</h3>
         </div>
       </div>
-      <div className={\`p-5 \${bgClass} rounded-2xl border \${borderClass} relative\`}>
+      <div className={`p-5 ${bgClass} rounded-2xl border ${borderClass} relative`}>
         <Button 
           variant="ghost" 
           size="icon" 
           className="absolute right-2 top-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity bg-background/50 hover:bg-background"
           onClick={() => handleCopy(data.answer, index)}
         >
-          {copiedIndex === index ? <CheckCircle2 className={\`h-4 w-4 \${colorClass}\`} /> : <Copy className="h-4 w-4" />}
+          {copiedIndex === index ? <CheckCircle2 className={`h-4 w-4 ${colorClass}`} /> : <Copy className="h-4 w-4" />}
         </Button>
         <p className="font-semibold text-foreground pr-8 text-base leading-relaxed">"{data.answer}"</p>
-        <div className={\`mt-4 pt-3 border-t \${borderClass}\`}>
+        <div className={`mt-4 pt-3 border-t ${borderClass}`}>
           <p className="text-sm text-muted-foreground">
-            <span className={\`font-bold \${colorClass}\`}>Why it works:</span> {data.explanation}
+            <span className={`font-bold ${colorClass}`}>Why it works:</span> {data.explanation}
           </p>
         </div>
       </div>

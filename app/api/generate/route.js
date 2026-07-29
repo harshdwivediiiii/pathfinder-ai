@@ -195,7 +195,8 @@ export async function POST(request) {
       }
       conversationId = conversationIdValidation.data;
     }
-  } catch {
+  } catch (parseError) {
+    console.warn("Failed to parse request body in generate route", parseError);
     return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid request body");
   }
 

@@ -7,7 +7,7 @@ import {
   quizResultSaveSchema,
   userProfileSchema,
 } from "../lib/schemas/forms.js";
-import { validateId } from "../lib/validate.js";
+import { validateId } from "@/lib/ai/validate.js";
 
 it("rejects empty chat prompts", () => {
   const result = chatPromptSchema.safeParse({ prompt: "" });
