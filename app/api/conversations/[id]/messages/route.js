@@ -134,7 +134,8 @@ export async function PATCH(request, context) {
     let body;
     try {
       body = await request.json();
-    } catch {
+    } catch (error) {
+      console.warn("[messages] Failed to parse request body in PATCH:", error);
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid request body");
     }
 
