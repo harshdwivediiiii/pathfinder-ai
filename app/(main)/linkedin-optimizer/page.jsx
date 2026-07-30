@@ -118,7 +118,7 @@ export default function LinkedInOptimizerPage() {
                       Copy your headline, About section, and Experience bullet points directly from LinkedIn and paste them here.
                     </p>
                     <Textarea
-                      placeholder="E.g. Senior Software Engineer at Tech Corp...\n\nAbout me: I build scalable systems...\n\nExperience: Led a team of 5..."
+                      placeholder="E.g. Senior Software Engineer at Tech Corp...&#10;&#10;About me: I build scalable systems...&#10;&#10;Experience: Led a team of 5..."
                       className="min-h-[300px] rounded-2xl resize-none bg-background focus-visible:ring-primary mb-4"
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
