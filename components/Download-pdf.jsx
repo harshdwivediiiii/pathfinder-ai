@@ -9,7 +9,7 @@ export default function DownloadPdf({ contentRefId, fileName, label = "Download 
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleDownload = async () => {
-    const element = document.getElementById(contentRefId);
+    const element = typeof window !== 'undefined' ? document.getElementById(contentRefId) : null;
     if (!element) {
       toast.error("Content not found for PDF generation.");
       return;
