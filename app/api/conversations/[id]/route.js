@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db/prisma";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 import { validateId } from "@/lib/ai/validate";
+import { resolveCorsPolicy, buildCorsDeniedResponse } from "@/lib/security/cors";
 
 export async function GET(request, context) {
   const params = await context.params;
@@ -53,7 +54,16 @@ export async function GET(request, context) {
   }
 }
 
+export async function OPTIONS(request) {
+  const cors = resolveCorsPolicy(request);
+  if (cors.headers) return new Response(null, { headers: cors.headers });
+  return new Response(null, { status: 204 });
+}
+
 export async function DELETE(request, context) {
+  const cors = resolveCorsPolicy(request);
+  if (!cors.allowed) return buildCorsDeniedResponse();
+
   const params = await context.params;
   const idValidation = validateId(params.id);
 
