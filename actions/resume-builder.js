@@ -17,6 +17,7 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
+import { applyPagination } from "@/lib/db/sort-config";
 async function getResumeBuilderUser(userId) {
   return getUserByClerkId(userId);
 }
@@ -122,9 +123,11 @@ export async function getResumeHistory() {
 
     if (!user) return EMPTY_HISTORY_RESPONSE;
 
+    const { take } = applyPagination();
     const records = await db.resumeGeneration.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
+      take,
     });
 
     return { success: true, data: records };

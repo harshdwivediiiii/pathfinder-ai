@@ -13,6 +13,7 @@ import { coverLetterInputSchema } from "@/lib/schemas/forms";
 import { coverLetterOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/security/input-limits";
+import { applyPagination } from "@/lib/db/sort-config";
 
 const FALLBACK_COVER_LETTER = `Dear Hiring Manager,
 
@@ -135,9 +136,11 @@ export async function getCoverLetters() {
     });
     if (!user) return [];
 
+    const { take } = applyPagination();
     return db.coverLetter.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
+      take,
     });
   } catch (error) {
     return handleServerError(error, "cover-letter");
