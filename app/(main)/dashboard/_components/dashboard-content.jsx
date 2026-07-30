@@ -64,7 +64,7 @@ function NavIndicator({ sections }) {
     );
 
     for (const { id } of sections) {
-      const el = document.getElementById(id);
+      const el = typeof window !== 'undefined' ? document.getElementById(id) : null;
       if (el) observer.observe(el);
     }
 
@@ -72,7 +72,7 @@ function NavIndicator({ sections }) {
   }, [sections]);
 
   const scrollTo = (id) => {
-    const el = document.getElementById(id);
+    const el = typeof window !== 'undefined' ? document.getElementById(id) : null;
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
