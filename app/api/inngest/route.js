@@ -30,6 +30,9 @@ async function getHandler(request) {
 }
 
 export async function GET(request) {
+  if (process.env.NODE_ENV === "production") {
+    return new Response(null, { status: 405 });
+  }
   if (!isInngestConfigured()) {
     return new Response(JSON.stringify({ error: "Inngest not configured" }), { status: 404 });
   }
@@ -55,15 +58,6 @@ export async function POST(request) {
   }
 }
 
-export async function PUT(request) {
-  if (!isInngestConfigured()) {
-    return new Response(JSON.stringify({ error: "Inngest not configured" }), { status: 404 });
-  }
-  try {
-    const handler = await getHandler(request);
-    return handler.PUT(request);
-  } catch (error) {
-    console.error("Inngest PUT handler error:", error);
-    return new Response(JSON.stringify({ error: "Inngest handler error" }), { status: 500 });
-  }
+export async function PUT() {
+  return new Response(null, { status: 405 });
 }
