@@ -127,7 +127,7 @@ export default function useStreamFetch() {
             }
           }
         } else {
-          parsed = await response.json().catch(() => ({}));
+          parsed = await response.json().catch((parseErr) => { if (process.env.NODE_ENV !== 'production') console.warn('[useStreamFetch] Failed to parse error response', parseErr); return {}; });
         }
 
         const errorMessage =
