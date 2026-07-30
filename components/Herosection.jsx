@@ -97,7 +97,7 @@ const HeroSection = () => {
               size="lg"
               variant="outline"
               onClick={() => {
-                const featuresSection = document.getElementById("features");
+                const featuresSection = typeof window !== 'undefined' ? document.getElementById("features") : null;
                 if (featuresSection) {
                   featuresSection.scrollIntoView({ behavior: "smooth", block: "start" });
                 }
