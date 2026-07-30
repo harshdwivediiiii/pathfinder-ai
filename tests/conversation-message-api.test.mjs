@@ -133,7 +133,7 @@ describe("PATCH /api/conversations/[id]/messages", () => {
     expect(response.status).toBe(200);
     expect(data.content).toBe("Updated content");
     expect(mocks.db.message.update).toHaveBeenCalledWith({
-      where: { id: "msg-1" },
+      where: { id: "msg-1", conversationId: "conv-1" },
       data: { content: "Updated content" },
     });
   });
@@ -188,7 +188,7 @@ describe("DELETE /api/conversations/[id]/messages", () => {
 
     expect(response.status).toBe(204);
     expect(mocks.db.message.delete).toHaveBeenCalledWith({
-      where: { id: "msg-1" },
+      where: { id: "msg-1", conversation: { userId: "u-1" } },
     });
   });
 });
