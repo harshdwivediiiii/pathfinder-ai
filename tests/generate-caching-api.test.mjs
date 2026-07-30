@@ -29,15 +29,15 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: mocks.db,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContentStream: mocks.generateGeminiContentStream,
 }));
 
-vi.mock("@/lib/rate-limit", () => ({
+vi.mock("@/lib/security/rate-limit", () => ({
   getRateLimitIdentifier: () => ({ kind: "user", value: "user_test" }),
   enforceRateLimit: mocks.enforceRateLimit,
   buildRateLimitResponse: () => new Response("Rate limited", { status: 429 }),
