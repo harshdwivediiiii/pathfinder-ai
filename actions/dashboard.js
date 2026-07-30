@@ -8,6 +8,7 @@ import {
   generateIndustryInsightData,
   getIndustryInsightRefreshTime,
   isIndustryInsightStale,
+  getOrCreateInFlightInsight,
 } from "@/lib/misc/industry-insights";
 
 import { logActivity } from "@/lib/activity"; 
@@ -111,7 +112,7 @@ export async function getIndustryInsights() {
     });
 
     if (isIndustryInsightStale(industryInsight)) {
-      const insights = await generateAIInsights(user.industry, user);
+      const insights = await getOrCreateInFlightInsight(user.industry, () => generateAIInsights(user.industry, user));
       const nextUpdate = getIndustryInsightRefreshTime();
 
       const updated = await db.industryInsight.upsert({

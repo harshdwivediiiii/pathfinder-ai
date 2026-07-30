@@ -5,7 +5,7 @@ import { db } from "@/lib/db/prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { generateAIInsights } from "./dashboard";
-import { getIndustryInsightRefreshTime } from "@/lib/misc/industry-insights";
+import { getIndustryInsightRefreshTime, getOrCreateInFlightInsight } from "@/lib/misc/industry-insights";
 import { validateInput } from "@/lib/ai/validate";
 import { userProfileSchema } from "@/lib/schemas/forms";
 import { withAuth } from "@/lib/auth/auth-errors";
@@ -40,7 +40,7 @@ export async function updateUser(data) {
     });
 
     if (!existingInsight) {
-      precomputedInsights = await generateAIInsights(profileData.industry, user);
+      precomputedInsights = await getOrCreateInFlightInsight(profileData.industry, () => generateAIInsights(profileData.industry, user));
     }
   } catch (e) {
     // If AI generation fails, we'll create a placeholder in the transaction
