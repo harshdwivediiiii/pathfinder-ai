@@ -15,7 +15,7 @@ vi.mock("@/lib/auth-user", () => ({
   getAuthenticatedUser: mocks.getAuthenticatedUser,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     mentorOutreach: {
       create: mocks.mentorOutreachCreate,
@@ -23,7 +23,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 

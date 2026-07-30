@@ -23,20 +23,20 @@ vi.mock("next/headers", () => ({
   headers: mocks.headers,
 }));
 
-vi.mock("@/lib/rate-limit", () => ({
+vi.mock("@/lib/security/rate-limit", () => ({
   enforceRateLimit: mocks.enforceRateLimit,
   getRateLimitIdentifier: mocks.getRateLimitIdentifier,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: mocks.db,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/prompt-safety", async () => {
+vi.mock("@/lib/ai/prompt-safety", async () => {
   const actual = await vi.importActual("@/lib/prompt-safety");
   return {
     ...actual,
