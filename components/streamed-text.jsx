@@ -21,7 +21,7 @@ const CodeBlock = ({ children }) => {
   }, []);
 
   const onCopy = () => {
-    navigator.clipboard.writeText(children).catch(() => {});
+    navigator.clipboard.writeText(children).catch((err) => console.warn("[streamed-text] clipboard write failed:", err));
     setCopied(true);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => setCopied(false), 2000);
