@@ -9,7 +9,6 @@ import {
   getRateLimitIdentifier,
   enforceRateLimit,
   buildRateLimitResponse,
-  extractTrustedClientIp,
 } from "@/lib/security/rate-limit";
 import {
   preparePromptForGeneration,
@@ -222,7 +221,7 @@ export async function POST(request) {
   if (!user) {
     return respondError(ERROR_CODES.USER_NOT_FOUND);
   }
-  let cacheUser = userId || extractTrustedClientIp(request.headers) || "anonymous";
+  let cacheUser = userId || "anonymous";
 
   if (conversationId) {
     try {
