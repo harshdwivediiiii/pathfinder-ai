@@ -6,7 +6,6 @@ import PropTypes from "prop-types";
 import { Providers } from "@/components/providers";
 import { BackgroundEngine } from "@/components/backgrounds";
 import { CursorGlow } from "@/components/ui/CursorGlow";
-import { getEnv } from "@/lib/security/env";
 import { auth } from "@clerk/nextjs/server";
 import { getUserSettings } from "@/actions/settings";
 import AIMentorChat from "@/components/chat/ai-mentor-chat";
