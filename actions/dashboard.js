@@ -60,17 +60,17 @@ async function getActivityStats(userId) {
     take: 5000,
   });
 
-  const activeDays = new Set(logs.map((l) => l.createdAt.toISOString().slice(0, 10)));
+  const activeDays = new Set(logs.map((l) => l.createdAt.toLocaleDateString('en-CA')));
 
   let streak = 0;
   const cursor = new Date();
   cursor.setHours(0, 0, 0, 0);
 
-  if (!activeDays.has(cursor.toISOString().slice(0, 10))) {
+  if (!activeDays.has(cursor.toLocaleDateString('en-CA'))) {
     cursor.setDate(cursor.getDate() - 1);
   }
 
-  while (activeDays.has(cursor.toISOString().slice(0, 10))) {
+  while (activeDays.has(cursor.toLocaleDateString('en-CA'))) {
     streak++;
     cursor.setDate(cursor.getDate() - 1);
   }
