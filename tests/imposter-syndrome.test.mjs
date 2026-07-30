@@ -86,6 +86,7 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
+  formatResetTime: vi.fn(),
 }));
 
 describe("reframeThoughts", () => {
