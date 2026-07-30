@@ -86,12 +86,13 @@ export default function useStreamFetch() {
     setIsLoading(true);
 
     try {
+      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost";
       const origin =
         process.env.NODE_ENV === "test"
-          ? process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:3000"
+          ? APP_URL
           : typeof window !== "undefined" && window?.location?.origin
           ? window.location.origin
-          : "http://localhost";
+          : APP_URL;
       const url = `${origin}/api/generate`;
 
       // jsdom/happy-dom test environments can produce AbortSignal instances from a
