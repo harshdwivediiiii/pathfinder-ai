@@ -294,11 +294,11 @@ export async function syncJobApplicationsFromEmail() {
 
       const { companyName, jobTitle, status, interviewDate } = parsedData;
 
-      // Find existing by company (basic deduplication)
+      // Find existing by company (exact match to avoid wrong-application updates)
       const existing = await db.jobApplication.findFirst({
         where: {
           userId: user.id,
-          companyName: { contains: companyName, mode: "insensitive" }
+          companyName: { equals: companyName, mode: "insensitive" }
         },
         orderBy: { updatedAt: 'desc' }
       });
