@@ -54,6 +54,7 @@ const actionMocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   imposterSyndromeCreate: vi.fn(),
   generateGeminiContent: vi.fn(),
+  checkRateLimit: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -79,6 +80,10 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: actionMocks.checkRateLimit,
+}));
+
 describe("reframeThoughts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,6 +93,7 @@ describe("reframeThoughts", () => {
     const { reframeThoughts } = await import("../actions/imposter-syndrome.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
+    actionMocks.checkRateLimit.mockResolvedValue({ allowed: true, remaining: 9, resetAt: new Date() });
     actionMocks.findUnique.mockResolvedValueOnce({
       id: "db-user-1",
       clerkUserId: "user-1",
