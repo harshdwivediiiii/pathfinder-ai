@@ -32,7 +32,8 @@ function extractJobScraper() {
       }
     }
   }
-  console.log('Not found');
+  console.info('Not found');
 }
 
 extractJobScraper();
+
