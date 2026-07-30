@@ -33,6 +33,10 @@ export async function POST(request) {
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Missing client deltas or samples trained data.");
     }
 
+    if (!Array.isArray(clientDeltas) || typeof samplesTrained !== "number" || samplesTrained <= 0) {
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid payload: clientDeltas must be an array and samplesTrained must be a positive number.");
+    }
+
     // Edge device submits updated weights/deltas after local training
     const update = {
       clientDeltas,
