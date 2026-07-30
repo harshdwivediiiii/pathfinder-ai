@@ -89,7 +89,7 @@ export async function GET(request, context) {
       }),
     ]);
 
-    console.log("Conversation exported", {
+    console.info("Conversation exported", {
       userId: user.id,
       conversationId: conversation.id,
       format,
