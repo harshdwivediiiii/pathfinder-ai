@@ -53,7 +53,7 @@ export default function Header() {
 
       const sections = NAV_LINKS.map((link) => ({
         id: link.id,
-        element: document.getElementById(link.id),
+        element: typeof window !== 'undefined' ? document.getElementById(link.id) : null,
       }));
 
       const scrollPosition = window.scrollY + 100;
@@ -103,7 +103,7 @@ export default function Header() {
   };
 
   const scrollToSection = (id) => {
-    const element = document.getElementById(id);
+    const element = typeof window !== 'undefined' ? document.getElementById(id) : null;
     if (element) {
       const offset = 80;
       const elementPosition = element.getBoundingClientRect().top;
