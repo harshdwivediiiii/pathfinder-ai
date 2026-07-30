@@ -1,4 +1,5 @@
 export default function CitationChip({ citation }) {
+  const items = Array.isArray(citation) ? citation : [];
   return (
     <button
       type="button"
