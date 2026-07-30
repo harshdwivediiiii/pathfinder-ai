@@ -13,7 +13,7 @@ async function main() {
       industry: 'technology'
     }
   });
-  console.log('Dummy user:', user.clerkUserId);
+  console.info('Dummy user:', user.clerkUserId);
 }
 
 main()
