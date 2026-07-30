@@ -5,7 +5,7 @@ const actionMocks = vi.hoisted(() => ({
   executeRaw: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     $queryRaw: actionMocks.queryRaw,
     $executeRaw: actionMocks.executeRaw,
