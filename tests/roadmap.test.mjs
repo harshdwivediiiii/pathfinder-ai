@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "../lib/schemas/outputs.js";
-import { validateOutput } from "../lib/validate.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
+import { validateOutput } from "@/lib/ai/validate";
+import { buildFormatCorrectionPrompt } from "@/lib/ai/prompt-safety";
 
 // ── Output Schema Validation ───────────────────────────────────────────────
 
@@ -192,7 +192,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: actionMocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: actionMocks.findUnique,
@@ -201,14 +201,19 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: actionMocks.roadmapFindUnique,
       upsert: actionMocks.upsert,
     },
+    roadmapMilestone: {
+      deleteMany: vi.fn(),
+      update: vi.fn(),
+    },
+    $queryRaw: vi.fn(),
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));
@@ -362,6 +367,7 @@ describe("getRoadmap", () => {
     expect(actionMocks.findUnique).toHaveBeenCalled();
     expect(actionMocks.roadmapFindUnique).toHaveBeenCalledWith({
       where: { userId: "db-user-1" },
+      include: { milestones: { orderBy: { createdAt: "asc" } } },
     });
     expect(result.roadmap?.id).toBe("roadmap-1");
     expect(result.error).toBeNull();

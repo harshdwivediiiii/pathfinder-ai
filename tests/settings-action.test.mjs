@@ -15,7 +15,7 @@ vi.mock("@/lib/user", () => ({
   getUserByClerkId: mocks.getUserByClerkId,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     userSettings: {
       findUnique: mocks.userSettingsFindUnique,
