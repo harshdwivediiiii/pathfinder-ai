@@ -45,7 +45,7 @@ export default function Navbar() {
         router.push(id ? `/#${id}` : "/");
         return;
       }
-      const el = document.getElementById(id);
+      const el = typeof window !== 'undefined' ? document.getElementById(id) : null;
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
