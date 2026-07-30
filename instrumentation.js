@@ -31,7 +31,8 @@ function sanitizeBrokenWebStorage(name) {
   if (typeof storage.getItem !== "function") {
     try {
       delete globalThis[name];
-    } catch {
+    } catch (error) {
+      console.warn("[instrumentation] Failed to delete", name, error);
       globalThis[name] = undefined;
     }
   }

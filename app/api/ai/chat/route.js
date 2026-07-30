@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContentStream } from "@/lib/ai/gemini";
 import { db } from "@/lib/db/prisma";
+import { sanitizeInput } from "@/lib/security/sanitize";
 import {
   getRateLimitIdentifier,
   enforceRateLimit,
@@ -83,7 +84,7 @@ Guidelines:
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
             if (chunkText) {
-              controller.enqueue(encoder.encode(chunkText));
+              controller.enqueue(encoder.encode(sanitizeInput(chunkText)));
             }
           }
           controller.close();

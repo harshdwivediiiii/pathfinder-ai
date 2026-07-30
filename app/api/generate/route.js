@@ -31,6 +31,7 @@ import { respondError, respondSseError, ERROR_CODES } from "@/lib/api/error-hand
 import { validateInput, validateId } from "@/lib/ai/validate";
 import { chatPromptSchema } from "@/lib/schemas/forms";
 import { getEnv } from "@/lib/security/env";
+import { sanitizeInput } from "@/lib/security/sanitize";
 
 const SSE_BASE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -113,8 +114,8 @@ const extractChunkText = (chunk) => {
     if (typeof rawText === "string") return rawText;
 
     return String(rawText);
-  } catch {
-    return "";
+  } catch (error) {
+    console.warn('[generate] Failed to extract chunk text:', error);
   }
 };
 
@@ -453,9 +454,10 @@ Rules:
         for await (const chunk of result.stream) {
           if (abortController.signal.aborted) break;
 
-          const text = extractChunkText(chunk);
+          const rawText = extractChunkText(chunk);
 
-          if (text) {
+          if (rawText) {
+            const text = sanitizeInput(rawText);
             fullResponse += text;
             safeEnqueue("delta", { text });
           }

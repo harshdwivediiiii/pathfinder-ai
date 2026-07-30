@@ -10,30 +10,33 @@ export async function getAgentRuns({ limit = 50, cursor } = {}) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
-    const query = {
+    const user = await db.user.findUnique({
       where: {
-        user: {
-          clerkUserId: userId,
-        },
+        clerkUserId: userId,
+      },
+    });
+
+    if (!user) {
+      return { runs: [] };
+    }
+
+    const runs = await db.agentRun.findMany({
+      where: {
+        userId: user.id,
       },
       orderBy: {
         startedAt: "desc",
       },
       take: limit,
-    };
-
-    if (cursor) {
-      query.cursor = { id: cursor };
-      query.skip = 1;
-    }
-
-    const runs = await db.agentRun.findMany(query);
+    });
 
     return { runs };
   } catch (error) {
     console.error("Error fetching agent runs:", error);
-    const message = ["Unauthorized"].includes(error.message) ? error.message : "An unexpected error occurred.";
-    return { error: message };
+    
+    return {
+      error: error.message,
+    };
   }
 }
 
@@ -47,7 +50,7 @@ export async function getAgentRun(id) {
     });
     if (!user) throw new Error("User not found");
 
-    const run = await db.agentRun.findUnique({
+    const run = await db.agentRun.findFirst({
       where: {
         id,
         userId: user.id,
