@@ -6,13 +6,16 @@ import { motion } from "framer-motion";
 import { ExternalLink, ShieldCheck } from "lucide-react";
 import { StaggerContainer, StaggerItem } from "@/components/motion";
 
+const GITHUB_AVATAR_URL = "https://avatars.githubusercontent.com/u/105593974?v=4";
+const GITHUB_PROFILE_URL = "https://github.com/harshdwivediiiii";
+
 const maintainers = [
   {
     login: "harshdwivediiiii",
     name: "Harsh Dwivedi",
     role: "Founder & Lead Developer",
-    avatar_url: "https://avatars.githubusercontent.com/u/105593974?v=4",
-    html_url: "https://github.com/harshdwivediiiii",
+    avatar_url: GITHUB_AVATAR_URL,
+    html_url: GITHUB_PROFILE_URL,
   },
 ];
 
