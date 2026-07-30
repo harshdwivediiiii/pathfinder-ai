@@ -43,7 +43,7 @@ export async function POST(request) {
 
     const base64Data = parsedUrl.pathname.includes("base64,")
       ? parsedUrl.pathname.split("base64,")[1] || image.substring(image.indexOf("base64,") + 7)
-      : parsedUrl.pathname;
+      : image.substring(image.indexOf(",") + 1);
 
     if (!base64Data) {
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid image format.");
