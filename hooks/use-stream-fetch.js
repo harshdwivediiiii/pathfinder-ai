@@ -88,7 +88,7 @@ export default function useStreamFetch() {
     try {
       const origin =
         process.env.NODE_ENV === "test"
-          ? "http://localhost"
+          ? process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:3000"
           : typeof window !== "undefined" && window?.location?.origin
           ? window.location.origin
           : "http://localhost";
@@ -362,3 +362,4 @@ export default function useStreamFetch() {
 
   return { streamedText, finalText, isLoading, error, startStream, reset };
 }
+
