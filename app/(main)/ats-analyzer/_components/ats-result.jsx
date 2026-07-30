@@ -280,6 +280,7 @@ function RenderedResume({ resumeText, highlights, matchedKeywords }) {
 /* ───────────────── PDF ───────────────── */
 
 async function downloadReport(result) {
+  if (typeof document === 'undefined') return;
   const { default: html2pdf } = await import("html2pdf.js");
 
   const {
