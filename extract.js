@@ -28,7 +28,7 @@ function extractJobScraper() {
           }
         }
       } catch(e) {
-        // ignore parsing errors
+        console.warn('[extract] Parsing error:', e?.message);
       }
     }
   }
