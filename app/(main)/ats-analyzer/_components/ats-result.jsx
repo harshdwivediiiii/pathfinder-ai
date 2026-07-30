@@ -130,43 +130,48 @@ function getHighlightedSegments(text, highlights, matchedKeywords) {
 
   // 1. Process highlights from AI (weak_impact or keyword_insertion)
   if (Array.isArray(highlights)) {
-    highlights.forEach((h, index) => {
-      if (!h.text || h.text.trim().length === 0) return;
-      
-      let pos = text.indexOf(h.text);
-      while (pos !== -1) {
-        segments.push({
-          start: pos,
-          end: pos + h.text.length,
-          type: h.type || "weak_impact",
-          suggestion: h.tip || h.suggestion || "",
-          text: h.text,
-          key: `ai-hl-${index}-${pos}`
-        });
-        pos = text.indexOf(h.text, pos + 1);
-      }
-    });
+    segments.push(
+      ...highlights.flatMap((h, index) => {
+        if (!h.text || h.text.trim().length === 0) return [];
+        const result = [];
+        let pos = text.indexOf(h.text);
+        while (pos !== -1) {
+          result.push({
+            start: pos,
+            end: pos + h.text.length,
+            type: h.type || "weak_impact",
+            suggestion: h.tip || h.suggestion || "",
+            text: h.text,
+            key: `ai-hl-${index}-${pos}`
+          });
+          pos = text.indexOf(h.text, pos + 1);
+        }
+        return result;
+      })
+    );
   }
 
   // 2. Process matched keywords
   if (Array.isArray(matchedKeywords)) {
-    matchedKeywords.forEach((word, index) => {
-      if (!word || word.length < 2) return;
-      
-      // Escape word for regex safety
-      const escapedWord = word.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-      const regex = new RegExp(`\\b${escapedWord}\\b`, "gi");
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        segments.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          type: "matched_keyword",
-          text: match[0],
-          key: `kw-${index}-${match.index}`
-        });
-      }
-    });
+    segments.push(
+      ...matchedKeywords.flatMap((word, index) => {
+        if (!word || word.length < 2) return [];
+        const escapedWord = word.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+        const regex = new RegExp(`\\b${escapedWord}\\b`, "gi");
+        const result = [];
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          result.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            type: "matched_keyword",
+            text: match[0],
+            key: `kw-${index}-${match.index}`
+          });
+        }
+        return result;
+      })
+    );
   }
 
   // 3. Sort segments by start index ascending, and by length descending on tie
@@ -197,22 +202,21 @@ function RenderedResume({ resumeText, highlights, matchedKeywords }) {
     return <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">{resumeText}</div>;
   }
 
-  const elements = [];
   let currentIndex = 0;
 
-  segments.forEach((seg, i) => {
-    // Add text before the segment
+  const elements = segments.flatMap((seg) => {
+    const items = [];
+
     if (seg.start > currentIndex) {
-      elements.push(
+      items.push(
         <span key={`text-${currentIndex}`}>
           {resumeText.slice(currentIndex, seg.start)}
         </span>
       );
     }
 
-    // Add highlighted segment
     if (seg.type === "weak_impact") {
-      elements.push(
+      items.push(
         <span
           key={seg.key}
           className="group relative border-b-2 border-dashed border-destructive bg-destructive/10 cursor-help transition-all hover:bg-destructive/20 px-0.5 rounded-sm"
@@ -230,7 +234,7 @@ function RenderedResume({ resumeText, highlights, matchedKeywords }) {
         </span>
       );
     } else if (seg.type === "keyword_insertion") {
-      elements.push(
+      items.push(
         <span
           key={seg.key}
           className="group relative border-b-2 border-dashed border-violet-500 bg-violet-500/10 cursor-help transition-all hover:bg-violet-500/20 px-0.5 rounded-sm"
@@ -248,7 +252,7 @@ function RenderedResume({ resumeText, highlights, matchedKeywords }) {
         </span>
       );
     } else if (seg.type === "matched_keyword") {
-      elements.push(
+      items.push(
         <span
           key={seg.key}
           className="bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/20 px-1 py-0.5 rounded font-semibold text-xs inline-block"
@@ -259,6 +263,7 @@ function RenderedResume({ resumeText, highlights, matchedKeywords }) {
     }
 
     currentIndex = seg.end;
+    return items;
   });
 
   // Add any remaining text
