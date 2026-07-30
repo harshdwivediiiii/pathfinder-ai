@@ -145,7 +145,7 @@ const generatePDF = async () => {
 
   try {
     const { default: html2pdf } = await import("html2pdf.js");
-    const element = document.getElementById("resume-pdf");
+    const element = typeof window !== 'undefined' ? document.getElementById("resume-pdf") : null;
 
     if (!element) {
       toast.error("Resume content not found for PDF generation.");
