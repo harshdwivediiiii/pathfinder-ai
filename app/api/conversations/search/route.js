@@ -34,13 +34,16 @@ export async function GET(request) {
 
     const searchKeyword = validation.data.q;
 
+    const sanitizedKeyword = searchKeyword.replace(/[%_'\\]/g, '').slice(0, 200);
+
     const conversations = await db.conversation.findMany({
+      take: 20,
       where: {
         userId: user.id,
         OR: [
           {
             title: {
-              contains: searchKeyword,
+              contains: sanitizedKeyword,
               mode: "insensitive",
             },
           },
@@ -48,7 +51,7 @@ export async function GET(request) {
             messages: {
               some: {
                 content: {
-                  contains: searchKeyword,
+                  contains: sanitizedKeyword,
                   mode: "insensitive",
                 },
               },
