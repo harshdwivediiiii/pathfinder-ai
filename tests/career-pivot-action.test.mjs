@@ -12,11 +12,11 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/auth-userid", () => ({
+vi.mock("@/lib/auth/auth-userid", () => ({
   getAuthenticatedUserId: mocks.getAuthenticatedUserId,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.findUniqueUser,
@@ -27,7 +27,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 

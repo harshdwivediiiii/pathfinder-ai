@@ -11,8 +11,24 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
+}));
+
+vi.mock("@/lib/security/safe-fetch", () => ({
+  safeFetch: vi.fn(async () => ({
+    success: true,
+    text: "<html><body><h1>Software Engineer</h1><p>Tech Corp</p></body></html>",
+    status: 200,
+  })),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  db: { $queryRaw: vi.fn() },
+}));
+
+vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
 }));
 
 import { parseJobUrl } from "../actions/job-scraper.js";
