@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { NextResponse } from "next/server";
 import { ERROR_CODES, respondError } from "@/lib/api/error-handler";
+import { IMAGE_MAX_BYTES, ALLOWED_IMAGE_MIME_TYPES } from "@/lib/security/input-limits";
 
 export async function POST(request) {
   try {
@@ -18,12 +19,46 @@ export async function POST(request) {
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Image and instruction are required.");
     }
 
-    // Extract base64 data from the data URL
-    const base64Data = image.split(",")[1];
-    const mimeType = image.split(",")[0].match(/:(.*?);/)[1];
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(image);
+    } catch {
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid image URL format.");
+    }
 
-    if (!base64Data || !mimeType) {
+    if (parsedUrl.protocol !== "data:") {
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "Only data: URLs are accepted for image input.");
+    }
+
+    const mimeType = parsedUrl.pathname.includes(";")
+      ? parsedUrl.pathname.split(";")[0]
+      : parsedUrl.pathname;
+
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
+      return respondError(
+        ERROR_CODES.VALIDATION_ERROR,
+        `Unsupported image type '${mimeType}'. Allowed types: ${ALLOWED_IMAGE_MIME_TYPES.join(", ")}.`
+      );
+    }
+
+    const base64Data = parsedUrl.pathname.includes("base64,")
+      ? parsedUrl.pathname.split("base64,")[1] || image.substring(image.indexOf("base64,") + 7)
+      : parsedUrl.pathname;
+
+    if (!base64Data) {
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid image format.");
+    }
+
+    const decodedBuffer = Buffer.from(base64Data, "base64");
+    if (decodedBuffer.length === 0) {
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "Decoded image data is empty.");
+    }
+
+    if (decodedBuffer.length > IMAGE_MAX_BYTES) {
+      return respondError(
+        ERROR_CODES.VALIDATION_ERROR,
+        `Image exceeds maximum size of ${IMAGE_MAX_BYTES / (1024 * 1024)}MB (got ${(decodedBuffer.length / (1024 * 1024)).toFixed(2)}MB).`
+      );
     }
 
     const promptText = `
