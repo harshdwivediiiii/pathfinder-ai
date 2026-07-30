@@ -373,13 +373,14 @@ Rules:
   // If we're not the creator, return a stream that waits for the pending request
   // and then returns the cached result
   if (!isCreator) {
+    let streamCancelled = false;
     const dedupStream = new ReadableStream({
       async start(controller) {
         try {
           // Wait for the pending request to complete
           await pendingPromise;
         } catch (error) {
-          // Pending request failed, we'll return an error
+          if (streamCancelled) return;
           console.warn("[dedup] Pending request failed", error);
           controller.enqueue(
             encodeSseEvent(encoder, "error", {
@@ -390,8 +391,12 @@ Rules:
           return;
         }
 
+        if (streamCancelled) return;
+
         // After waiting, check cache again
         const cachedAfterPending = await getCachedResponse(cacheUser, restrictedPrompt);
+        if (streamCancelled) return;
+
         if (cachedAfterPending) {
           controller.enqueue(
             encodeSseEvent(encoder, "delta", {
@@ -410,7 +415,6 @@ Rules:
           );
           controller.close();
         } else {
-          // No cache available after pending completed - shouldn't happen but handle gracefully
           controller.enqueue(
             encodeSseEvent(encoder, "error", {
               message: "No cached result available. Please try again.",
@@ -420,7 +424,7 @@ Rules:
         }
       },
       cancel(reason) {
-        console.warn("[dedup] SSE stream cancelled while waiting for pending request:", reason);
+        streamCancelled = true;
       },
     });
 
