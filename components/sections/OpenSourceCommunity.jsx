@@ -33,7 +33,8 @@ export function OpenSourceCommunity() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("https://api.github.com/repos/harshdwivediiiii/pathfinder-ai/contributors?per_page=100")
+    const CONTRIBUTORS_API = "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai/contributors?per_page=100";
+    fetch(CONTRIBUTORS_API)
       .then((res) => res.json())
       .then((data) => {
         setContributors(Array.isArray(data) ? data : []);
