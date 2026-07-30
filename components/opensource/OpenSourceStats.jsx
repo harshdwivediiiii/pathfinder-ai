@@ -59,14 +59,14 @@ export function OpenSourceStats() {
   useEffect(() => {
     const fetchStats = async () => {
   try {
-    const repoRes = await fetch(
-      "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai"
-    );
+    const REPO_API = "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai";
+    const CONTRIB_API = `${REPO_API}/contributors?per_page=1&anon=true`;
+    const PR_SEARCH_API = `https://api.github.com/search/issues?q=repo:harshdwivediiiii/pathfinder-ai+type:pr+state:open`;
+
+    const repoRes = await fetch(REPO_API);
     const repoData = await repoRes.json();
 
-    const contribRes = await fetch(
-      "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai/contributors?per_page=1&anon=true"
-    );
+    const contribRes = await fetch(CONTRIB_API);
     let contributorCount = 0;
     const linkHeader = contribRes.headers?.get?.("Link");
     if (linkHeader) {
@@ -77,9 +77,7 @@ export function OpenSourceStats() {
       contributorCount = Array.isArray(contribData) ? contribData.length : 0;
     }
 
-    const prRes = await fetch(
-      "https://api.github.com/search/issues?q=repo:harshdwivediiiii/pathfinder-ai+type:pr+state:open"
-    );
+    const prRes = await fetch(PR_SEARCH_API);
     const prData = await prRes.json();
     const pullRequestCount = prData.total_count ?? 0;
 
