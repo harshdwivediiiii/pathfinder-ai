@@ -9,6 +9,7 @@ import { http } from "msw";
 describe("useStreamFetch", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    server.resetHandlers();
   });
 
   it("streams SSE deltas across chunk boundaries and handles multi-line data blocks", async () => {
