@@ -84,7 +84,7 @@ export default function Header() {
       .then((data) => {
         if (data?.clerkKeyless) setClerkKeyless(true);
       })
-      .catch(() => {});
+      .catch(() => console.warn("[Header] Failed to check keyless auth"));
     return () => controller.abort();
   }, []);
 
