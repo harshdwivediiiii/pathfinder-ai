@@ -166,7 +166,7 @@ export async function PATCH(request, context) {
     const { content } = validation.data;
 
     const updatedMessage = await db.message.update({
-      where: { id: messageIdValidation.data },
+      where: { id: messageIdValidation.data, conversationId: idValidation.data },
       data: { content },
     });
 
@@ -230,7 +230,7 @@ export async function DELETE(request, context) {
     }
 
     await db.message.delete({
-      where: { id: messageIdValidation.data },
+      where: { id: messageIdValidation.data, conversation: { userId: user.id } },
     });
 
     await db.conversation.updateMany({
