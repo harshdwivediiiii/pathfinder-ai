@@ -22,11 +22,11 @@ export function GlobalScrollTracker() {
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 100; // 100px header offset
-      const scrollStoryEl = document.getElementById("career-scroll");
-      const heroEl = document.getElementById("hero");
-      const featuresEl = document.getElementById("features");
-      const pricingEl = document.getElementById("pricing");
-      const questionEl = document.getElementById("question");
+      const scrollStoryEl = typeof window !== 'undefined' ? document.getElementById("career-scroll") : null;
+      const heroEl = typeof window !== 'undefined' ? document.getElementById("hero") : null;
+      const featuresEl = typeof window !== 'undefined' ? document.getElementById("features") : null;
+      const pricingEl = typeof window !== 'undefined' ? document.getElementById("pricing") : null;
+      const questionEl = typeof window !== 'undefined' ? document.getElementById("question") : null;
 
       // Check if user scrolled to the bottom of the page
       const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50;
@@ -95,7 +95,7 @@ export function GlobalScrollTracker() {
   }, []);
 
   const handleDotClick = (id) => {
-    const careerScrollEl = document.getElementById("career-scroll");
+    const careerScrollEl = typeof window !== 'undefined' ? document.getElementById("career-scroll") : null;
 
     if (id === "roadmap" && careerScrollEl) {
       window.scrollTo({
@@ -113,7 +113,7 @@ export function GlobalScrollTracker() {
         behavior: "smooth"
       });
     } else {
-      const el = document.getElementById(id);
+      const el = typeof window !== 'undefined' ? document.getElementById(id) : null;
       if (el) {
         const offset = 80;
         const elementPosition = el.getBoundingClientRect().top;
