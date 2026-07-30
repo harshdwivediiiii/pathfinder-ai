@@ -2,6 +2,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getAuthDecision } from "./lib/auth/routes";
 import { validateDevBypass, validateVideoCoachBypass } from "./lib/auth/dev-bypass";
+import { checkUser } from "./lib/auth/checkUser";
 
 function addSecureHeaders(response) {
   const csp = [
@@ -35,6 +36,15 @@ const clerkHandler = clerkMiddleware(async (auth, req) => {
   // Route protection rules (public routes, protected routes) are defined
   // and evaluated in lib/auth/routes.js using createRouteMatcher.
   const decision = await getAuthDecision(req, auth);
+
+  // Auto-provision user on authenticated requests
+  if (decision.action === "next") {
+    try {
+      await checkUser();
+    } catch (error) {
+      console.error("[middleware] checkUser failed:", error?.message ?? error);
+    }
+  }
 
   let response;
   switch (decision.action) {
