@@ -21,7 +21,7 @@ function extractJobScraper() {
               const args = JSON.parse(tc.function.arguments);
               if (args.TargetFile && args.TargetFile.includes('job-scraper.js') && args.CodeContent) {
                 fs.writeFileSync(targetPath, args.CodeContent);
-                console.log('Restored job-scraper.js to', targetPath);
+                console.info('Restored job-scraper.js to', targetPath);
                 return;
               }
             }
