@@ -8,6 +8,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { applyPagination } from "@/lib/db/sort-config";
 
 export async function generateMentorPlan(goals, targetIndustry) {
   const { userId } = await auth();
@@ -71,9 +72,11 @@ export async function getMentorOutreaches() {
   const user = await getAuthenticatedUser(userId);
   if (!user) return { success: false, data: [] };
 
+  const { take } = applyPagination();
   const records = await db.mentorOutreach.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
+    take,
   });
 
   return { success: true, data: records };

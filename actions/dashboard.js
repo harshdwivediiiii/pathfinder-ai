@@ -56,6 +56,7 @@ async function getActivityStats(userId) {
     where: { userId, createdAt: { gte: since } },
     select: { createdAt: true },
     orderBy: { createdAt: "desc" },
+    take: 5000,
   });
 
   const activeDays = new Set(logs.map((l) => l.createdAt.toISOString().slice(0, 10)));
