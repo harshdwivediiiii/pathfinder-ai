@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { preparePromptForGeneration } from "../lib/prompt-guard.js";
+import { preparePromptForGeneration } from "../lib/ai/prompt-guard.js";
 
 it("neutralizes prompt injection phrases", () => {
   const result = preparePromptForGeneration(

@@ -39,7 +39,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { improveWithAI } from "../actions/resume.js";
-import { buildUserProfileContext } from "../lib/ai-context.js";
+import { buildUserProfileContext } from "../lib/ai/ai-context.js";
 
 describe("improveWithAI", () => {
   beforeEach(() => {

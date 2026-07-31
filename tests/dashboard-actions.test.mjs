@@ -22,8 +22,8 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/industry-insights", async () => {
-  const actual = await vi.importActual("@/lib/industry-insights.js");
+vi.mock("@/lib/misc/industry-insights", async () => {
+  const actual = await vi.importActual("@/lib/misc/industry-insights.js");
   return {
     ...actual,
     generateIndustryInsightData: mocks.generateIndustryInsightData,

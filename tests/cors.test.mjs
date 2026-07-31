@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-vi.mock("../lib/env.js", () => ({
+vi.mock("../lib/security/env.js", () => ({
   getEnv: () => ({
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
     CORS_ORIGIN: process.env.CORS_ORIGIN,
@@ -10,7 +10,7 @@ vi.mock("../lib/env.js", () => ({
 import {
   getCorsAllowedOrigins,
   resolveCorsPolicy,
-} from "../lib/cors.js";
+} from "../lib/security/cors.js";
 
 
 afterEach(() => {

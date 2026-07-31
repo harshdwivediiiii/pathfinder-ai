@@ -4,9 +4,9 @@ import {
   getRateLimitIdentifier,
   enforceRateLimit,
   buildRateLimitResponse,
-} from "../lib/rate-limit.js";
+} from "../lib/security/rate-limit.js";
 
-import { buildSseErrorResponse } from "../lib/prompt-guard.js";
+import { buildSseErrorResponse } from "../lib/ai/prompt-guard.js";
 
 it("getRateLimitIdentifier returns user identifier when userId provided", () => {
   const id = getRateLimitIdentifier(null, "user-123");

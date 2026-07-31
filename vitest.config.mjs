@@ -23,6 +23,7 @@ export default defineConfig({
     mockReset: true,
     env: {
       NODE_ENV: "test",
+      DATABASE_URL: "postgresql://dummy@localhost:5432/dummy",
     },
   },
 });

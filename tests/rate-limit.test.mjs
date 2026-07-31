@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { cleanupExpiredBuckets, enforceRateLimit } from "../lib/rate-limit.js";
+import { cleanupExpiredBuckets, enforceRateLimit } from "../lib/security/rate-limit.js";
 import {
   createMemoryRateLimitStore,
   createRateLimitStore,
@@ -8,7 +8,7 @@ import {
   DEFAULT_BUCKET_TTL_MS,
   withDefaultCheckAndDeduct,
 } from "../lib/rate-limit/store.js";
-import { unwrap, isMiss } from "../lib/redis-result.js";
+import { unwrap, isMiss } from "../lib/db/redis-result.js";
 
 const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 const ORIGINAL_REDIS_URL = process.env.REDIS_URL;
