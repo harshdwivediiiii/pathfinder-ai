@@ -34,6 +34,9 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
       - name: Run tests
         run: npm run test:ci # Assuming `test:ci` runs both unit and e2e tests
 
