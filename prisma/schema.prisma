@@ -870,3 +870,15 @@ model CareerDecisionSimulation {
 
   @@index([userId])
 }
+
+model AiResponseCache {
+  id          String   @id @default(cuid())
+  promptHash  String   @unique
+  response    String   @db.Text
+  feature     String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([promptHash])
+  @@index([expiresAt])
+}

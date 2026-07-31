@@ -6,6 +6,7 @@ import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateInput, validateOutput } from "@/lib/ai/validate";
@@ -90,8 +91,16 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
       schemaDescription,
       schema: coverLetterOutputSchema,
       generateFn: async (p) => {
-        const raw = await generateGeminiContent(p);
-        return raw.response.text().trim();
+        const rawText = await getCachedOrFetch(
+          JSON.stringify(p),
+          'cover-letter',
+          async () => {
+            const raw = await generateGeminiContent(p);
+            return raw.response.text().trim();
+          },
+          1
+        );
+        return rawText;
       },
       validateFn: validateOutput,
     });
