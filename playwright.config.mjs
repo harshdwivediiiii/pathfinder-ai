@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: {
     command: isCI
-      ? "cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/ && PORT=3000 node .next/standalone/server.js"
+      ? "mkdir -p .next/standalone/public .next/standalone/.next/static && cp -r public/* .next/standalone/public/ 2>/dev/null || true && cp -r .next/static/* .next/standalone/.next/static/ 2>/dev/null || true && PORT=3000 node .next/standalone/server.js"
       : "npm run dev -- --port 3000",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !isCI,
@@ -22,6 +22,7 @@ export default defineConfig({
     stderr: "pipe",
     env: {
       NODE_ENV: isCI ? "production" : "development",
+      E2E_TEST: "true",
     },
   },
 });
