@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   generateMarkdownExport: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: mocks.db,
 }));
 

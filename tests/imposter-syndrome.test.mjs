@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { imposterSyndromeOutputSchema, SCHEMA_DESCRIPTIONS } from "../lib/schemas/outputs.js";
-import { validateOutput } from "../lib/validate.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+import { imposterSyndromeOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
+import { validateOutput } from "@/lib/ai/validate";
+import { buildFormatCorrectionPrompt } from "@/lib/ai/prompt-safety";
 
 // ── Output Schema Validation ───────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: actionMocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: actionMocks.findUnique,
@@ -68,11 +68,17 @@ vi.mock("@/lib/prisma", () => ({
     imposterSyndrome: {
       create: actionMocks.imposterSyndromeCreate,
     },
+    $queryRaw: vi.fn(),
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
+}));
+
+vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  formatResetTime: vi.fn().mockReturnValue("60 minutes"),
 }));
 
 vi.mock("next/cache", () => ({

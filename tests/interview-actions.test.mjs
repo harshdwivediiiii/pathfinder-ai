@@ -22,7 +22,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: async (args) => {
@@ -43,12 +43,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
@@ -66,7 +66,7 @@ vi.mock("@/lib/cache", async () => {
   };
 });
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));

@@ -21,7 +21,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: vi.fn(async () => ({ userId: "user_test_470" })),
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContentStream: vi.fn(async () => ({
     stream: (async function* () {
       yield { text: () => "hello " };
@@ -30,7 +30,7 @@ vi.mock("@/lib/gemini", () => ({
   })),
 }));
 
-vi.mock("@/lib/prisma", () => {
+vi.mock("@/lib/db/prisma", () => {
   const db = {
     user: {
       findUnique: vi.fn(async ({ where }) => ({
@@ -53,7 +53,7 @@ vi.mock("@/lib/prisma", () => {
   return { db };
 });
 
-vi.mock("@/lib/ai-gating", () => ({
+vi.mock("@/lib/ai/ai-gating", () => ({
   isFeatureEnabled: vi.fn(() => true),
 }));
 
@@ -103,7 +103,7 @@ vi.mock("@/lib/schemas/forms", () => {
   };
 });
 
-vi.mock("@/lib/rate-limit", () => ({
+vi.mock("@/lib/security/rate-limit", () => ({
   getRateLimitIdentifier: vi.fn(() => ({ kind: "user", value: "user_test_470" })),
   enforceRateLimit: vi.fn(async () => ({
     allowed: true,
@@ -114,7 +114,7 @@ vi.mock("@/lib/rate-limit", () => ({
   buildRateLimitResponse: vi.fn(() => new Response("rate limited", { status: 429 })),
 }));
 
-vi.mock("@/lib/prompt-guard", () => ({
+vi.mock("@/lib/ai/prompt-guard", () => ({
   preparePromptForGeneration: vi.fn((prompt) => ({
     allowed: true,
     prompt,
@@ -129,7 +129,7 @@ vi.mock("@/lib/prompt-guard", () => ({
   ),
 }));
 
-vi.mock("@/lib/cors", () => ({
+vi.mock("@/lib/security/cors", () => ({
   resolveCorsPolicy: vi.fn(() => ({
     allowed: true,
     headers: new Headers(),
@@ -164,7 +164,7 @@ vi.mock("@/lib/api/error-handler", () => ({
   },
 }));
 
-vi.mock("@/lib/env", () => ({
+vi.mock("@/lib/security/env", () => ({
   getEnv: vi.fn(() => ({ NODE_ENV: "test" })),
 }));
 
