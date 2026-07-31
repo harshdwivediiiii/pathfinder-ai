@@ -43,11 +43,15 @@ export default function ReverseInterviewerPage() {
     setLoading(false);
   };
 
-  const handleCopy = (text, index) => {
-    navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    toast.success("Copied to clipboard!");
-    setTimeout(() => setCopiedIndex(null), 2000);
+  const handleCopy = async (text, index) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      toast.success("Copied to clipboard!");
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      toast.error("Failed to copy to clipboard");
+    }
   };
 
   return (
@@ -164,6 +168,7 @@ export default function ReverseInterviewerPage() {
                             size="icon" 
                             className="absolute right-2 top-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => handleCopy(q.question, 'show'+idx)}
+                            aria-label="Copy question to clipboard"
                           >
                             {copiedIndex === 'show'+idx ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                           </Button>
@@ -195,6 +200,7 @@ export default function ReverseInterviewerPage() {
                             size="icon" 
                             className="absolute right-2 top-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => handleCopy(q.question, 'red'+idx)}
+                            aria-label="Copy question to clipboard"
                           >
                             {copiedIndex === 'red'+idx ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                           </Button>
@@ -224,6 +230,7 @@ export default function ReverseInterviewerPage() {
                         size="icon" 
                         className="absolute right-2 top-2 h-8 w-8 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50"
                         onClick={() => handleCopy(result.closingQuestion.question, 'close')}
+                        aria-label="Copy question to clipboard"
                       >
                         {copiedIndex === 'close' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-emerald-600" />}
                       </Button>

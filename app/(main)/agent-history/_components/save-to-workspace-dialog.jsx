@@ -37,36 +37,42 @@ export function SaveToWorkspaceDialog({ run, children }) {
   const router = useRouter();
 
   useEffect(() => {
+    let active = true;
     if (open) {
-      setTitle(`${run?.agentName} Output - ${new Date().toLocaleDateString()}`);
+      setTitle(`${run?.agentName || "Agent"} Output - ${new Date().toLocaleDateString()}`);
+      
+      const loadWorkspaces = async () => {
+        setLoading(true);
+        try {
+          const wses = await getWorkspaces();
+          if (!active) return;
+          setWorkspaces(wses);
+          if (wses.length > 0 && !selectedWorkspace) {
+            setSelectedWorkspace(wses[0].id);
+          }
+        } catch (error) {
+          if (!active) return;
+          toast.error("Failed to load workspaces");
+        } finally {
+          if (active) setLoading(false);
+        }
+      };
+      
       loadWorkspaces();
     }
-  }, [open, run]);
-
-  const loadWorkspaces = async () => {
-    setLoading(true);
-    try {
-      const wses = await getWorkspaces();
-      setWorkspaces(wses);
-      if (wses.length > 0 && !selectedWorkspace) {
-        setSelectedWorkspace(wses[0].id);
-      }
-    } catch (error) {
-      toast.error("Failed to load workspaces");
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => { active = false; };
+  }, [open]); // Note: intentionally omitted 'run' to avoid identity-change resets
 
   const handleSave = async () => {
-    if (!selectedWorkspace || !title.trim()) {
+    const trimmedTitle = title.trim();
+    if (!selectedWorkspace || !trimmedTitle) {
       toast.error("Please fill in all fields");
       return;
     }
     
     setSaving(true);
     try {
-      await saveAgentOutput(selectedWorkspace, title, run.output, run.id);
+      await saveAgentOutput(selectedWorkspace, trimmedTitle, run.output, run.id);
       toast.success("Saved to workspace successfully!");
       setOpen(false);
       router.push(`/workspace/${selectedWorkspace}`);

@@ -128,7 +128,12 @@ export async function updateAgentRun(id, data) {
     return { run };
   } catch (error) {
     console.error("Error updating agent run:", error);
-    const message = ["Unauthorized", "User not found", "Agent run not found"].includes(error.message) ? error.message : "An unexpected error occurred.";
+    let message = "An unexpected error occurred.";
+    if (error.code === "P2025") {
+      message = "Agent run not found";
+    } else if (["Unauthorized", "User not found", "Agent run not found"].includes(error.message)) {
+      message = error.message;
+    }
     return { error: message };
   }
 }

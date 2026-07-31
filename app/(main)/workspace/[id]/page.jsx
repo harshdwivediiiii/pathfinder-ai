@@ -137,8 +137,10 @@ export default async function WorkspacePage({ params }) {
                     {workspace.agentOutputs.map(output => (
                       <div key={output.id} className="p-4 border rounded-xl hover:border-primary/50 transition-colors">
                         <h4 className="font-semibold mb-2">{output.title}</h4>
-                        <pre className="text-sm bg-muted/50 p-3 rounded-lg overflow-x-auto text-muted-foreground">
-                          {JSON.stringify(output.content, null, 2)}
+                        <pre className="text-sm bg-muted/50 p-3 rounded-lg overflow-x-auto text-muted-foreground whitespace-pre-wrap">
+                          {typeof output.content === "string"
+                            ? output.content
+                            : JSON.stringify(output.content, null, 2)}
                         </pre>
                       </div>
                     ))}

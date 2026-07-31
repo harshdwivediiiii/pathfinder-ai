@@ -154,8 +154,10 @@ export default function Footer() {
     <Link
       href={href}
       onClick={(e) => {
-        e.preventDefault();
-        go(href);
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button === 0) {
+          e.preventDefault();
+          go(href);
+        }
       }}
       className="group flex items-center gap-2.5 text-sm text-white/45 hover:text-white/90 transition-colors duration-300"
     >

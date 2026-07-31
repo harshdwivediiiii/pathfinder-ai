@@ -29,18 +29,22 @@ export default function AgentRunDetailsPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let active = true;
     async function fetchRun() {
       try {
         const res = await getAgentRun(id);
+        if (!active) return;
         if (res.error) throw new Error(res.error);
         setRun(res.run);
       } catch (err) {
+        if (!active) return;
         setError(err.message);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
     if (id) fetchRun();
+    return () => { active = false; };
   }, [id]);
 
   const handleReplay = async () => {

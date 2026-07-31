@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +25,15 @@ export function WorkspaceDialog({ children, workspace = null, onSuccess }) {
     title: workspace?.title || "",
     description: workspace?.description || "",
   });
+
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        title: workspace?.title || "",
+        description: workspace?.description || "",
+      });
+    }
+  }, [open, workspace]);
 
   const isEditing = !!workspace;
 
@@ -55,7 +64,7 @@ export function WorkspaceDialog({ children, workspace = null, onSuccess }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(val) => { if (!loading) setOpen(val); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -88,7 +97,7 @@ export function WorkspaceDialog({ children, workspace = null, onSuccess }) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

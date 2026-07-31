@@ -31,6 +31,10 @@ export async function generateQuestions(jobTitle, companyContext, interviewerRol
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
+  if (!jobTitle || !companyContext || !interviewerRole) {
+    return { success: false, errors: { _form: ["Please provide all required fields."] } };
+  }
+
   const limit = await checkRateLimit(userId, "reverseInterviewer");
   if (!limit.allowed) {
     return {
@@ -39,10 +43,6 @@ export async function generateQuestions(jobTitle, companyContext, interviewerRol
         _form: [`Question limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
       },
     };
-  }
-
-  if (!jobTitle || !companyContext || !interviewerRole) {
-    return { success: false, errors: { _form: ["Please provide all required fields."] } };
   }
   
   const user = await getUserByClerkId(userId);
