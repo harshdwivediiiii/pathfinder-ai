@@ -55,6 +55,8 @@ vi.mock("@/lib/db/prisma", () => {
 
 vi.mock("@/lib/ai/ai-gating", () => ({
   isFeatureEnabled: vi.fn(() => true),
+  isAiEnabled: vi.fn(() => true),
+  assertFeatureEnabled: vi.fn(() => {}),
 }));
 
 vi.mock("@/lib/cache/cache-service", () => ({
@@ -64,6 +66,10 @@ vi.mock("@/lib/cache/cache-service", () => ({
   getPendingGenerationRequest: vi.fn(async () => null),
   setPendingGenerationRequest: vi.fn(() => {}),
   deletePendingGenerationRequest: vi.fn(() => {}),
+  getOrCreatePendingRequest: vi.fn((key) => {
+    const promise = Promise.resolve("mock result");
+    return { promise, isCreator: true, resolve: () => {}, reject: () => {} };
+  }),
 }));
 
 // Mock BOTH schemas the route imports.
