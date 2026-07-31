@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { remoteWorkPitchOutputSchema, SCHEMA_DESCRIPTIONS } from "../lib/schemas/outputs.js";
-import { validateOutput } from "../lib/validate.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+import { validateOutput } from "../lib/ai/validate.js";
+import { buildFormatCorrectionPrompt } from "../lib/ai/prompt-safety.js";
 
 // ── Output Schema Validation ───────────────────────────────────────────────
 

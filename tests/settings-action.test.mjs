@@ -11,7 +11,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/user", () => ({
+vi.mock("@/lib/auth/user", () => ({
   getUserByClerkId: mocks.getUserByClerkId,
 }));
 
