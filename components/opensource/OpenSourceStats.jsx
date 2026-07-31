@@ -71,7 +71,7 @@ export function OpenSourceStats() {
         const linkHeader = contribRes.headers?.get?.("Link");
         if (linkHeader) {
           const match = linkHeader.match(/page=(\d+)>; rel="last"/);
-          if (match) contributorCount = parseInt(match[1]);
+          if (match) contributorCount = parseInt(match[1],10);
         } else {
           const contribData = await contribRes.json();
           contributorCount = Array.isArray(contribData) ? contribData.length : 0;
