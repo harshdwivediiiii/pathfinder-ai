@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: {
     command: isCI
-      ? "npm run start -- --port 3000"
+      ? "cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/ && PORT=3000 node .next/standalone/server.js"
       : "npm run dev -- --port 3000",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !isCI,
