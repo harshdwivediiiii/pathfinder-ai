@@ -80,7 +80,7 @@ export async function getAssignmentGrades() {
   if (!user) return { success: false, data: [] };
 
   const records = await getHistoryRecords(
-  db.assignment,
+  db.assignmentGrade,
   user.id
 );
 
