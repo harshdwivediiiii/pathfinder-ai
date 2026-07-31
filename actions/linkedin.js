@@ -13,6 +13,69 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { validateRequiredEnvVar } from "@/lib/security/env";
 
+async function fetchLinkedInProfile(url) {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch LinkedIn profile: ${response.statusText}`);
+    }
+    
+    const html = await response.text();
+    
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1] : '';
+    
+    const metaDescMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i) 
+      || html.match(/<meta[^>]*content="([^"]+)"[^>]*name="description"/i);
+    const metaDesc = metaDescMatch ? metaDescMatch[1] : '';
+    
+    const ogTitleMatch = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/i)
+      || html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:title"/i);
+    const ogTitle = ogTitleMatch ? ogTitleMatch[1] : '';
+    
+    const ogDescMatch = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/i)
+      || html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:description"/i);
+    const ogDesc = ogDescMatch ? ogDescMatch[1] : '';
+    
+    let profileContent = '';
+    
+    if (title) profileContent += `Title: ${title}\n`;
+    if (ogTitle && ogTitle !== title) profileContent += `Headline: ${ogTitle}\n`;
+    if (metaDesc) profileContent += `Summary: ${metaDesc}\n`;
+    if (ogDesc && ogDesc !== metaDesc) profileContent += `About: ${ogDesc}\n`;
+    
+    const experienceSection = html.match(/experience[^]*?(?=education|skills|projects|$)/i);
+    if (experienceSection) {
+      const experiences = experienceSection[0].match(/<li[^>]*class="[^"]*experience[^"]*"[^>]*>[^]*?<\/li>/gi) || [];
+      if (experiences.length > 0) {
+        profileContent += '\nExperience:\n';
+        experiences.slice(0, 5).forEach(exp => {
+          const cleanExp = exp.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          profileContent += `- ${cleanExp}\n`;
+        });
+      }
+    }
+    
+    profileContent = profileContent.trim();
+    
+    if (profileContent.length < 50) {
+      throw new Error('Could not extract enough profile data from the URL. Please try pasting your profile text directly.');
+    }
+    
+    return profileContent;
+  } catch (error) {
+    console.error('LinkedIn fetch error:', error);
+    throw new Error('Failed to fetch LinkedIn profile. Please try pasting your profile text directly.');
+  }
+}
+
 export async function optimizeLinkedInProfile(data) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -37,34 +100,40 @@ export async function optimizeLinkedInProfile(data) {
 
   let profileContent = validation.data.profileContent;
 
-  if (validation.data.profileUrl) {
-    let proxycurlKey;
-    try {
-      proxycurlKey = validateRequiredEnvVar(process.env.PROXYCURL_API_KEY, "PROXYCURL_API_KEY");
-    } catch {
-      return { success: false, errors: { _form: ["Proxycurl API key is not configured. Please add PROXYCURL_API_KEY to your environment variables."] } };
-    }
+  if (!profileContent && validation.data.profileUrl) {
+    let proxycurlKey = process.env.PROXYCURL_API_KEY;
 
-    try {
-      const response = await fetch(`https://nubela.co/proxycurl/api/v2/linkedin?url=${encodeURIComponent(validation.data.profileUrl)}`, {
-        headers: {
-          'Authorization': `Bearer ${proxycurlKey}`
+    if (proxycurlKey) {
+      try {
+        const response = await fetch(`https://nubela.co/proxycurl/api/v2/linkedin?url=${encodeURIComponent(validation.data.profileUrl)}`, {
+          headers: {
+            'Authorization': `Bearer ${proxycurlKey}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error(`Proxycurl error: ${response.statusText}`);
         }
-      });
-      if (!response.ok) {
-        throw new Error(`Proxycurl error: ${response.statusText}`);
-      }
-      const profileData = await response.json();
-      
-      profileContent = `
+        const profileData = await response.json();
+        
+        profileContent = `
 Headline: ${profileData.headline || ''}
 Summary: ${profileData.summary || ''}
 Experiences:
 ${(profileData.experiences || []).map(exp => `- ${exp.title} at ${exp.company}\n  ${exp.description || ''}`).join('\n')}
-      `.trim();
-    } catch (err) {
-    return handleServerError(err, "linkedin");
-  }
+        `.trim();
+      } catch (err) {
+        console.error("Proxycurl failed, falling back to basic fetching:", err);
+      }
+    }
+
+    // Fallback if Proxycurl wasn't configured or failed
+    if (!profileContent) {
+      try {
+        profileContent = await fetchLinkedInProfile(validation.data.profileUrl);
+      } catch (err) {
+        return { success: false, errors: { _form: [err.message] } };
+      }
+    }
   }
 
   if (!profileContent || profileContent.trim().length < 50) {
