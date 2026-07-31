@@ -96,10 +96,38 @@ function StreamedText({
   text,
   isLoading,
   error,
+  degraded = false,
   emptyMessage = "AI response will appear here...",
 }) {
   const [debouncedText] = useDebounce(text, 20);
   
+  if (degraded) {
+    return (
+      <div className="flex items-start gap-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 text-sm text-amber-400 shadow-sm">
+        <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center shrink-0">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="font-black uppercase tracking-widest text-[10px] mb-1">Degraded Mode</p>
+          <p className="text-amber-300/80 leading-relaxed font-medium">
+            The AI service is temporarily unavailable. Showing the most recent cached response instead.
+          </p>
+          {debouncedText && (
+            <div className="mt-4 break-words leading-relaxed relative">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={markdownComponents}
+              >
+                {debouncedText}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="flex items-start gap-4 rounded-3xl border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive shadow-sm">
