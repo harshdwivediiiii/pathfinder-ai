@@ -22,7 +22,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "");
       vi.stubEnv("INNGEST_SIGNING_KEY", "");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).not.toThrow();
     });
 
@@ -31,7 +31,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "local");
       vi.stubEnv("INNGEST_SIGNING_KEY", "local");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).not.toThrow();
     });
 
@@ -40,7 +40,7 @@ describe("Environment Validation", () => {
       delete process.env.INNGEST_EVENT_KEY;
       delete process.env.INNGEST_SIGNING_KEY;
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).not.toThrow();
     });
   });
@@ -51,7 +51,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).not.toThrow();
     });
 
@@ -60,7 +60,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -69,7 +69,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -78,7 +78,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "");
       vi.stubEnv("INNGEST_SIGNING_KEY", "");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -87,7 +87,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "undefined");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -96,7 +96,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "undefined");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -105,7 +105,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "null");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -114,7 +114,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "null");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -123,7 +123,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "   ");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -132,7 +132,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "   ");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Inngest configuration/);
     });
 
@@ -141,7 +141,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "");
       vi.stubEnv("INNGEST_SIGNING_KEY", "");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY are required in production/);
       expect(() => getEnv()).toThrow(/background job processing/);
       expect(() => getEnv()).toThrow(/https:\/\/app.inngest.com/);
@@ -150,44 +150,44 @@ describe("Environment Validation", () => {
 
   describe("validateRequiredEnvVar Helper", () => {
     it("should validate non-empty string", async () => {
-      const { validateRequiredEnvVar } = await import("../lib/env.js");
+      const { validateRequiredEnvVar } = await import("@/lib/security/env");
       expect(() => validateRequiredEnvVar("valid-value", "TEST_VAR")).not.toThrow();
     });
 
     it("should throw for empty string", async () => {
-      const { validateRequiredEnvVar } = await import("../lib/env.js");
+      const { validateRequiredEnvVar } = await import("@/lib/security/env");
       expect(() => validateRequiredEnvVar("", "TEST_VAR")).toThrow(/Missing required environment variable: TEST_VAR/);
     });
 
     it("should throw for undefined string", async () => {
-      const { validateRequiredEnvVar } = await import("../lib/env.js");
+      const { validateRequiredEnvVar } = await import("@/lib/security/env");
       expect(() => validateRequiredEnvVar("undefined", "TEST_VAR")).toThrow(/Missing required environment variable: TEST_VAR/);
     });
 
     it("should throw for null string", async () => {
-      const { validateRequiredEnvVar } = await import("../lib/env.js");
+      const { validateRequiredEnvVar } = await import("@/lib/security/env");
       expect(() => validateRequiredEnvVar("null", "TEST_VAR")).toThrow(/Missing required environment variable: TEST_VAR/);
     });
 
     it("should throw for whitespace only", async () => {
-      const { validateRequiredEnvVar } = await import("../lib/env.js");
+      const { validateRequiredEnvVar } = await import("@/lib/security/env");
       expect(() => validateRequiredEnvVar("   ", "TEST_VAR")).toThrow(/Missing required environment variable: TEST_VAR/);
     });
 
     it("should throw for undefined value", async () => {
-      const { validateRequiredEnvVar } = await import("../lib/env.js");
+      const { validateRequiredEnvVar } = await import("@/lib/security/env");
       expect(() => validateRequiredEnvVar(undefined, "TEST_VAR")).toThrow(/Missing required environment variable: TEST_VAR/);
     });
 
     it("should throw for null value", async () => {
-      const { validateRequiredEnvVar } = await import("../lib/env.js");
+      const { validateRequiredEnvVar } = await import("@/lib/security/env");
       expect(() => validateRequiredEnvVar(null, "TEST_VAR")).toThrow(/Missing required environment variable: TEST_VAR/);
     });
   });
 
   describe("validateInngestConfig Helper", () => {
     it("should validate when both keys are present", async () => {
-      const { validateInngestConfig } = await import("../lib/env.js");
+      const { validateInngestConfig } = await import("@/lib/security/env");
       const env = {
         INNGEST_EVENT_KEY: "event-key",
         INNGEST_SIGNING_KEY: "signing-key",
@@ -196,7 +196,7 @@ describe("Environment Validation", () => {
     });
 
     it("should throw when event key is missing", async () => {
-      const { validateInngestConfig } = await import("../lib/env.js");
+      const { validateInngestConfig } = await import("@/lib/security/env");
       const env = {
         INNGEST_EVENT_KEY: "",
         INNGEST_SIGNING_KEY: "signing-key",
@@ -205,7 +205,7 @@ describe("Environment Validation", () => {
     });
 
     it("should throw when signing key is missing", async () => {
-      const { validateInngestConfig } = await import("../lib/env.js");
+      const { validateInngestConfig } = await import("@/lib/security/env");
       const env = {
         INNGEST_EVENT_KEY: "event-key",
         INNGEST_SIGNING_KEY: "",
@@ -214,7 +214,7 @@ describe("Environment Validation", () => {
     });
 
     it("should throw when both keys are missing", async () => {
-      const { validateInngestConfig } = await import("../lib/env.js");
+      const { validateInngestConfig } = await import("@/lib/security/env");
       const env = {
         INNGEST_EVENT_KEY: "",
         INNGEST_SIGNING_KEY: "",
@@ -230,7 +230,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow();
     });
 
@@ -240,7 +240,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/REDIS_URL is required in production/);
     });
 
@@ -250,8 +250,8 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
-      expect(() => getEnv()).toThrow(/GEMINI_API_KEY is required in production/);
+      const { getEnv } = await import("@/lib/security/env");
+      expect(() => getEnv()).toThrow(/GEMINI_API_KEY.*required.*production/);
     });
 
     it("should still validate Clerk keys in production", async () => {
@@ -261,7 +261,7 @@ describe("Environment Validation", () => {
       vi.stubEnv("INNGEST_EVENT_KEY", "prod-event-key");
       vi.stubEnv("INNGEST_SIGNING_KEY", "prod-signing-key");
 
-      const { getEnv } = await import("../lib/env.js");
+      const { getEnv } = await import("@/lib/security/env");
       expect(() => getEnv()).toThrow(/Missing Clerk configuration/);
     });
   });

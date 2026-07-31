@@ -4,6 +4,25 @@ import { db } from "@/lib/db/prisma";
 
 const rateLimitMap = new Map();
 
+const INJECTION_PATTERNS = [
+  /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions|directions)/i,
+  /forget\s+(all\s+)?(previous|above|prior)\s+(instructions|directions)/i,
+  /system\s*(prompt|instruction|message)/i,
+  /you\s+are\s+(now|free|a\s+different)/i,
+  /act\s+as\s+(if\s+you\s+are|though\s+you\s+are)/i,
+  /do\s+not\s+(follow|obey|adhere)\s+to/i,
+  /new\s+(instructions|prompt|directive)/i,
+  /override\s+(instructions|prompt|constraints)/i,
+  /role[-\s]*play/i,
+];
+
+function detectPromptInjection(text) {
+  for (const pattern of INJECTION_PATTERNS) {
+    if (pattern.test(text)) return true;
+  }
+  return false;
+}
+
 export async function POST(req) {
   try {
     const authResult = await auth();
@@ -31,6 +50,16 @@ export async function POST(req) {
     currentPage = String(currentPage || 'Unknown').slice(0, 100).replace(/[^a-zA-Z0-9_/\-]/g, '');
     userRole = String(userRole || 'User').slice(0, 50).replace(/[^a-zA-Z0-9 _\-]/g, '');
 
+    if (messages && Array.isArray(messages)) {
+      for (const msg of messages) {
+        if (msg.role === 'user' && typeof msg.content === 'string' && detectPromptInjection(msg.content)) {
+          return new Response(JSON.stringify({
+            error: "Message contains disallowed patterns and was blocked.",
+          }), { status: 400 });
+        }
+      }
+    }
+
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "Messages array is required" }), { status: 400 });
     }
@@ -43,9 +72,16 @@ export async function POST(req) {
       return new Response(JSON.stringify({ error: "Invalid message format" }), { status: 400 });
     }
 
+    const sanitizedMessages = messages.map(msg => {
+      if (msg.role === 'user') {
+        return { ...msg, content: msg.content.slice(0, 4000) };
+      }
+      return { ...msg, content: msg.content.slice(0, 4000) };
+    });
+
     // Convert messages to Gemini format if they are not already
     // Gemini expects: { role: 'user' | 'model', parts: [{ text: '...' }] }
-    const geminiHistory = messages.map(msg => ({
+    const geminiHistory = sanitizedMessages.map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));

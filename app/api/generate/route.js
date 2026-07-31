@@ -241,16 +241,6 @@ export async function POST(request) {
           if (!conversation) {
             throw new Error("Conversation not found");
           }
-
-          if (user?.saveChatHistory ?? true) {
-            await tx.message.create({
-              data: {
-                conversationId,
-                role: "user",
-                content: prompt,
-              },
-            });
-          }
         },
         { timeout: 10_000 }
       );
@@ -321,6 +311,14 @@ Rules:
       try {
         await db.$transaction(
           async (tx) => {
+            await tx.message.create({
+              data: {
+                conversationId,
+                role: "user",
+                content: prompt,
+              },
+            });
+
             await tx.message.create({
               data: {
                 conversationId,
@@ -472,6 +470,14 @@ Rules:
             try {
               await db.$transaction(
                 async (tx) => {
+                  await tx.message.create({
+                    data: {
+                      conversationId,
+                      role: "user",
+                      content: prompt,
+                    },
+                  });
+
                   await tx.message.create({
                     data: {
                       conversationId,

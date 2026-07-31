@@ -17,7 +17,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.findUniqueUser,
@@ -35,7 +35,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));
@@ -49,18 +49,8 @@ vi.mock("@/lib/cache", async () => {
   };
 });
 
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: mocks.formatResetTime,
-}));
-
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: vi.fn(),
 }));
 process.env.GEMINI_API_KEY = "dummy-api-key";
 

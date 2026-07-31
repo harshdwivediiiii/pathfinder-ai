@@ -1,19 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
 
-const mocks = vi.hoisted(() => ({
-  auth: vi.fn(),
-  findUniqueUser: vi.fn(),
-  createAssessment: vi.fn(),
-  generateGeminiContent: vi.fn(),
-  cacheGet: vi.fn(),
-  cacheSet: vi.fn(),
-  cacheDelete: vi.fn(),
-  userFindUnique: vi.fn(),
-  assessmentFindFirst: vi.fn(),
-  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
-  formatResetTime: vi.fn().mockReturnValue("1h"),
-}));
 const mocks = vi.hoisted(() => {
   const findUniqueUserMock = vi.fn();
   return {
@@ -26,8 +13,8 @@ const mocks = vi.hoisted(() => {
     cacheDelete: vi.fn(),
     userFindUnique: findUniqueUserMock,
     assessmentFindFirst: vi.fn(),
-    checkRateLimit: vi.fn(),
-    formatResetTime: vi.fn(),
+    checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+    formatResetTime: vi.fn().mockReturnValue("1h"),
   };
 });
 
@@ -35,12 +22,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: mocks.formatResetTime,
-}));
-
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: (...args) => {
@@ -71,12 +53,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
@@ -94,7 +76,7 @@ vi.mock("@/lib/cache", async () => {
   };
 });
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));

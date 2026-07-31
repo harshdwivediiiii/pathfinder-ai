@@ -15,7 +15,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: mocks.clerkClient,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.userFindUnique,
