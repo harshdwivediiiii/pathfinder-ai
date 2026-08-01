@@ -3,6 +3,7 @@ import { handleServerError } from "@/lib/errors/error-handler";
 
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { createLookupResponse } from "@/lib/errors/lookup-response";
 import {
   generateIndustryInsightData,
@@ -35,7 +36,14 @@ export async function getDashboardStats() {
  * If AI generation fails, provides high-quality default fallback insights.
  */
 export async function generateAIInsights(industry, profile = null) {
-  return generateIndustryInsightData(industry, profile);
+  return getCachedOrFetch(
+    JSON.stringify({ industry, profile }),
+    'insights',
+    async () => {
+      return generateIndustryInsightData(industry, profile);
+    },
+    24
+  );
 }
 
 /**
