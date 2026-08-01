@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tldraw, exportToBlob } from "@tldraw/tldraw";
+import { Tldraw } from "@tldraw/tldraw";
 import "@tldraw/tldraw/tldraw.css";
 import { Button } from "@/components/ui/button";
 import { Loader2, Wand2, AlertCircle } from "lucide-react";
@@ -28,12 +28,8 @@ export default function SystemDesignClient() {
 
     try {
       // Export canvas to blob
-      const blob = await exportToBlob({
-        editor,
-        ids: shapeIds,
-        format: "png",
-        opts: { background: true },
-      });
+      const svg = await editor.getSvgString(Array.from(editor.getCurrentPageShapeIds()));
+      const blob = new Blob([svg], { type: "image/svg+xml" });
 
       // Convert blob to base64
       const reader = new FileReader();
