@@ -9,6 +9,8 @@ async function getHandler(request) {
       getGenerateIndustryInsights,
       getProcessIndustryInsight,
       getSendInterviewReminders,
+      getWeeklyRoadmapAdaptationCron,
+      getProcessRoadmapAdaptation,
     },
     { cleanupRateLimits },
     { serve },
@@ -22,10 +24,12 @@ async function getHandler(request) {
   const cronFn = await getGenerateIndustryInsights();
   const workerFn = await getProcessIndustryInsight();
   const reminderFn = await getSendInterviewReminders();
+  const roadmapCron = await getWeeklyRoadmapAdaptationCron();
+  const roadmapWorker = await getProcessRoadmapAdaptation();
   return serve({
     client,
     signingKey: process.env.INNGEST_SIGNING_KEY,
-    functions: [cronFn, workerFn, reminderFn, cleanupRateLimits],
+    functions: [cronFn, workerFn, reminderFn, roadmapCron, roadmapWorker, cleanupRateLimits],
   });
 }
 
