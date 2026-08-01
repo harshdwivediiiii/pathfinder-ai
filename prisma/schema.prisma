@@ -104,6 +104,7 @@ model User {
   resumeMatchAnalyses   ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
   mockInterviewSessions MockInterviewSession[]
+  pathfindingSessions PathfindingSession[]
 }
 
 model Assessment {
@@ -492,6 +493,8 @@ model PathfindingSession {
   metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  versions    PathfindingVersion[]
 
   @@index([userId])
   @@index([status])
