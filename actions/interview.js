@@ -606,8 +606,22 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
       }
       questions = quizValidation.data.questions.slice(0, 10);
       isFallback = false;
-    } catch (error) {
-      return handleServerError(error, "interview");
+    } catch (err) {
+      console.error("Interview prep generation error:", err);
+      const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
+      return {
+        success: false,
+        error: isRateLimit
+          ? 'AI service is currently busy. Please try again in a moment.'
+          : 'Failed to generate interview prep. Please check your inputs and try again.',
+        errors: {
+          _form: [
+            isRateLimit
+              ? 'AI service is currently busy. Please try again in a moment.'
+              : 'Failed to generate interview prep. Please check your inputs and try again.',
+          ],
+        },
+      };
     }
 
     const sessionId = crypto.randomUUID();
@@ -616,8 +630,22 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     await cacheStore.set(cacheKey, questions, QUIZ_CACHE_TTL_MS);
 
     return { sessionId, questions, isFallback };
-  } catch (error) {
-    return handleServerError(error, "interview");
+  } catch (err) {
+    console.error("Interview prep generation error:", err);
+    const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
+    return {
+      success: false,
+      error: isRateLimit
+        ? 'AI service is currently busy. Please try again in a moment.'
+        : 'Failed to generate interview prep. Please check your inputs and try again.',
+      errors: {
+        _form: [
+          isRateLimit
+            ? 'AI service is currently busy. Please try again in a moment.'
+            : 'Failed to generate interview prep. Please check your inputs and try again.',
+        ],
+      },
+    };
   }
 }
 

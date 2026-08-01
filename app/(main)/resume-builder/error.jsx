@@ -1,15 +1,15 @@
 'use client';
 import { useEffect } from 'react';
 
-export default function InterviewError({ error, reset }) {
+export default function ResumeError({ error, reset }) {
   useEffect(() => {
-    console.error('Interview prep generation error:', error);
+    console.error('Resume generation error:', error);
   }, [error]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-center p-6">
       <h2 className="text-xl font-semibold text-destructive">
-        Something went wrong generating your interview prep
+        Something went wrong generating your resume
       </h2>
       <p className="text-muted-foreground text-sm max-w-md">
         This might be a temporary issue with the AI service. Your inputs have not been lost.
