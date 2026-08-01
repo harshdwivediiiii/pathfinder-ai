@@ -99,11 +99,12 @@ model User {
   founderReadinesses    FounderReadiness[]
   executivePresences    ExecutivePresence[]
 
-  exportRecords         ExportRecord[]
-  auditLogs             AuditLog[]
-  resumeMatchAnalyses   ResumeMatchAnalysis[]
+  exportRecords             ExportRecord[]
+  auditLogs                 AuditLog[]
+  resumeMatchAnalyses       ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
-  mockInterviewSessions MockInterviewSession[]
+  mockInterviewSessions     MockInterviewSession[]
+  pathfindingSessions       PathfindingSession[]
 }
 
 model Assessment {
@@ -306,13 +307,13 @@ model AiRateLimit {
 }
 
 model Roadmap {
-  id        String             @id @default(cuid())
-  userId    String             @unique
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   Json // The full roadmap milestones JSON
+  id         String             @id @default(cuid())
+  userId     String             @unique
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    Json // The full roadmap milestones JSON
   milestones RoadmapMilestone[]
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
 }
 
 model RoadmapMilestone {
@@ -332,24 +333,24 @@ model RoadmapMilestone {
 }
 
 model JobApplication {
-  id            String       @id @default(cuid())
-  userId        String
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyName   String
-  jobTitle      String
-  status        String       @default("Wishlist")
-  url           String?
-  salary        String?
-  location      String?
-  notes         String?      @db.Text
-  atsAnalysisId String?
-  atsAnalysis   AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
-  coverLetterId String?
-  coverLetter   CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
+  id                      String       @id @default(cuid())
+  userId                  String
+  user                    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName             String
+  jobTitle                String
+  status                  String       @default("Wishlist")
+  url                     String?
+  salary                  String?
+  location                String?
+  notes                   String?      @db.Text
+  atsAnalysisId           String?
+  atsAnalysis             AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: Restrict)
+  coverLetterId           String?
+  coverLetter             CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: Restrict)
   interviewDate           DateTime?
   interviewReminderSentAt DateTime?
   createdAt               DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  updatedAt               DateTime     @updatedAt
 
   @@index([userId])
 }
@@ -476,35 +477,36 @@ model CareerPivot {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   currentRole String
   targetRole  String
-  analysis  Json
-  createdAt DateTime @default(now())
+  analysis    Json
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }
 
 model PathfindingSession {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  algorithmType String
-  status      String   @default("active")
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  algorithmType       String
+  status              String               @default("active")
+  metadata            Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  pathfindingVersions PathfindingVersion[]
 
   @@index([userId])
   @@index([status])
 }
 
 model PathfindingVersion {
-  id          String   @id @default(cuid())
-  sessionId   String
-  session     PathfindingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id            String             @id @default(cuid())
+  sessionId     String
+  session       PathfindingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   versionNumber Int
-  state       Json
+  state         Json
   snapshotLabel String?
-  createdAt   DateTime @default(now())
+  createdAt     DateTime           @default(now())
 
   @@unique([sessionId, versionNumber])
 }
@@ -900,12 +902,12 @@ model CareerDecisionSimulation {
 }
 
 model AiResponseCache {
-  id          String   @id @default(cuid())
-  promptHash  String   @unique
-  response    String   @db.Text
-  feature     String
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime
+  id         String   @id @default(cuid())
+  promptHash String   @unique
+  response   String   @db.Text
+  feature    String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
 
   @@index([promptHash])
   @@index([expiresAt])
