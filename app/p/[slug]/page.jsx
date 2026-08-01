@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import PortfolioPreview from "../../(main)/portfolio-builder/_components/portfolio-preview";
 
 export async function generateMetadata({ params }) {
-  const portfolio = await getPublicPortfolio(params.slug);
+  const { slug } = await params;
+  const portfolio = await getPublicPortfolio(slug);
   if (!portfolio) {
     return {
       title: "Portfolio Not Found | PathFinder AI",
@@ -17,7 +18,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function PublicPortfolioPage({ params }) {
-  const portfolio = await getPublicPortfolio(params.slug);
+  const { slug } = await params;
+  const portfolio = await getPublicPortfolio(slug);
 
   if (!portfolio) {
     notFound();

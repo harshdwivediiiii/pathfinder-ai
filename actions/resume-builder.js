@@ -13,6 +13,7 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { validateOutput } from "@/lib/ai/validate";
 import { resumeOutputSchema } from "@/lib/schemas/resume";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
@@ -93,8 +94,16 @@ export async function generateResumeContent(jobDescription) {
   });
 
   try {
-    const aiResult = await generateGeminiContent(prompt);
-    const validation = validateOutput(resumeOutputSchema, aiResult.response.text());
+    const rawAiText = await getCachedOrFetch(
+      JSON.stringify(prompt),
+      'resume',
+      async () => {
+        const res = await generateGeminiContent(prompt);
+        return res.response.text();
+      },
+      1 // 1 hour TTL
+    );
+    const validation = validateOutput(resumeOutputSchema, rawAiText);
     if (!isValidAIOutput(validation)) {
       console.error("Resume output validation failed:", validation.errors);
       return createErrorResponse("AI returned an unexpected format. Please try again.");
@@ -111,8 +120,22 @@ export async function generateResumeContent(jobDescription) {
 
     revalidatePath("/resume-builder");
     return { success: true, data: record };
-  } catch (error) {
-    return handleServerError(error, "resume-builder");
+  } catch (err) {
+    console.error("Resume generation error:", err);
+    const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED';
+    return {
+      success: false,
+      error: isRateLimit
+        ? 'AI service is currently busy. Please try again in a moment.'
+        : 'Failed to generate resume. Please check your inputs and try again.',
+      errors: {
+        _form: [
+          isRateLimit
+            ? 'AI service is currently busy. Please try again in a moment.'
+            : 'Failed to generate resume. Please check your inputs and try again.',
+        ],
+      },
+    };
   }
 }
 

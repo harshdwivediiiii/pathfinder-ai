@@ -28,6 +28,9 @@ import {
   getOrCreatePendingRequest,
 } from "@/lib/cache/cache-service";
 import { respondError, respondSseError, ERROR_CODES } from "@/lib/api/error-handler";
+import { getCircuitBreaker } from "@/lib/cache/circuit-breaker";
+import { createLogger } from "@/lib/observability/logger";
+import { incrementCacheHit, incrementCacheMiss, recordAiGenerationDuration, setCircuitBreakerState, recordError } from "@/lib/observability/metrics";
 import { validateInput, validateId } from "@/lib/ai/validate";
 import { chatPromptSchema } from "@/lib/schemas/forms";
 import { getEnv } from "@/lib/security/env";
@@ -38,6 +41,14 @@ const SSE_BASE_HEADERS = {
   Connection: "keep-alive",
   "X-Accel-Buffering": "no",
 };
+
+const geminiCircuitBreaker = getCircuitBreaker("gemini-stream", {
+  failureThreshold: Number.parseInt(process.env.CIRCUIT_FAILURE_THRESHOLD ?? "5", 10),
+  resetTimeoutMs: Number.parseInt(process.env.CIRCUIT_RESET_TIMEOUT_MS ?? "30000", 10),
+  rollingWindowMs: Number.parseInt(process.env.CIRCUIT_ROLLING_WINDOW_MS ?? "60000", 10),
+});
+
+const aiLogger = createLogger("generate-route");
 
 function buildSseHeaders(request) {
   const corsPolicy = resolveCorsPolicy(request);
@@ -97,6 +108,7 @@ function createCachedSseResponse({
 
   const responseHeaders = new Headers(headers);
   responseHeaders.set("X-Cache", cacheStatus);
+  responseHeaders.set("X-Response-Source", cacheStatus === "HIT" ? "cache" : "live");
 
   return new Response(cachedStream, {
     headers: responseHeaders,
@@ -445,9 +457,46 @@ Rules:
       };
 
       try {
-        const result = await generateGeminiContentStream(restrictedPrompt, {
-          signal: abortController.signal,
-        });
+        let result;
+        try {
+          result = await geminiCircuitBreaker.execute(() =>
+            generateGeminiContentStream(restrictedPrompt, {
+              signal: abortController.signal,
+            })
+          );
+        } catch (initialError) {
+          const degradedCache = await getCachedResponse(cacheUser, restrictedPrompt);
+          if (degradedCache) {
+            aiLogger.warn("Serving degraded cached response after Gemini failure", {
+              error: initialError?.message,
+            });
+            setCircuitBreakerState("degraded");
+            const degradedStream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(
+                  encodeSseEvent(encoder, "delta", {
+                    text: degradedCache,
+                    cached: true,
+                    degraded: true,
+                  })
+                );
+                controller.enqueue(
+                  encodeSseEvent(encoder, "done", {
+                    finalText: degradedCache,
+                    hasContent: true,
+                    cached: true,
+                    degraded: true,
+                  })
+                );
+                controller.close();
+              },
+            });
+            return new Response(degradedStream, {
+              headers: buildSseHeaders(request),
+            });
+          }
+          throw initialError;
+        }
 
         for await (const chunk of result.stream) {
           if (abortController.signal.aborted) break;
