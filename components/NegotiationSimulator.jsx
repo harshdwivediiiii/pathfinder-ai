@@ -5,8 +5,7 @@ import { Send, User, Briefcase, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 
 export default function NegotiationSimulator() {
   const [messages, setMessages] = useState([
@@ -66,20 +65,20 @@ export default function NegotiationSimulator() {
           <p className="text-sm text-muted-foreground">Practice with an AI Hiring Manager</p>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0 relative">
-          <ScrollArea className="h-full p-4" ref={scrollRef}>
+          <div className="h-full p-4 overflow-y-auto" ref={scrollRef}>
             <div className="flex flex-col gap-4 pb-4">
               {messages.map((msg, index) => (
                 <div
                   key={index}
                   className={`flex items-end gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                 >
-                  <Avatar className="w-8 h-8">
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
                     {msg.role === "hr" ? (
-                      <div className="bg-primary/10 w-full h-full flex items-center justify-center rounded-full text-primary font-bold">HR</div>
+                      <div className="bg-primary/10 w-full h-full flex items-center justify-center rounded-full text-primary font-bold text-xs">HR</div>
                     ) : (
                       <div className="bg-secondary w-full h-full flex items-center justify-center rounded-full text-secondary-foreground"><User className="w-4 h-4" /></div>
                     )}
-                  </Avatar>
+                  </div>
                   <div
                     className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
                       msg.role === "user"
@@ -96,9 +95,9 @@ export default function NegotiationSimulator() {
               ))}
               {isTyping && (
                 <div className="flex items-end gap-2">
-                  <Avatar className="w-8 h-8">
-                    <div className="bg-primary/10 w-full h-full flex items-center justify-center rounded-full text-primary font-bold">HR</div>
-                  </Avatar>
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    <div className="bg-primary/10 w-full h-full flex items-center justify-center rounded-full text-primary font-bold text-xs">HR</div>
+                  </div>
                   <div className="bg-muted text-foreground rounded-2xl rounded-bl-none px-4 py-3 flex gap-1 items-center border shadow-sm">
                     <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
                     <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
@@ -107,7 +106,7 @@ export default function NegotiationSimulator() {
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </CardContent>
         <CardFooter className="p-3 border-t bg-card/50 backdrop-blur-sm">
           <form
