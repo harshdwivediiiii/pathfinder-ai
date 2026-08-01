@@ -104,7 +104,7 @@ model User {
   resumeMatchAnalyses       ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
   mockInterviewSessions     MockInterviewSession[]
-  pathfindingSessions       PathfindingSession[]
+  pathfindingSessions       PathfindingSession[]       @relation("PathfindingSessionUser")
 }
 
 model Assessment {
@@ -486,14 +486,14 @@ model CareerPivot {
 model PathfindingSession {
   id                  String               @id @default(cuid())
   userId              String
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                User                 @relation("PathfindingSessionUser", fields: [userId], references: [id], onDelete: Cascade)
   name                String
   algorithmType       String
   status              String               @default("active")
   metadata            Json?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
-  pathfindingVersions PathfindingVersion[]
+  pathfindingVersions PathfindingVersion[] @relation("PathfindingSessionVersions")
 
   @@index([userId])
   @@index([status])
@@ -502,7 +502,7 @@ model PathfindingSession {
 model PathfindingVersion {
   id            String             @id @default(cuid())
   sessionId     String
-  session       PathfindingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session       PathfindingSession @relation("PathfindingSessionVersions", fields: [sessionId], references: [id], onDelete: Cascade)
   versionNumber Int
   state         Json
   snapshotLabel String?
