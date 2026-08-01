@@ -39,6 +39,7 @@
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.10",
     "@sentry/nextjs": "^10.62.0",
+    "@tldraw/tldraw": "^5.2.5",
     "@vladmandic/face-api": "^1.7.15",
     "class-variance-authority": "^0.7.1",
     "client-only": "^0.0.1",
