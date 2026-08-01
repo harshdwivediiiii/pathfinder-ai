@@ -891,7 +891,7 @@ export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) 
   if (userId) {
     const videoLimit = await checkRateLimit(userId, "videoEvaluation");
     if (!videoLimit.allowed) {
-      return { success: false, error: `Video evaluation limit reached. Resets in ${videoLimit.resetInMinutes}m.` };
+      return { success: false, error: `Video evaluation limit reached. Resets in ${formatResetTime(videoLimit.resetAt)}.` };
     }
   }
 
