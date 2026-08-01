@@ -30,7 +30,7 @@ vi.mock("../lib/cache/store.js", () => ({
   getCacheStore: () => mocks.cacheStore,
 }));
 
-vi.mock("../lib/gemini.js", () => ({
+vi.mock("../lib/ai/gemini.js", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 

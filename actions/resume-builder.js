@@ -111,8 +111,22 @@ export async function generateResumeContent(jobDescription) {
 
     revalidatePath("/resume-builder");
     return { success: true, data: record };
-  } catch (error) {
-    return handleServerError(error, "resume-builder");
+  } catch (err) {
+    console.error("Resume generation error:", err);
+    const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED';
+    return {
+      success: false,
+      error: isRateLimit
+        ? 'AI service is currently busy. Please try again in a moment.'
+        : 'Failed to generate resume. Please check your inputs and try again.',
+      errors: {
+        _form: [
+          isRateLimit
+            ? 'AI service is currently busy. Please try again in a moment.'
+            : 'Failed to generate resume. Please check your inputs and try again.',
+        ],
+      },
+    };
   }
 }
 

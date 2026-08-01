@@ -8,7 +8,7 @@ import {
   isMiss,
   isError,
   ResultStatus,
-} from "../lib/redis-result.js";
+} from "../lib/db/redis-result.js";
 
 describe("redis-result utility", () => {
   describe("success", () => {

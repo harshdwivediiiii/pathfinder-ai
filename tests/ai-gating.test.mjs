@@ -8,7 +8,7 @@ describe("AI Feature Gating", () => {
     // Stub environments to control tests cleanly
     vi.stubEnv("GEMINI_API_KEY", "test-api-key");
     // Mock getEnv to return fresh environment values
-    vi.doMock("../lib/env.js", () => ({
+    vi.doMock("../lib/security/env.js", () => ({
       getEnv: () => {
         if (envCache) return envCache;
         envCache = {
@@ -31,13 +31,13 @@ describe("AI Feature Gating", () => {
   });
 
   it("should report general AI as enabled when GEMINI_API_KEY is configured", async () => {
-    const { isAiEnabled } = await import("../lib/ai-gating.js");
+    const { isAiEnabled } = await import("../lib/ai/ai-gating.js");
     expect(isAiEnabled()).toBe(true);
   });
 
   it("should report general AI as disabled when GEMINI_API_KEY is empty or missing", async () => {
-    const { isAiEnabled } = await import("../lib/ai-gating.js");
-    const { resetEnvCache } = await import("../lib/env.js");
+    const { isAiEnabled } = await import("../lib/ai/ai-gating.js");
+    const { resetEnvCache } = await import("../lib/security/env.js");
 
     vi.stubEnv("GEMINI_API_KEY", "");
     resetEnvCache();
@@ -49,8 +49,8 @@ describe("AI Feature Gating", () => {
   });
 
   it("should return correct status for mapped features based on GEMINI_API_KEY", async () => {
-    const { isFeatureEnabled } = await import("../lib/ai-gating.js");
-    const { resetEnvCache } = await import("../lib/env.js");
+    const { isFeatureEnabled } = await import("../lib/ai/ai-gating.js");
+    const { resetEnvCache } = await import("../lib/security/env.js");
 
     // All features require GEMINI_API_KEY
     expect(isFeatureEnabled("chat")).toBe(true);
@@ -67,8 +67,8 @@ describe("AI Feature Gating", () => {
   });
 
   it("should fallback to general AI check for unknown features", async () => {
-    const { isFeatureEnabled } = await import("../lib/ai-gating.js");
-    const { resetEnvCache } = await import("../lib/env.js");
+    const { isFeatureEnabled } = await import("../lib/ai/ai-gating.js");
+    const { resetEnvCache } = await import("../lib/security/env.js");
 
     expect(isFeatureEnabled("someUnknownFeature")).toBe(true);
 
@@ -78,8 +78,8 @@ describe("AI Feature Gating", () => {
   });
 
   it("should assert feature enablement correctly by throwing when key is missing", async () => {
-    const { assertFeatureEnabled } = await import("../lib/ai-gating.js");
-    const { resetEnvCache } = await import("../lib/env.js");
+    const { assertFeatureEnabled } = await import("../lib/ai/ai-gating.js");
+    const { resetEnvCache } = await import("../lib/security/env.js");
 
     expect(() => assertFeatureEnabled("chat")).not.toThrow();
 
@@ -89,10 +89,10 @@ describe("AI Feature Gating", () => {
   });
 
   it("should enforce feature gating inside the Gemini client", async () => {
-    const { resetEnvCache } = await import("../lib/env.js");
+    const { resetEnvCache } = await import("../lib/security/env.js");
     vi.stubEnv("GEMINI_API_KEY", "");
     resetEnvCache();
-    const { generateGeminiContent } = await import("../lib/gemini.js");
+    const { generateGeminiContent } = await import("../lib/ai/gemini.js");
 
     await expect(generateGeminiContent("test")).rejects.toThrow("GEMINI_API_KEY is not configured");
   });

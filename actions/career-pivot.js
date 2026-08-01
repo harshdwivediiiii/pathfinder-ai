@@ -77,7 +77,7 @@ export async function generatePivotStrategy(currentRole, targetRole) {
     userId: user.id,
     currentRole,
     targetRole,
-    ...withParsedData("result", parsedData),
+    ...buildParsedResult("result", parsedData),
   });
 
   revalidatePath("/career-pivot");

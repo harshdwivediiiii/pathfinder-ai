@@ -346,8 +346,9 @@ model JobApplication {
   atsAnalysis   AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
   coverLetterId String?
   coverLetter   CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
-  interviewDate DateTime?
-  createdAt     DateTime     @default(now())
+  interviewDate           DateTime?
+  interviewReminderSentAt DateTime?
+  createdAt               DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   @@index([userId])

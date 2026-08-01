@@ -41,7 +41,7 @@ import {
   GeminiError,
   generateGeminiContent,
   generateGeminiContentStream,
-} from "../lib/gemini.js";
+} from "../lib/ai/gemini.js";
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -52,7 +52,7 @@ let envCache = null;
 beforeEach(() => {
   vi.stubEnv("GEMINI_API_KEY", "test-api-key");
   // Mock getEnv to return fresh environment values
-  vi.doMock("../lib/env.js", () => ({
+  vi.doMock("../lib/security/env.js", () => ({
     getEnv: () => {
       if (envCache) return envCache;
       envCache = {
@@ -256,13 +256,13 @@ describe("signal", () => {
 describe("config", () => {
   it("throws GeminiError when GEMINI_API_KEY is not configured", async () => {
     expect.assertions(2);
-    const { resetEnvCache } = await import("../lib/env.js");
+    const { resetEnvCache } = await import("../lib/security/env.js");
 
     vi.stubEnv("GEMINI_API_KEY", "");
     resetEnvCache();
     vi.resetModules();
     // Re-setup the mock after module reset
-    vi.doMock("../lib/env.js", () => ({
+    vi.doMock("../lib/security/env.js", () => ({
       getEnv: () => {
         if (envCache) return envCache;
         envCache = {
@@ -283,7 +283,7 @@ describe("config", () => {
         getGenerativeModel: mocks.getGenerativeModel,
       })),
     }));
-    const { generateGeminiContent: generateGeminiContentFresh, GeminiError: GeminiErrorFresh } = await import("../lib/gemini.js");
+    const { generateGeminiContent: generateGeminiContentFresh, GeminiError: GeminiErrorFresh } = await import("../lib/ai/gemini.js");
 
     await expect(generateGeminiContentFresh("Hi")).rejects.toThrow(GeminiErrorFresh);
     await expect(generateGeminiContentFresh("Hi")).rejects.toMatchObject({

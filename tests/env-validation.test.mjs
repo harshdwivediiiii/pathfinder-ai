@@ -10,6 +10,7 @@ describe("Environment Validation", () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_123");
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_123");
     vi.stubEnv("REDIS_URL", "redis://localhost:6379");
+    vi.stubEnv("CI", "false");
   });
 
   afterEach(() => {

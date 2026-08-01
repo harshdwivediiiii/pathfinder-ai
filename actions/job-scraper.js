@@ -25,17 +25,17 @@ export async function parseJobUrl(url) {
     });
 
     if (!response.success) {
-      return fetchResult;
+      return response;
     }
 
-    if (fetchResult.status !== 200) {
+    if (response.status !== 200) {
       return {
         success: false,
-        errors: { _form: [`Fetch failed with status ${fetchResult.status}`] },
+        errors: { _form: [`Fetch failed with status ${response.status}`] },
       };
     }
 
-    const html = await response.text();
+    const html = response.text;
     const dom = new JSDOM(html);
     const document = dom.window.document;
 

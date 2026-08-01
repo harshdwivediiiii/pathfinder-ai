@@ -117,8 +117,22 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     });
 
     return { ...coverLetter, isFallback: false };
-  } catch (error) {
-    return handleServerError(error, "cover-letter");
+  } catch (err) {
+    console.error("Cover letter generation error:", err);
+    const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
+    return {
+      success: false,
+      error: isRateLimit
+        ? 'AI service is currently busy. Please try again in a moment.'
+        : 'Failed to generate cover letter. Please check your inputs and try again.',
+      errors: {
+        _form: [
+          isRateLimit
+            ? 'AI service is currently busy. Please try again in a moment.'
+            : 'Failed to generate cover letter. Please check your inputs and try again.',
+        ],
+      },
+    };
   }
 }
 

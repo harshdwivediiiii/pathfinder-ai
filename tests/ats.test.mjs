@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { normalizeAtsSuggestion, normalizeAtsSuggestions } from "../lib/ats.js";
+import { normalizeAtsSuggestion, normalizeAtsSuggestions } from "../lib/resume/ats.js";
 
 it("normalizeAtsSuggestion preserves structured suggestion objects", () => {
   const result = normalizeAtsSuggestion({ category: "Keywords", tip: "Add missing terms" });
