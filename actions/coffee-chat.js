@@ -102,7 +102,7 @@ export async function sendCoffeeChatMessage(sessionId, userMessage) {
     const parsedData = parseAIJson(aiResult.response.text());
     updatedHistory.push({ role: "assistant", content: parsedData.reply });
     const record = await db.coffeeChatSession.update({
-      where: { id: sessionId, userId: user.id },
+      where: { id: sessionId },
       data: { chatHistory: updatedHistory },
     });
     revalidatePath(`/coffee-chat/${sessionId}`);
@@ -152,7 +152,7 @@ export async function generateCoffeeChatFeedback(sessionId) {
     const aiResult = await generateGeminiContent(prompt);
     const parsedData = parseAIJson(aiResult.response.text());
     const record = await db.coffeeChatSession.update({
-      where: { id: sessionId, userId: user.id },
+      where: { id: sessionId },
       data: { feedback: parsedData },
     });
     revalidatePath(`/coffee-chat/${sessionId}`);
