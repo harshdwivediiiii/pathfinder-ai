@@ -5,7 +5,13 @@ function isInngestConfigured() {
 async function getHandler(request) {
   const [
     { getInngest },
-    { getGenerateIndustryInsights, getProcessIndustryInsight },
+    {
+      getGenerateIndustryInsights,
+      getProcessIndustryInsight,
+      getSendInterviewReminders,
+      getWeeklyRoadmapAdaptationCron,
+      getProcessRoadmapAdaptation,
+    },
     { cleanupRateLimits },
     { serve },
   ] = await Promise.all([
@@ -17,10 +23,13 @@ async function getHandler(request) {
   const client = await getInngest();
   const cronFn = await getGenerateIndustryInsights();
   const workerFn = await getProcessIndustryInsight();
+  const reminderFn = await getSendInterviewReminders();
+  const roadmapCron = await getWeeklyRoadmapAdaptationCron();
+  const roadmapWorker = await getProcessRoadmapAdaptation();
   return serve({
     client,
     signingKey: process.env.INNGEST_SIGNING_KEY,
-    functions: [cronFn, workerFn, cleanupRateLimits],
+    functions: [cronFn, workerFn, reminderFn, roadmapCron, roadmapWorker, cleanupRateLimits],
   });
 }
 

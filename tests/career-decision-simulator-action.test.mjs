@@ -44,7 +44,7 @@ vi.mock("@/lib/history/history-query", () => ({
 }));
 
 import { simulateCareerDecision, getCareerDecisionSimulations } from "../actions/career-decision-simulator.js";
-import { getUserHistory } from "@/lib/history-query";
+import { getUserHistory } from "@/lib/history/history-query";
 
 describe("simulateCareerDecision", () => {
   beforeEach(() => {

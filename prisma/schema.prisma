@@ -349,8 +349,9 @@ model JobApplication {
   atsAnalysis   AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
   coverLetterId String?
   coverLetter   CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
-  interviewDate DateTime?
-  createdAt     DateTime     @default(now())
+  interviewDate           DateTime?
+  interviewReminderSentAt DateTime?
+  createdAt               DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   @@index([userId])
@@ -478,10 +479,39 @@ model CareerPivot {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   currentRole String
   targetRole  String
-  analysis    Json
-  createdAt   DateTime @default(now())
+  analysis  Json
+  createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model PathfindingSession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  algorithmType String
+  status      String   @default("active")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions    PathfindingVersion[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model PathfindingVersion {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     PathfindingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  state       Json
+  snapshotLabel String?
+  createdAt   DateTime @default(now())
+
+  @@unique([sessionId, versionNumber])
 }
 
 model OnboardingPlan {

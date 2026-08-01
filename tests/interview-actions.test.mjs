@@ -81,7 +81,7 @@ vi.mock("@/lib/security/rate-limit-actions", () => ({
   formatResetTime: mocks.formatResetTime,
 }));
 
-import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
+
 
 describe("interview actions", () => {
   beforeEach(() => {

@@ -10,6 +10,7 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { parseAIJson } from "@/lib/ai/validate";
 import { validateInput, validateOutput } from "@/lib/ai/validate";
+import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
 import { interviewQuestionsOutputSchema, voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
@@ -598,8 +599,16 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     let isFallback = false;
 
     try {
-      const aiResult = await generateGeminiContent(prompt);
-      const quizValidation = validateOutput(interviewQuestionsOutputSchema, aiResult.response.text());
+      const rawAiText = await getCachedOrFetch(
+        JSON.stringify(prompt),
+        'interview',
+        async () => {
+          const res = await generateGeminiContent(prompt);
+          return res.response.text();
+        },
+        24 // 24 hour TTL
+      );
+      const quizValidation = validateOutput(interviewQuestionsOutputSchema, rawAiText);
 
       if (!quizValidation.success || !quizValidation.data?.questions?.length) {
         throw new Error("Invalid questions structure received from AI.");
@@ -615,8 +624,22 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
       questions = quizValidation.data.questions.slice(0, 10);
       isFallback = false;
-    } catch (error) {
-      return handleServerError(error, "interview");
+    } catch (err) {
+      console.error("Interview prep generation error:", err);
+      const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
+      return {
+        success: false,
+        error: isRateLimit
+          ? 'AI service is currently busy. Please try again in a moment.'
+          : 'Failed to generate interview prep. Please check your inputs and try again.',
+        errors: {
+          _form: [
+            isRateLimit
+              ? 'AI service is currently busy. Please try again in a moment.'
+              : 'Failed to generate interview prep. Please check your inputs and try again.',
+          ],
+        },
+      };
     }
 
     const sessionId = crypto.randomUUID();
@@ -917,7 +940,7 @@ export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) 
   if (userId) {
     const videoLimit = await checkRateLimit(userId, "videoEvaluation");
     if (!videoLimit.allowed) {
-      return { success: false, error: `Video evaluation limit reached. Resets in ${videoLimit.resetInMinutes}m.` };
+      return { success: false, error: `Video evaluation limit reached. Resets in ${formatResetTime(videoLimit.resetAt)}.` };
     }
   }
 

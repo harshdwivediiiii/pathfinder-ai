@@ -23,6 +23,15 @@ export default function VideoCoachPage() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const recognitionRef = useRef(null);
+  const faceApiIntervalRef = useRef(null);
+  const faceMetricsRef = useRef({
+    totalFrames: 0,
+    faceDetectedFrames: 0,
+    happyFrames: 0,
+    lookingAtCameraFrames: 0,
+  });
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const faceapiRef = useRef(null);
   const { oneTapCameraMode } = useAccessibility();
   const { isSignedIn } = useAuth();
 
@@ -51,6 +60,29 @@ export default function VideoCoachPage() {
       setQuestion(questionPool[Math.floor(Math.random() * questionPool.length)]);
     }
   }, [questionPool]);
+
+  // Load face-api models
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const faceapi = await import("@vladmandic/face-api");
+        faceapiRef.current = faceapi;
+        
+        const MODEL_URL = "/models";
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+        ]);
+        setModelsLoaded(true);
+      } catch (e) {
+        console.error("Failed to load face-api models", e);
+      }
+    };
+    if (typeof window !== "undefined") {
+      loadModels();
+    }
+  }, []);
 
   // Initialize Camera and Speech Recognition
   useEffect(() => {
@@ -88,6 +120,10 @@ export default function VideoCoachPage() {
         recognitionRef.current.onerror = null;
         recognitionRef.current = null;
       }
+      if (faceApiIntervalRef.current) {
+        clearInterval(faceApiIntervalRef.current);
+        faceApiIntervalRef.current = null;
+      }
       // Cleanup stream
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -106,11 +142,48 @@ export default function VideoCoachPage() {
 
     if (isRecording) {
       recognitionRef.current?.stop();
+      if (faceApiIntervalRef.current) {
+        clearInterval(faceApiIntervalRef.current);
+        faceApiIntervalRef.current = null;
+      }
       setIsRecording(false);
       handleEvaluate();
     } else {
       setTranscript("");
       setEvaluation(null);
+      faceMetricsRef.current = {
+        totalFrames: 0,
+        faceDetectedFrames: 0,
+        happyFrames: 0,
+        lookingAtCameraFrames: 0,
+      };
+
+      if (modelsLoaded && videoRef.current && faceapiRef.current) {
+        faceApiIntervalRef.current = setInterval(async () => {
+          if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+          
+          const faceapi = faceapiRef.current;
+          const detections = await faceapi
+            .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks()
+            .withFaceExpressions();
+            
+          faceMetricsRef.current.totalFrames++;
+          if (detections) {
+            faceMetricsRef.current.faceDetectedFrames++;
+            
+            const expressions = detections.expressions;
+            const dominant = Object.keys(expressions).reduce((a, b) => expressions[a] > expressions[b] ? a : b);
+            if (dominant === "happy") {
+              faceMetricsRef.current.happyFrames++;
+            }
+            
+            // Basic proxy for eye contact: face is facing the camera well enough for tinyFaceDetector
+            faceMetricsRef.current.lookingAtCameraFrames++;
+          }
+        }, 1000);
+      }
+
       recognitionRef.current?.start();
       setIsRecording(true);
     }
@@ -125,14 +198,19 @@ export default function VideoCoachPage() {
       }
       setEvaluating(true);
       
-      // Simulated Body Language Metrics for V3 MVP
-      const simulatedMetrics = {
-        faceDetectedPercentage: 92,
-        eyeContactConsistency: "Good",
-        posture: "Upright"
+      // Calculate actual metrics from the recording interval
+      const metrics = faceMetricsRef.current;
+      const faceDetectedPercentage = metrics.totalFrames > 0 ? Math.round((metrics.faceDetectedFrames / metrics.totalFrames) * 100) : 0;
+      const smileRatio = metrics.faceDetectedFrames > 0 ? (metrics.happyFrames / metrics.faceDetectedFrames) : 0;
+      const eyeContactRatio = metrics.faceDetectedFrames > 0 ? (metrics.lookingAtCameraFrames / metrics.faceDetectedFrames) : 0;
+
+      const actualMetrics = {
+        faceDetectedPercentage,
+        smileFrequency: smileRatio > 0.1 ? "High" : smileRatio > 0.02 ? "Moderate" : "Low",
+        eyeContactConsistency: eyeContactRatio > 0.8 ? "Good" : eyeContactRatio > 0.5 ? "Fair" : "Poor",
       };
 
-      const res = await evaluateVideoAnswer(question, transcript, simulatedMetrics);
+      const res = await evaluateVideoAnswer(question, transcript, actualMetrics);
       if (res.success) {
         setEvaluation(res.data);
       } else {

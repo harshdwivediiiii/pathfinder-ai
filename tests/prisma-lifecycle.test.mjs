@@ -67,14 +67,14 @@ describe("Prisma Client Lifecycle Handling", () => {
 
   it("should not instantiate PrismaClient on module import", async () => {
     // Import db lazily
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
     
     // The constructor should not have been called yet
     expect(mocks.mockPrismaClientConstructor).not.toHaveBeenCalled();
   });
 
   it("should instantiate PrismaClient when a property is accessed", async () => {
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
     
     // Accessing any property should trigger instantiation
     const userModel = db.user;
@@ -83,7 +83,7 @@ describe("Prisma Client Lifecycle Handling", () => {
   });
 
   it("should reuse the same PrismaClient instance on repeated access (singleton pattern)", async () => {
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
     
     const userModel1 = db.user;
     const userModel2 = db.user;
@@ -95,7 +95,7 @@ describe("Prisma Client Lifecycle Handling", () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     await db.$connect();
     expect(mocks.mockConnect).toHaveBeenCalledTimes(1);
@@ -112,7 +112,7 @@ describe("Prisma Client Lifecycle Handling", () => {
   });
 
   it("should bind methods to the Prisma Client instance", async () => {
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
     
     // Retrieve $connect and execute it standalone (loss of context check)
     const connectFn = db.$connect;
@@ -121,7 +121,7 @@ describe("Prisma Client Lifecycle Handling", () => {
   });
 
   it("should handle case-insensitive property access for atsAnalysis", async () => {
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
     
     // Accessing different capitalizations of atsAnalysis
     expect(db.atsAnalysis).toBeDefined();
@@ -176,7 +176,7 @@ describe("Secure Logging Behavior", () => {
     // Set a realistic DATABASE_URL
     process.env.DATABASE_URL = "postgresql://admin:secret@prod-db.company.com:5432/pathfinder";
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     // Trigger instantiation
     const userModel = db.user;
@@ -194,14 +194,14 @@ describe("Secure Logging Behavior", () => {
 
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
-    delete process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgresql://dummy@localhost/dummy";
   });
 
   it("should log connection duration without exposing connection details", async () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     await db.$connect();
     
@@ -225,7 +225,7 @@ describe("Secure Logging Behavior", () => {
     mockError.code = "P1001";
     mocks.mockConnect.mockRejectedValue(mockError);
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     await expect(db.$connect()).rejects.toThrow();
 
@@ -255,7 +255,7 @@ describe("Secure Logging Behavior", () => {
     mockError.code = "P1008";
     mocks.mockConnect.mockRejectedValue(mockError);
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     await expect(db.$connect()).rejects.toThrow();
 
@@ -275,7 +275,7 @@ describe("Secure Logging Behavior", () => {
   it("should include timestamp and PID in log messages", async () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     await db.$connect();
 
@@ -296,7 +296,7 @@ describe("Secure Logging Behavior", () => {
 
     process.env.NODE_ENV = "test";
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     await db.$connect();
 
@@ -318,7 +318,7 @@ describe("Secure Logging Behavior", () => {
     mockError.code = "P1013";
     mocks.mockDisconnect.mockRejectedValue(mockError);
 
-    const { db } = await import("../lib/prisma.js");
+    const { db } = await import("../lib/db/prisma.js");
 
     await expect(db.$disconnect()).rejects.toThrow();
 

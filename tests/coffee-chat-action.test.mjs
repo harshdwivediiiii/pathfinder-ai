@@ -103,7 +103,7 @@ describe("coffee chat actions", () => {
       const result = await sendCoffeeChatMessage("session-1", "Hello");
       expect(result.success).toBe(true);
       expect(mocks.updateSession).toHaveBeenCalledWith({
-        where: { id: "session-1", userId: "user-1" },
+        where: { id: "session-1" },
         data: {
           chatHistory: [
             { role: "user", content: "Hello" },

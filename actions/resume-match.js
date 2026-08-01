@@ -3,6 +3,7 @@ import { handleServerError } from "@/lib/errors/error-handler";
 
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
@@ -10,6 +11,24 @@ import { validateInput, parseAIJson } from "@/lib/ai/validate";
 import { resumeMatchSchema } from "@/lib/schemas/forms";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { validateDevBypass } from "@/lib/auth/dev-bypass";
+
+/**
+ * Extracts the request hostname from the Host header (port stripped) or the
+ * first entry of X-Forwarded-For so the dev-auth bypass can enforce loopback
+ * only, mirroring the guard in middleware.
+ */
+function getRequestHostname(requestHeaders) {
+  const host = requestHeaders.get("host");
+  if (host) {
+    return host.split(":")[0].replace(/^\[|\]$/g, "");
+  }
+  const forwardedFor = requestHeaders.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return null;
+}
 
 /**
  * Helper to get the user ID, falling back to a dummy user for local development
@@ -20,11 +39,20 @@ async function getAuthenticatedUserId() {
   if (userId) return userId;
 
   // Fallback for local testing when auth is bypassed
-  if (process.env.NODE_ENV === "development") {
-    console.warn("Auth bypassed, using fallback user for local development");
-    return process.env.DEV_FALLBACK_USER_ID || "dummy_user_123";
+  if (process.env.NODE_ENV === "development" && process.env.SKIP_AUTH === "true") {
+    const requestHeaders = await headers();
+    const validation = validateDevBypass({
+      hostname: getRequestHostname(requestHeaders),
+      skipAuthEnabled: true,
+      reason: "resume-match dev fallback user",
+    });
+
+    if (validation.allowed) {
+      console.warn("Auth bypassed, using fallback user for local development");
+      return process.env.DEV_FALLBACK_USER_ID || "dummy_user_123";
+    }
   }
-  
+
   return null;
 }
 

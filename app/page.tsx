@@ -304,10 +304,10 @@ function HeroSection() {
 
         {/* Subtext */}
         <motion.p
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.4 }}
-          className="mt-2 text-base md:text-lg text-white/45 leading-relaxed max-w-2xl"
+          transition={{ duration: 0.8, delay: 1.2 }}
+          className="mt-6 text-base sm:text-lg text-white/50 max-w-xl mx-auto md:mx-0 leading-relaxed font-light"
         >
           PathFinder AI helps you create ATS-optimized resumes, prepare for
           interviews, improve LinkedIn visibility, and map a career path
@@ -316,7 +316,7 @@ function HeroSection() {
 
         {/* CTAs */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 1.6 }}
           className="mt-8 flex flex-col sm:flex-row items-center gap-4"

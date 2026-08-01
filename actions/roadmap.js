@@ -121,47 +121,51 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
 
     const parsedData = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
 
-    // Delete existing milestones if they exist
-    await db.roadmapMilestone.deleteMany({
-      where: { roadmap: { userId: user.id } },
-    });
+    // Atomically replace existing milestones and upsert the roadmap so a
+    // failed regeneration leaves the previous roadmap intact and concurrent
+    // regenerations serialize.
+    const [, roadmap] = await db.$transaction([
+      db.roadmapMilestone.deleteMany({
+        where: { roadmap: { userId: user.id } },
+      }),
 
-    // Upsert — each user has at most one roadmap
-    const roadmap = await db.roadmap.upsert({
-      where: { userId: user.id },
-      create: {
-        content: parsedData,
-        userId: user.id,
-        milestones: {
-          create: parsedData.milestones.map((m) => ({
-            title: m.title,
-            description: m.description,
-            skillsToLearn: m.skillsToLearn || [],
-            estimatedDuration: m.estimatedDuration,
-            priority: m.priority,
-            isCompleted: false,
-          })),
+      // Upsert — each user has at most one roadmap
+      db.roadmap.upsert({
+        where: { userId: user.id },
+        create: {
+          content: parsedData,
+          userId: user.id,
+          milestones: {
+            create: parsedData.milestones.map((m) => ({
+              title: m.title,
+              description: m.description,
+              skillsToLearn: m.skillsToLearn || [],
+              estimatedDuration: m.estimatedDuration,
+              priority: m.priority,
+              isCompleted: false,
+            })),
+          }
+        },
+        update: {
+          content: parsedData,
+          milestones: {
+            create: parsedData.milestones.map((m) => ({
+              title: m.title,
+              description: m.description,
+              skillsToLearn: m.skillsToLearn || [],
+              estimatedDuration: m.estimatedDuration,
+              priority: m.priority,
+              isCompleted: false,
+            })),
+          }
+        },
+        include: {
+          milestones: {
+            orderBy: { createdAt: 'asc' }
+          }
         }
-      },
-      update: {
-        content: parsedData,
-        milestones: {
-          create: parsedData.milestones.map((m) => ({
-            title: m.title,
-            description: m.description,
-            skillsToLearn: m.skillsToLearn || [],
-            estimatedDuration: m.estimatedDuration,
-            priority: m.priority,
-            isCompleted: false,
-          })),
-        }
-      },
-      include: {
-        milestones: {
-          orderBy: { createdAt: 'asc' }
-        }
-      }
-    });
+      }),
+    ]);
 
     // Return with success flag
     const returnData = { ...roadmap, isFallback: false };
@@ -178,9 +182,23 @@ export async function toggleMilestoneCompletion(milestoneId, isCompleted) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
-    const milestone = await db.roadmapMilestone.update({
-      where: { id: milestoneId },
+    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+    if (!user) return { milestone: null, error: "User not found" };
+
+    const result = await db.roadmapMilestone.updateMany({
+      where: {
+        id: milestoneId,
+        roadmap: { userId: user.id },
+      },
       data: { isCompleted },
+    });
+
+    if (result.count === 0) {
+      return { milestone: null, error: "Milestone not found" };
+    }
+
+    const milestone = await db.roadmapMilestone.findUnique({
+      where: { id: milestoneId },
     });
 
     revalidatePath("/roadmap");
