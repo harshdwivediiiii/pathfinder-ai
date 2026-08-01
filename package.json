@@ -77,7 +77,8 @@
     "zod": "^3.25.67"
   },
   "overrides": {
-    "refractor": "4.8.0"
+    "refractor": "4.8.0",
+    "@opentelemetry/propagator-jaeger": "2.9.0"
   },
   "devDependencies": {
     "@ampproject/remapping": "^2.3.0",
