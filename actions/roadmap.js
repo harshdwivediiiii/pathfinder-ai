@@ -182,9 +182,23 @@ export async function toggleMilestoneCompletion(milestoneId, isCompleted) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
-    const milestone = await db.roadmapMilestone.update({
-      where: { id: milestoneId },
+    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+    if (!user) return { milestone: null, error: "User not found" };
+
+    const result = await db.roadmapMilestone.updateMany({
+      where: {
+        id: milestoneId,
+        roadmap: { userId: user.id },
+      },
       data: { isCompleted },
+    });
+
+    if (result.count === 0) {
+      return { milestone: null, error: "Milestone not found" };
+    }
+
+    const milestone = await db.roadmapMilestone.findUnique({
+      where: { id: milestoneId },
     });
 
     revalidatePath("/roadmap");
