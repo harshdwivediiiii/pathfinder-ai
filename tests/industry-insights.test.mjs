@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ai/prompt-safety", async () => {
-  const actual = await vi.importActual("@/lib/prompt-safety");
+  const actual = await vi.importActual("@/lib/ai/prompt-safety");
   return {
     ...actual,
     buildSecurePrompt: mocks.buildSecurePrompt,
@@ -25,7 +25,7 @@ vi.mock("../lib/cache/index.js", async () => {
 import {
   generateIndustryInsightData,
   isIndustryInsightStale,
-} from "../lib/industry-insights.js";
+} from "../lib/misc/industry-insights.js";
 
 describe("industry insights helper", () => {
   beforeEach(() => {

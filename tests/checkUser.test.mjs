@@ -9,7 +9,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   currentUser: mocks.currentUser,
 }));
 
-vi.mock("../lib/prisma.js", () => ({
+vi.mock("../lib/db/prisma.js", () => ({
   db: {
     user: {
       upsert: mocks.upsert,
@@ -17,7 +17,7 @@ vi.mock("../lib/prisma.js", () => ({
   },
 }));
 
-import { checkUser } from "../lib/checkUser.js";
+import { checkUser } from "../lib/auth/checkUser.js";
 
 describe("checkUser", () => {
   it("returns null when Clerk has no user", async () => {

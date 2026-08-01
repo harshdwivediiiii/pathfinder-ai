@@ -1,11 +1,11 @@
 import { expect, it, describe, vi, beforeEach } from "vitest";
-import { extractTrustedClientIp } from "../lib/rate-limit.js";
+import { extractTrustedClientIp } from "../lib/security/rate-limit.js";
 
 // Mock env.js to return custom TRUSTED_PROXY_COUNT
 const mockEnv = {
   TRUSTED_PROXY_COUNT: 1,
 };
-vi.mock("../lib/env.js", () => ({
+vi.mock("../lib/security/env.js", () => ({
   getEnv: () => mockEnv,
 }));
 

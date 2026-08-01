@@ -83,7 +83,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
   duration,
   reason,
   returnGoals,
-  ...withParsedData("result", parsedData),
+  ...buildParsedResult("result", parsedData),
 });
 
     revalidatePath("/career-break");

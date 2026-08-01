@@ -12,7 +12,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { checkRateLimit, decrementRateLimit } from "../lib/rate-limit-actions.js";
+import { checkRateLimit, decrementRateLimit } from "../lib/security/rate-limit-actions.js";
 
 describe("checkRateLimit - Atomic Implementation", () => {
   beforeEach(() => {
