@@ -72,6 +72,7 @@ export async function generateEscapePlan(symptoms, role) {
 
   return handleServerError(error, "toxic-workplace");
 }
+}
 
 export async function getEscapePlans() {
   const { userId } = await auth();
