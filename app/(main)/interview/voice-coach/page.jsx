@@ -124,10 +124,18 @@ export default function VoiceCoachPage() {
             <Mic className="h-3 w-3" />
             {t("voiceCoach")}
           </div>
-          <h1 
-            className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4"
-            dangerouslySetInnerHTML={{ __html: t("speakWithConfidence") }}
-          />
+          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4">
+            {t("speakWithConfidence").split(t("speakWithConfidenceHighlight")).map((part, i) => (
+              i === 0 ? (
+                <span key={i}>{part}</span>
+              ) : (
+                <span key={i} className="text-gradient-primary">
+                  {t("speakWithConfidenceHighlight")}
+                  {part}
+                </span>
+              )
+            ))}
+          </h1>
           <p className="text-muted-foreground text-sm md:text-base font-medium max-w-2xl mx-auto">
             {t("practiceSkills")}
           </p>
