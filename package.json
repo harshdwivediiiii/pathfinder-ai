@@ -40,6 +40,8 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.10",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.7.0",
     "@sentry/nextjs": "^10.62.0",
     "@tensorflow/tfjs": "^4.22.0",
     "@tldraw/tldraw": "^5.2.5",
@@ -85,6 +87,7 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^7.0.0",
+    "three": "^0.185.1",
     "use-debounce": "^10.1.1",
     "zod": "^3.25.67"
   },
