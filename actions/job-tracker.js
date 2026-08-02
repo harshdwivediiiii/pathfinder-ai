@@ -115,7 +115,7 @@ export async function updateJobApplicationInterviewDate(id, interviewDate) {
 
   try {
     const parsedDate = interviewDate ? new Date(interviewDate) : null;
-    if (parsedDate && isNaN(parsedDate.getTime())) {
+    if (parsedDate && Number.isNaN(parsedDate.getTime())) {
       return { success: false, errors: { _form: ["Invalid interview date format"] } };
     }
     const job = await db.jobApplication.updateMany({
@@ -363,7 +363,7 @@ export async function syncJobApplicationsFromEmail() {
       });
 
       const parsedDate = interviewDate ? new Date(interviewDate) : null;
-      const validDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
+      const validDate = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : null;
 
       if (existing) {
         // Update if status changed or new interview date
