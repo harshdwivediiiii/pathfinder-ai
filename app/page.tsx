@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { OpenSourceCommunity } from "@/components/sections/OpenSourceCommunity";
 import Footer from "@/components/Footer";
+import { GlobalScrollTracker } from "@/components/GlobalScrollTracker";
+import { CareerScrollWrapper } from "@/components/scrollytelling";
 
 /* ──────────────────────────────────────────────────────────────
    TYPEWRITER HOOK
@@ -762,7 +764,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       <Navbar />
-      <HeroSection />
+      <GlobalScrollTracker />
+      <CareerScrollWrapper />
       <ResumePreviewSection />
       <CapabilitiesSection />
       <OpenSourceCommunity />
