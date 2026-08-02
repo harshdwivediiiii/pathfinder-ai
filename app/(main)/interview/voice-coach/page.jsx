@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { evaluateVoiceAnswer, getCoachQuestions } from "@/actions/interview";
 import useFetch from "@/hooks/use-fetch";
 import { Mic, Square, Play, RotateCcw, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
