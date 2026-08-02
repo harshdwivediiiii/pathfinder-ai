@@ -66,7 +66,7 @@ vi.mock("@/lib/cache/cache-service", () => ({
   getPendingGenerationRequest: vi.fn(async () => null),
   setPendingGenerationRequest: vi.fn(() => {}),
   deletePendingGenerationRequest: vi.fn(() => {}),
-  getOrCreatePendingRequest: vi.fn((key) => {
+  getOrCreatePendingGenerationRequest: vi.fn((key) => {
     const promise = Promise.resolve("mock result");
     return { promise, isCreator: true, resolve: () => {}, reject: () => {} };
   }),
