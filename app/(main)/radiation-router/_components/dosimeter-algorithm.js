@@ -187,7 +187,7 @@ function reconstructPath(cameFrom, currentKey) {
   let curr = currentKey;
   while (cameFrom.has(curr)) {
     const parts = curr.split(',');
-    path.unshift({ x: parseInt(parts[0]), y: parseInt(parts[1]) });
+    path.unshift({ x: parseInt(parts[0], 10), y: parseInt(parts[1], 10) });
     curr = cameFrom.get(curr);
   }
   // Add start node (not in cameFrom map as a value)
