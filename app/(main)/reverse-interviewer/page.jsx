@@ -123,11 +123,11 @@ export default function ReverseInterviewerPage() {
                         type="button"
                         onClick={() => setInterviewerRole(role)}
                         aria-pressed={interviewerRole === role}
-                        className={\`flex items-center p-3 rounded-xl border text-left transition-all \${
+                        className={`flex items-center p-3 rounded-xl border text-left transition-all ${
                           interviewerRole === role 
                             ? "bg-purple-500/10 border-purple-500/30 text-purple-600 font-bold" 
                             : "bg-background border-border/50 hover:border-border font-medium text-muted-foreground"
-                        }\`}
+                        }`}
                       >
                         {role}
                       </button>
