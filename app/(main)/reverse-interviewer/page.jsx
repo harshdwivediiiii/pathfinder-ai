@@ -32,15 +32,20 @@ export default function ReverseInterviewerPage() {
     if (!jobTitle || !companyContext || !interviewerRole) return;
     
     setLoading(true);
-    const res = await generateQuestions(jobTitle, companyContext, interviewerRole);
-    
-    if (res.success) {
-      setResult(res.data);
-      toast.success("Interview Cheat Sheet Generated!");
-    } else {
-      toast.error(res.errors?._form?.[0] || "Failed to generate questions");
+    try {
+      const res = await generateQuestions(jobTitle, companyContext, interviewerRole);
+      
+      if (res.success) {
+        setResult(res.data);
+        toast.success("Interview Cheat Sheet Generated!");
+      } else {
+        toast.error(res.errors?._form?.[0] || "Failed to generate questions");
+      }
+    } catch (err) {
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCopy = async (text, index) => {
@@ -86,8 +91,9 @@ export default function ReverseInterviewerPage() {
               
               <form onSubmit={handleGenerate} className="space-y-5">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Target Role</Label>
+                  <Label htmlFor="target-role" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Target Role</Label>
                   <Input
+                    id="target-role"
                     placeholder="e.g. Senior Frontend Engineer"
                     className="h-12 rounded-xl bg-background focus-visible:ring-purple-500"
                     value={jobTitle}
@@ -97,8 +103,9 @@ export default function ReverseInterviewerPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Company & Industry</Label>
+                  <Label htmlFor="company-context" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Company & Industry</Label>
                   <Input
+                    id="company-context"
                     placeholder="e.g. Stripe (Fintech Startup)"
                     className="h-12 rounded-xl bg-background focus-visible:ring-purple-500"
                     value={companyContext}
@@ -108,13 +115,14 @@ export default function ReverseInterviewerPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Who are you asking?</Label>
-                  <div className="grid grid-cols-1 gap-2">
+                  <Label id="interviewer-role-label" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Who are you asking?</Label>
+                  <div className="grid grid-cols-1 gap-2" role="group" aria-labelledby="interviewer-role-label">
                     {INTERVIEWER_ROLES.map((role) => (
                       <button
                         key={role}
                         type="button"
                         onClick={() => setInterviewerRole(role)}
+                        aria-pressed={interviewerRole === role}
                         className={\`flex items-center p-3 rounded-xl border text-left transition-all \${
                           interviewerRole === role 
                             ? "bg-purple-500/10 border-purple-500/30 text-purple-600 font-bold" 
@@ -166,7 +174,7 @@ export default function ReverseInterviewerPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="absolute right-2 top-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute right-2 top-2 h-8 w-8 text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                             onClick={() => handleCopy(q.question, 'show'+idx)}
                             aria-label="Copy question to clipboard"
                           >
@@ -198,7 +206,7 @@ export default function ReverseInterviewerPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="absolute right-2 top-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute right-2 top-2 h-8 w-8 text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                             onClick={() => handleCopy(q.question, 'red'+idx)}
                             aria-label="Copy question to clipboard"
                           >
@@ -228,7 +236,7 @@ export default function ReverseInterviewerPage() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="absolute right-2 top-2 h-8 w-8 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50"
+                        className="absolute right-2 top-2 h-8 w-8 text-emerald-600 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity bg-white/50"
                         onClick={() => handleCopy(result.closingQuestion.question, 'close')}
                         aria-label="Copy question to clipboard"
                       >

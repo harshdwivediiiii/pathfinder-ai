@@ -479,8 +479,8 @@ model CareerPivot {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   currentRole String
   targetRole  String
-  analysis  Json
-  createdAt DateTime @default(now())
+  analysis    Json     @default("{}")
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }

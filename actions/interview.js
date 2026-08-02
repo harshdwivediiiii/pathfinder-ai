@@ -664,43 +664,34 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 /**
  * Saves a quiz result and generates AI-powered feedback if mistakes were made.
  */
-export async function saveQuizResult(sessionId, answers, category = "Technical") {
-  try {
-    const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
-
-    const user = await db.user.findUnique({
-      where: { clerkUserId: userId },
-    });
-    if (!user) throw new Error("User not found");
-
-    if (!sessionId) {
-      throw new Error("Session ID is required.");
-    }
-
-    let questions;
-    let isCached = false;
-    let cacheKey = null;
-
-    if (typeof sessionId === "string") {
-      cacheKey = generateCacheKey("quiz-session", userId, sessionId);
-      questions = await cacheStore.get(cacheKey);
-      if (!questions) {
-        throw new Error("Quiz session expired or not found. Please start a new quiz.");
-      }
-      isCached = true;
-    } else if (Array.isArray(sessionId)) {
-      questions = sessionId;
-    } else {
-      throw new Error("Session ID or questions array is required.");
-    }
 export async function saveQuizResult(sessionIdOrQuestions, answers, category = "Technical") {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
-    if (!sessionId) {
-      throw new Error("Session ID is required.");
+    if (!sessionIdOrQuestions) {
+      throw new Error("Session ID or questions array is required.");
+    }
+
+    let questions;
+    let isCached = false;
+    let cacheKey = null;
+    let validatedSessionId = "direct-array";
+
+    if (typeof sessionIdOrQuestions === "string" && sessionIdOrQuestions.trim().length > 0) {
+      validatedSessionId = sessionIdOrQuestions;
+      cacheKey = generateCacheKey("quiz-session", userId, validatedSessionId);
+      const cacheStore = getCacheStore();
+      const questionsResult = await cacheStore.get(cacheKey);
+      questions = unwrap(questionsResult);
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        throw new Error("Quiz session expired or not found. Please start a new quiz.");
+      }
+      isCached = true;
+    } else if (Array.isArray(sessionIdOrQuestions) && sessionIdOrQuestions.length > 0) {
+      questions = sessionIdOrQuestions;
+    } else {
+      throw new Error("Invalid session ID or questions format.");
     }
 
     const validation = validateInput(quizResultSaveSessionSchema, { sessionId, answers, category });

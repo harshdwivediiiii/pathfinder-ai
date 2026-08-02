@@ -31,9 +31,17 @@ export async function generateQuestions(jobTitle, companyContext, interviewerRol
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
-  if (!jobTitle || !companyContext || !interviewerRole) {
+  if (
+    typeof jobTitle !== "string" || !jobTitle.trim() ||
+    typeof companyContext !== "string" || !companyContext.trim() ||
+    typeof interviewerRole !== "string" || !interviewerRole.trim()
+  ) {
     return { success: false, errors: { _form: ["Please provide all required fields."] } };
   }
+
+  jobTitle = jobTitle.trim();
+  companyContext = companyContext.trim();
+  interviewerRole = interviewerRole.trim();
 
   const limit = await checkRateLimit(userId, "reverseInterviewer");
   if (!limit.allowed) {
