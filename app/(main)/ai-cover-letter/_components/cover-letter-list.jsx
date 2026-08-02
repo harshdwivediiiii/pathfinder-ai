@@ -89,7 +89,7 @@ export default function CoverLetterList({ coverLetters }) {
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently
                         delete your cover letter for {letter.jobTitle} at{" "}
-                        {letter.companyName}.
+                        {letter.companyName}. If this cover letter is referenced by any job applications, deletion will be prevented.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
