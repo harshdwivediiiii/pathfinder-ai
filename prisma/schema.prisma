@@ -103,10 +103,11 @@ model User {
   auditLogs                 AuditLog[]
   resumeMatchAnalyses       ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
-  mockInterviewSessions MockInterviewSession[]
-  issues                Issue[]
-  agentRuns             AgentRun[]
-  projectWorkspaces     ProjectWorkspace[]
+  mockInterviewSessions     MockInterviewSession[]
+  pathfindingSessions       PathfindingSession[]       @relation("PathfindingSessionUser")
+  issues                    Issue[]
+  agentRuns                 AgentRun[]
+  projectWorkspaces         ProjectWorkspace[]
 }
 
 model Assessment {
@@ -927,18 +928,18 @@ enum AgentRunStatus {
 }
 
 model AgentRun {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agentName      String
-  userPrompt     String   @db.Text
-  output         Json?
-  status         AgentRunStatus   // "Running", "Completed", "Failed", "Cancelled"
-  errorMessage   String?  @db.Text
-  startedAt      DateTime @default(now())
-  completedAt    DateTime?
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentName           String
+  userPrompt          String               @db.Text
+  output              Json?
+  status              AgentRunStatus // "Running", "Completed", "Failed", "Cancelled"
+  errorMessage        String?              @db.Text
+  startedAt           DateTime             @default(now())
+  completedAt         DateTime?
   projectAgentOutputs ProjectAgentOutput[]
-  
+
   @@index([userId, startedAt(sort: Desc)])
 }
 
@@ -959,28 +960,28 @@ model ProjectWorkspace {
 }
 
 model ProjectNote {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   workspaceId String
   workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  content     String   @db.Text
-  isPinned    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  content     String           @db.Text
+  isPinned    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([workspaceId])
 }
 
 model ProjectAgentOutput {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   workspaceId String
   workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   title       String
   content     Json
-  isPinned    Boolean  @default(false)
-  agentRunId  String?  
-  agentRun    AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPinned    Boolean          @default(false)
+  agentRunId  String?
+  agentRun    AgentRun?        @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([workspaceId])
 }
@@ -996,12 +997,12 @@ enum ProjectActivityType {
 }
 
 model ProjectActivity {
-  id          String   @id @default(cuid())
+  id          String              @id @default(cuid())
   workspaceId String
-  workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  type        ProjectActivityType   
+  workspace   ProjectWorkspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        ProjectActivityType
   description String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime            @default(now())
 
   @@index([workspaceId])
 }
