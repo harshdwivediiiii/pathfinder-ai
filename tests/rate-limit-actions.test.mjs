@@ -42,10 +42,13 @@ describe("checkRateLimit - Atomic Implementation", () => {
     });
   });
 
-  it("throws an error for unknown action keys", async () => {
-    await expect(checkRateLimit("user-1", "unknownActionKey")).rejects.toThrow(
-      "Unknown rate limit action: unknownActionKey"
-    );
+  it("degrades gracefully for unknown action keys instead of throwing", async () => {
+    actionMocks.queryRaw.mockResolvedValue([{ count: 1 }]);
+
+    const result = await checkRateLimit("user-1", "unknownActionKey");
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBeGreaterThan(0);
+    expect(actionMocks.queryRaw).toHaveBeenCalled();
   });
 
   it("atomically decrements the rate limit count using $executeRaw", async () => {
