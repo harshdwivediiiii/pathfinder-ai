@@ -83,7 +83,7 @@ export default function CareerDecisionSimulatorPage() {
 
   const onSubmit = async (data) => {
     // Client side check for empty options just in case
-    if (data.options.some(opt => opt.trim() === "")) {
+    if (data.options.some(opt => opt.trim().length === 0)) {
       toast.error("Please fill in all option fields or remove empty ones.");
       return;
     }
