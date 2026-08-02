@@ -13,7 +13,7 @@ export default function JobCard({ job, onDelete, onUpdate }) {
   const [interviewDate, setInterviewDate] = useState(() => {
     if (!job.interviewDate) return "";
     const d = new Date(job.interviewDate);
-    return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 16);
+    return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 16);
   });
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
 
@@ -63,7 +63,7 @@ export default function JobCard({ job, onDelete, onUpdate }) {
   };
 
   const updateDate = new Date(job.updatedAt);
-  const isValidDate = !isNaN(updateDate.getTime());
+  const isValidDate = !Number.isNaN(updateDate.getTime());
   const daysSinceUpdate = isValidDate ? Math.floor((new Date() - updateDate) / (1000 * 60 * 60 * 24)) : 0;
   const needsFollowUp = job.status === "Applied" && isValidDate && daysSinceUpdate >= 7;
 

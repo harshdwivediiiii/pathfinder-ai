@@ -18,7 +18,7 @@ export async function generateResignationLetter(circumstance, lastDay) {
   }
 
   const parsedLastDay = new Date(lastDay);
-  if (isNaN(parsedLastDay.getTime())) {
+  if (Number.isNaN(parsedLastDay.getTime())) {
     return { success: false, errors: { _form: ["Last Day must be a valid date."] } };
   }
 
