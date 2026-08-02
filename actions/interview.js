@@ -13,7 +13,7 @@ import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
 import { interviewQuestionsOutputSchema, voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { translations } from "@/lib/misc/translations";
 import { unwrap } from "@/lib/db/redis-result";
 
@@ -649,6 +649,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
     return { sessionId, questions, isFallback };
   } catch (error) {
+    await decrementRateLimit(userId, "quiz");
     console.error("Quiz generation top-level error:", error);
     if (process.env.NODE_ENV === "test") {
       throw error;
@@ -829,6 +830,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     return assessment;
   } catch (error) {
+    await decrementRateLimit(userId, "quizFeedback");
     return handleServerError(error, "interview");
   }
 }
@@ -917,6 +919,7 @@ export async function evaluateVoiceAnswer(question, transcribedAnswer) {
     }
     return { success: true, data: validation.data };
   } catch (error) {
+    await decrementRateLimit(userId, "voiceEvaluation");
     return handleServerError(error, "interview");
   }
 }
@@ -962,6 +965,7 @@ export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) 
     }
     return { success: true, data: validation.data };
   } catch (error) {
+    await decrementRateLimit(userId, "videoEvaluation");
     return handleServerError(error, "interview");
   }
 }

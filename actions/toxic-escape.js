@@ -8,7 +8,7 @@ import { auth } from "@clerk/nextjs/server";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { validateOutput } from "@/lib/ai/validate";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { db } from "@/lib/db/prisma";
 import { z } from "zod";
@@ -112,6 +112,7 @@ export async function generateEscapePlan(symptoms, role, timeline) {
     revalidatePath("/toxic-workplace");
     return { success: true, data: { ...validation.data, id: record.id } };
   } catch (error) {
+    await decrementRateLimit(userId, "toxicEscape");
     return handleServerError(error, "toxic-escape");
   }
 }

@@ -10,7 +10,7 @@ import { buildUserLookup } from "@/lib/db/user-query";
 import { buildHistoryResponse } from "@/lib/history/history-loader";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { USER_NOT_FOUND_RESPONSE } from "@/lib/errors/user-not-found";
 import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
 
@@ -73,6 +73,7 @@ export async function assessBurnout(symptoms, workload) {
     finalizeAiPersistence("/burnout-coach");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "burnout");
     return handleServerError(error, ACTION_CONTEXT.BURNOUT);
   }
 }

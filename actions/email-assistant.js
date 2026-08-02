@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateEmailReply(originalEmail, goal) {
   const { userId } = await auth();
@@ -60,6 +60,7 @@ export async function generateEmailReply(originalEmail, goal) {
     revalidatePath("/email-assistant");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "emailAssistant");
     return handleServerError(error, "email-assistant");
   }
 }

@@ -7,7 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateStarStory(rawExperience) {
   const { userId } = await auth();
@@ -66,6 +66,7 @@ export async function generateStarStory(rawExperience) {
     revalidatePath("/interview/star-builder");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "starStory");
     return handleServerError(error, "star-story");
   }
 }
