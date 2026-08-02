@@ -497,8 +497,6 @@ model PathfindingSession {
   updatedAt           DateTime             @updatedAt
   pathfindingVersions PathfindingVersion[] @relation("PathfindingSessionVersions")
 
-  versions    PathfindingVersion[]
-
   @@index([userId])
   @@index([status])
 }
