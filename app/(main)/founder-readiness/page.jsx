@@ -46,6 +46,13 @@ export default function FounderReadinessPage() {
       formData.append("skills", skills);
 
       const res = await generateFounderReadiness(formData);
+
+console.log("Founder Readiness Response:", res);
+
+if (res?.error) {
+  toast.error(res.error);
+  return;
+}
       if (res && res.id) {
         toast.success("Founder readiness analysis generated!");
         setBusinessIdea("");

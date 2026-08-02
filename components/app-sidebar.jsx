@@ -75,7 +75,9 @@ import {
   RocketIcon,
   Crown,
   PenLine,
-  Split
+  Split,
+  History,
+  FolderKanban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/misc/utils";
@@ -87,6 +89,7 @@ const MENU_GROUPS = [
     title: "Intelligence",
     items: [
       { href: "/dashboard", label: "Overview", icon: <LayoutDashboard className="h-4 w-4" />, shortcut: "Alt+1" },
+      { href: "/workspace", label: "Project Workspaces", icon: <FolderKanban className="h-4 w-4 text-purple-500" />, shortcut: "" },
       { href: "/ats-analyzer", label: "ATS Analyzer", icon: <ScanSearch className="h-4 w-4 text-blue-500" />, shortcut: "" },
       { href: "/dashboard?tab=templates", label: "Templates", icon: <Copy className="h-4 w-4" />, shortcut: "" },
     ]
@@ -170,6 +173,7 @@ const MENU_GROUPS = [
   {
     title: "System",
     items: [
+      { href: "/agent-history", label: "Agent History", icon: <History className="h-4 w-4" />, shortcut: "" },
       { href: "/settings", label: "Settings", icon: <Settings className="h-4 w-4" />, shortcut: "" },
     ]
   }

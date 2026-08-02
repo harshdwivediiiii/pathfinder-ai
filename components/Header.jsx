@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, useEffect } from "react";
 
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { useTheme } from "next-themes";
 import { getUserOnboardingStatus } from "@/actions/user";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { IssueFormModal } from "./IssueFormModal";
 
 const NAV_LINKS = [
   { id: "features", label: "Features" },
@@ -126,9 +127,10 @@ export default function Header() {
         Pathfinder AI
       </h1>
 
-      <nav style={{ display: "flex", gap: "20px" }}>
+      <nav style={{ display: "flex", gap: "20px", alignItems: "center" }}>
         <Link href="/">Home</Link>
         <Link href="/dashboard">Dashboard</Link>
+        <IssueFormModal />
       </nav>
     </header>
   );

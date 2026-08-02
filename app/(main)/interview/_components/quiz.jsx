@@ -88,6 +88,10 @@ export default function Quiz() {
 
   const finishQuiz = async () => {
     try {
+      await saveQuizResultFn(quizData.sessionId, answers, selectedCategory);
+      await saveQuizResultFn(quizData.sessionId || quizData, answers, selectedCategory);
+      const target = sessionId || questions;
+      await saveQuizResultFn(target, answers, selectedCategory);
       await saveQuizResultFn(sessionId, answers, selectedCategory);
       toast.success("Quiz completed!");
     } catch (error) {
