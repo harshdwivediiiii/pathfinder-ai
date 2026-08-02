@@ -104,7 +104,7 @@ model User {
   resumeMatchAnalyses       ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
   mockInterviewSessions     MockInterviewSession[]
-  pathfindingSessions       PathfindingSession[]
+  pathfindingSessions       PathfindingSession[]       @relation("PathfindingSessionUser")
 }
 
 model Assessment {
@@ -344,9 +344,9 @@ model JobApplication {
   location                String?
   notes                   String?      @db.Text
   atsAnalysisId           String?
-  atsAnalysis             AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
+  atsAnalysis             AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: Restrict)
   coverLetterId           String?
-  coverLetter             CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
+  coverLetter             CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: Restrict)
   interviewDate           DateTime?
   interviewReminderSentAt DateTime?
   createdAt               DateTime     @default(now())
@@ -484,17 +484,16 @@ model CareerPivot {
 }
 
 model PathfindingSession {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  algorithmType String
-  status        String   @default("active")
-  metadata      Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  versions PathfindingVersion[] @relation("SessionVersions")
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation("PathfindingSessionUser", fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  algorithmType       String
+  status              String               @default("active")
+  metadata            Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  pathfindingVersions PathfindingVersion[] @relation("PathfindingSessionVersions")
 
   @@index([userId])
   @@index([status])
@@ -503,7 +502,7 @@ model PathfindingSession {
 model PathfindingVersion {
   id            String             @id @default(cuid())
   sessionId     String
-  session       PathfindingSession @relation("SessionVersions", fields: [sessionId], references: [id], onDelete: Cascade)
+  session       PathfindingSession @relation("PathfindingSessionVersions", fields: [sessionId], references: [id], onDelete: Cascade)
   versionNumber Int
   state         Json
   snapshotLabel String?

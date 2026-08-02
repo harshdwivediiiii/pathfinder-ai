@@ -125,8 +125,19 @@ export default function VoiceCoachPage() {
           </div>
           <h1 
             className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4"
-            dangerouslySetInnerHTML={{ __html: t("speakWithConfidence") }}
-          />
+          >
+            {language === "hi" ? (
+              <>
+                <span className="text-gradient-primary">{t("speakWithConfidenceHighlight")}</span>
+                {t("speakWithConfidenceSuffix")}
+              </>
+            ) : (
+              <>
+                {t("speakWithConfidencePrefix")}
+                <span className="text-gradient-primary">{t("speakWithConfidenceHighlight")}</span>
+              </>
+            )}
+          </h1>
           <p className="text-muted-foreground text-sm md:text-base font-medium max-w-2xl mx-auto">
             {t("practiceSkills")}
           </p>

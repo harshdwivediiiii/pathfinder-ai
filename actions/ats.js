@@ -187,6 +187,7 @@ export async function getATSAnalyses() {
 
 /**
  * Deletes a specific ATS analysis record with strict ownership validation.
+ * Prevents deletion if the analysis is referenced by any job applications.
  */
 export async function deleteATSAnalysis(id) {
   try {
@@ -206,6 +207,36 @@ export async function deleteATSAnalysis(id) {
       return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
     }
 
+    // Check if this analysis is referenced by any job applications
+    const referencedApplications = await db.jobApplication.findMany({
+      where: {
+        atsAnalysisId: id.trim(),
+        userId: user.id,
+      },
+      select: {
+        id: true,
+        jobTitle: true,
+        companyName: true,
+      },
+    });
+
+    if (referencedApplications.length > 0) {
+      const jobTitles = referencedApplications
+        .map(app => `${app.jobTitle} at ${app.companyName}`)
+        .slice(0, 3)
+        .join(", ");
+      const moreText = referencedApplications.length > 3 ? ` and ${referencedApplications.length - 3} more` : "";
+      
+      return {
+        success: false,
+        errors: {
+          _form: [
+            `Cannot delete: This ATS analysis is referenced by ${referencedApplications.length} job application(s) (${jobTitles}${moreText}). Please remove the association from those applications first.`,
+          ],
+        },
+      };
+    }
+
     const { count } = await db.atsAnalysis.deleteMany({
       where: {
         id: id.trim(),
@@ -223,6 +254,7 @@ export async function deleteATSAnalysis(id) {
     }
 
     revalidatePath("/ats-analyzer");
+    revalidatePath("/job-tracker");
     return { success: true };
   } catch (error) {
     return handleServerError(error, "ats");

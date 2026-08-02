@@ -169,6 +169,70 @@ export async function deleteJobApplication(id) {
   }
 }
 
+export async function disassociateAtsAnalysis(id) {
+  const { userId } = await auth();
+  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+  if (!user) return createErrorResponse("User not found");
+
+  try {
+    const job = await db.jobApplication.updateMany({
+      where: {
+        id,
+        userId: user.id,
+      },
+      data: {
+        atsAnalysisId: null,
+      },
+    });
+
+    if (job.count === 0) {
+      return { success: false, errors: { _form: ["Job application not found"] } };
+    }
+
+    revalidatePath("/job-tracker");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return handleServerError(error, "job-tracker");
+  }
+}
+
+export async function disassociateCoverLetter(id) {
+  const { userId } = await auth();
+  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+  if (!user) return createErrorResponse("User not found");
+
+  try {
+    const job = await db.jobApplication.updateMany({
+      where: {
+        id,
+        userId: user.id,
+      },
+      data: {
+        coverLetterId: null,
+      },
+    });
+
+    if (job.count === 0) {
+      return { success: false, errors: { _form: ["Job application not found"] } };
+    }
+
+    revalidatePath("/job-tracker");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return handleServerError(error, "job-tracker");
+  }
+}
+
 export async function getJobAnalytics() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: null };

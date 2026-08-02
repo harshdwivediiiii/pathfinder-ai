@@ -4,6 +4,7 @@ import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { getCachedOrFetch } from "@/lib/ai/ai-cache";
@@ -193,6 +194,7 @@ export async function getCoverLetter(id) {
 
 /**
  *Deletes a specific cover letter record with strict ownership validation.
+ * Prevents deletion if the cover letter is referenced by any job applications.
  */
 export async function deleteCoverLetter(id) {
   try {
@@ -208,6 +210,36 @@ export async function deleteCoverLetter(id) {
     });
     if (!user) return createErrorResponse("User not found");
 
+    // Check if this cover letter is referenced by any job applications
+    const referencedApplications = await db.jobApplication.findMany({
+      where: {
+        coverLetterId: id.trim(),
+        userId: user.id,
+      },
+      select: {
+        id: true,
+        jobTitle: true,
+        companyName: true,
+      },
+    });
+
+    if (referencedApplications.length > 0) {
+      const jobTitles = referencedApplications
+        .map(app => `${app.jobTitle} at ${app.companyName}`)
+        .slice(0, 3)
+        .join(", ");
+      const moreText = referencedApplications.length > 3 ? ` and ${referencedApplications.length - 3} more` : "";
+      
+      return {
+        success: false,
+        errors: {
+          _form: [
+            `Cannot delete: This cover letter is referenced by ${referencedApplications.length} job application(s) (${jobTitles}${moreText}). Please remove the association from those applications first.`,
+          ],
+        },
+      };
+    }
+
     const { count } = await db.coverLetter.deleteMany({
       where: {
         id: id.trim(),
@@ -219,6 +251,8 @@ export async function deleteCoverLetter(id) {
       return { success: false, errors: { _form: ["Cover letter not found or already deleted."] } };
     }
 
+    revalidatePath("/ai-cover-letter");
+    revalidatePath("/job-tracker");
     return { success: true };
   } catch (error) {
     return handleServerError(error, "cover-letter");
