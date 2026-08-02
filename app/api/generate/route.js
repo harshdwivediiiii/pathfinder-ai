@@ -25,7 +25,7 @@ import {
   getPendingGenerationRequest,
   setPendingGenerationRequest,
   deletePendingGenerationRequest,
-  getOrCreatePendingRequest,
+  getOrCreatePendingGenerationRequest,
 } from "@/lib/cache/cache-service";
 import { respondError, respondSseError, ERROR_CODES } from "@/lib/api/error-handler";
 import { getCircuitBreaker } from "@/lib/cache/circuit-breaker";
@@ -374,11 +374,10 @@ Rules:
   // The previous implementation had a race condition where multiple concurrent requests
   // could all observe no pending request and proceed to create independent generations.
   // This implementation uses atomic registration to prevent that race.
-  const cacheKey = `${cacheUser}:${promptCheck.prompt}`;
-  
+
   // Atomically get or create the pending request BEFORE any async work
   const { promise: pendingPromise, isCreator, resolve: resolvePending, reject: rejectPending } = 
-    getOrCreatePendingRequest(cacheKey);
+    getOrCreatePendingGenerationRequest(cacheUser, promptCheck.prompt);
 
   const encoder = new TextEncoder();
   const abortController = new AbortController();
@@ -510,6 +509,7 @@ Rules:
         }
 
         if (abortController.signal.aborted) {
+          rejectPending(new Error("Generation aborted by client"));
           safeClose();
           return;
         } 
@@ -559,7 +559,11 @@ Rules:
             fullResponse
           );
         }
-        if (abortController.signal.aborted) { safeClose(); return; }
+        if (abortController.signal.aborted) {
+          rejectPending(new Error("Generation aborted by client"));
+          safeClose();
+          return;
+        }
         safeEnqueue("done", {
           finalText: fullResponse,
           hasContent: Boolean(fullResponse.trim()),
@@ -574,6 +578,7 @@ Rules:
         resolvePending(fullResponse);
       } catch (error) {
         if (abortController.signal.aborted) {
+          rejectPending(error instanceof Error ? error : new Error("Generation aborted by client"));
           safeClose();
           return;
         }

@@ -105,20 +105,3 @@ export async function getIndustryInsights() {
     return handleServerError(error, "dashboard");
   }
 }
-
-export async function getUserOnboardingStatus() {
-  const { userId } = await auth();
-  if (!userId) {
-    return { isOnboarded: false, user: null, isSignedIn: false };
-  }
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  return {
-    isOnboarded: Boolean(user?.industry),
-    user,
-    isSignedIn: true,
-  };
-}

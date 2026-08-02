@@ -56,23 +56,8 @@ export async function generateEscapePlan(symptoms, role) {
     revalidatePath("/toxic-workplace");
     return { success: true, data: record };
   } catch (error) {
-  if (
-    error?.message?.includes("ToxicWorkplaceEscape") &&
-    error?.message?.includes("does not exist")
-  ) {
-    return {
-      success: false,
-      errors: {
-        _form: [
-          "This feature is temporarily unavailable because it is still being deployed. Please try again later.",
-        ],
-      },
-    };
+    return handleServerError(error, "toxic-workplace");
   }
-
-  return handleServerError(error, "toxic-workplace");
-}
-}
 
 export async function getEscapePlans() {
   const { userId } = await auth();

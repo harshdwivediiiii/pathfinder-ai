@@ -174,6 +174,26 @@ describe("industry insights helper", () => {
     );
   });
 
+  it("falls back to default estimate when Gemini returns non-JSON text (extractJSON throws)", async () => {
+    mocks.cachedGenerateGeminiContent
+      .mockRejectedValueOnce(new Error("search unavailable"))
+      .mockResolvedValueOnce({
+        response: {
+          text: () => "I'm sorry, I couldn't find specific data for this industry right now.",
+          candidates: [{}],
+        },
+      });
+
+    const insights = await generateIndustryInsightData("healthcare");
+
+    expect(insights.isGrounded).toBe(false);
+    expect(insights.salaryRanges[0].citations).toEqual([]);
+    expect(insights.marketOutlook).toBe("Positive");
+    // Default fallback values should be present
+    expect(insights.topSkills).toContain("JavaScript");
+    expect(insights.keyTrends).toContain("AI integration in software workflows");
+  });
+
   it("treats missing nextUpdate as stale", () => {
     expect(isIndustryInsightStale(null)).toBe(true);
     expect(isIndustryInsightStale({ nextUpdate: null })).toBe(true);

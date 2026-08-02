@@ -150,16 +150,22 @@ export default function Footer() {
               </h3>
               <ul className="space-y-3">
                 {footerLinks.product.map(({ label, href, Icon }) => (
-                  <li key={label}>
-                    <button
-                      onClick={() => go(href)}
-                      className="group flex items-center gap-2.5 text-sm text-white/45 hover:text-white/90 transition-colors duration-300"
-                    >
-                      <Icon className="h-3.5 w-3.5 text-white/20 group-hover:text-violet-400 transition-colors duration-300" />
-                      {label}
-                    </button>
-                  </li>
-                ))}
+  <li key={label}>
+    <Link
+      href={href}
+      onClick={(e) => {
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button === 0) {
+          e.preventDefault();
+          go(href);
+        }
+      }}
+      className="group flex items-center gap-2.5 text-sm text-white/45 hover:text-white/90 transition-colors duration-300"
+    >
+      <Icon className="h-3.5 w-3.5 text-white/20 group-hover:text-violet-400 transition-colors duration-300" />
+      {label}
+    </Link>
+  </li>
+))}
               </ul>
             </motion.div>
 

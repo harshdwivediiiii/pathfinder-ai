@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => {
     cacheDelete: vi.fn(),
     userFindUnique: findUniqueUserMock,
     assessmentFindFirst: vi.fn(),
-    checkRateLimit: vi.fn(),
-    formatResetTime: vi.fn(),
+    checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+    formatResetTime: vi.fn().mockReturnValue("1h"),
   };
 });
 
@@ -25,6 +25,16 @@ vi.mock("@clerk/nextjs/server", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
+      findUnique: (...args) => {
+        const res1 = mocks.findUniqueUser(...args);
+        const res2 = mocks.userFindUnique(...args);
+        return res2 !== undefined ? res2 : res1;
+      },
+      findUnique: vi.fn((...args) => {
+        const res1 = mocks.userFindUnique(...args);
+        const res2 = mocks.findUniqueUser(...args);
+        return res1 !== undefined ? res1 : res2;
+      }),
       findUnique: async (args) => {
         const res1 = await mocks.userFindUnique(args);
         if (res1 !== undefined) return res1;
@@ -77,6 +87,7 @@ describe("interview actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
+    mocks.formatResetTime.mockReturnValue("1h");
     mocks.formatResetTime.mockReturnValue("10m");
   });
 
@@ -220,6 +231,14 @@ describe("interview actions", () => {
 
   describe("getAssessment", () => {
     it("returns null if user is not authenticated", async () => {
+    mocks.auth.mockResolvedValue({ userId: null });
+    const result = await getAssessment("assessment-1");
+    expect(result).toBeNull();
+    expect(mocks.userFindUnique).not.toHaveBeenCalled();
+  });
+
+  describe("getAssessment", () => {
+    it("returns null if user is not authenticated", async () => {
       mocks.auth.mockResolvedValue({ userId: null });
       const result = await getAssessment("assessment-1");
       expect(result).toBeNull();
@@ -255,4 +274,5 @@ describe("interview actions", () => {
     });
 
   });
+});
 });

@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { OpenSourceCommunity } from "@/components/sections/OpenSourceCommunity";
 import Footer from "@/components/Footer";
+import { GlobalScrollTracker } from "@/components/GlobalScrollTracker";
+import { CareerScrollWrapper } from "@/components/scrollytelling";
 
 /* ──────────────────────────────────────────────────────────────
    TYPEWRITER HOOK
@@ -250,6 +252,20 @@ function TrustLogos() {
    ────────────────────────────────────────────────────────────── */
 
 function HeroSection() {
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsDemoOpen(false);
+      }
+    };
+    if (isDemoOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDemoOpen]);
+
   const { displayed, done } = useTypewriter(
     "Build a Resume That Gets Interviews",
     50,
@@ -314,7 +330,10 @@ function HeroSection() {
             Start Building Free
             <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
           </Link>
-          <button className="group inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full border border-white/10 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] text-sm font-semibold text-white/70 hover:text-white/90 transition-all duration-300">
+          <button
+            onClick={() => setIsDemoOpen(true)}
+            className="group inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full border border-white/10 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] text-sm font-semibold text-white/70 hover:text-white/90 transition-all duration-300"
+          >
             <Play className="h-3.5 w-3.5 fill-current" />
             Watch Demo
           </button>
@@ -358,6 +377,42 @@ function HeroSection() {
 
       {/* Bottom fade */}
       <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent pointer-events-none z-20" />
+
+      {/* Demo Modal */}
+      <AnimatePresence>
+        {isDemoOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-12">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDemoOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-5xl aspect-video rounded-2xl overflow-hidden bg-black/90 border border-white/10 shadow-2xl z-10"
+            >
+              <button
+                onClick={() => setIsDemoOpen(false)}
+                className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 text-white/70 hover:text-white transition-colors"
+                aria-label="Close demo"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <video
+                src="/pathfinder-ai.mp4"
+                className="w-full h-full object-cover"
+                controls
+                autoPlay
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
@@ -762,7 +817,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       <Navbar />
-      <HeroSection />
+      <GlobalScrollTracker />
+      <CareerScrollWrapper />
       <ResumePreviewSection />
       <CapabilitiesSection />
       <OpenSourceCommunity />

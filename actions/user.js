@@ -24,57 +24,80 @@ export async function updateUser(data) {
   const profileData = validation.data;
 
   const { userId } = await auth();
-  if (!userId) throw new Error("Please sign in to complete onboarding");
+  if (!userId) {
+    return { success: false, errors: { _form: ["Please sign in to complete onboarding"] } };
+  }
 
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
   });
-  if (!user) throw new Error("User not found");
+  if (!user) {
+    return { success: false, errors: { _form: ["User not found"] } };
+  }
 
-  // Generate industry insights outside the DB transaction to avoid
-  // long-running external calls inside a DB tx (which can cause timeouts).
+  const insightPlaceholderData = (
+    marketOutlook = "AI insights generation failed. This profile will be updated automatically in the future."
+  ) => ({
+    salaryRanges: [],
+    growthRate: 0,
+    demandLevel: "Medium",
+    topSkills: [],
+    marketOutlook,
+    keyTrends: [],
+    recommendedSkills: [],
+    nextUpdate: getIndustryInsightRefreshTime(),
+  });
+
+  // Claim the industry insight row inside a short transaction before running the
+  // slow, external AI call. Only the request that wins the claim generates
+  // insights; concurrent first-time onboardings for the same industry skip it,
+  // so the AI call happens at most once per industry.
   let precomputedInsights = null;
+  let claimed = false;
   try {
-    let existingInsight = await db.industryInsight.findUnique({
-      where: { industry: profileData.industry },
+    claimed = await db.$transaction(async (tx) => {
+      const existing = await tx.industryInsight.findUnique({
+        where: { industry: profileData.industry },
+      });
+      if (existing) return false;
+
+      await tx.industryInsight.create({
+        data: {
+          industry: profileData.industry,
+          ...insightPlaceholderData("AI insights generation in progress."),
+        },
+      });
+      return true;
     });
 
-    if (!existingInsight) {
-      precomputedInsights = await generateAIInsights(profileData.industry);
+    if (claimed) {
+      try {
+        precomputedInsights = await generateAIInsights(profileData.industry);
+      } catch (e) {
+        // If AI generation fails, the placeholder created by the claim stays.
+        console.error("Failed to generate AI insights, will create placeholder:", e);
+      }
     }
   } catch (e) {
-    // If AI generation fails, we'll create a placeholder in the transaction
-    console.error("Failed to generate AI insights, will create placeholder:", e);
-    precomputedInsights = null;
+    // Unique-constraint conflict means another concurrent request claimed the row;
+    // do not generate a duplicate.
+    console.error("Failed to claim industry insight row, skipping generation:", e);
   }
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const industryInsight = precomputedInsights
-        ? await tx.industryInsight.upsert({
-            where: { industry: profileData.industry },
-            update: {},
-            create: {
-              industry: profileData.industry,
-              ...precomputedInsights,
-              nextUpdate: getIndustryInsightRefreshTime(),
-            },
-          })
-        : await tx.industryInsight.upsert({
-            where: { industry: profileData.industry },
-            update: {},
-            create: {
-              industry: profileData.industry,
-              salaryRanges: [],
-              growthRate: 0,
-              demandLevel: "Medium",
-              topSkills: [],
-              marketOutlook: "AI insights generation failed. This profile will be updated automatically in the future.",
-              keyTrends: [],
-              recommendedSkills: [],
-              nextUpdate: getIndustryInsightRefreshTime(),
-            },
-          });
+      const industryInsight = await tx.industryInsight.upsert({
+        where: { industry: profileData.industry },
+        update: precomputedInsights
+          ? { ...precomputedInsights, nextUpdate: getIndustryInsightRefreshTime() }
+          : claimed
+            ? insightPlaceholderData()
+            : {},
+        create: {
+          industry: profileData.industry,
+          ...(precomputedInsights ?? insightPlaceholderData()),
+        },
+      });
 
       const updatedUser = await tx.user.update({
         where: { id: user.id },
