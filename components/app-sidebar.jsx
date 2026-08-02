@@ -102,6 +102,7 @@ const MENU_GROUPS = [
       { href: "/linkedin-optimizer", label: "LinkedIn Optimizer", icon: <ScanSearch className="h-4 w-4 text-[#0A66C2]" />, shortcut: "" },
       { href: "/github-analyzer", label: "GitHub Analyzer", icon: <Github className="h-4 w-4 text-foreground" />, shortcut: "" },
       { href: "/linkedin-post", label: "LinkedIn Posts", icon: <Linkedin className="h-4 w-4 text-[#0A66C2]" />, shortcut: "" },
+      { href: "/portfolio-builder", label: "Portfolio Builder", icon: <LayoutList className="h-4 w-4 text-teal-500" />, shortcut: "" },
     ]
   },
   {
