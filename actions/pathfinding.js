@@ -3,6 +3,7 @@ import { ComparativeSolver, AlgorithmRegistry } from "@/lib/algorithms";
 import { MultiAgentCoordinator } from "@/lib/algorithms/agent-engine";
 import { DynamicRePlanner } from "@/lib/algorithms/dynamic-replan";
 import { db } from "@/lib/db/prisma";
+import { getUserByScope } from "@/lib/db/user-scope";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 
 export async function compareAlgorithms(data) {
@@ -38,9 +39,14 @@ export async function compareAlgorithms(data) {
     });
 
     if (options.saveToDatabase ?? false) {
+      const dbUser = await getUserByScope(userId);
+      if (!dbUser) {
+        return respondError(ERROR_CODES.UNAUTHORIZED, "User not found");
+      }
+
       await db.pathfindingSession.create({
         data: {
-          userId,
+          userId: dbUser.id,
           name: options.sessionName ?? `Pathfinding ${start} → ${goal}`,
           algorithmType: algorithmNames.join(","),
           status: "active",
