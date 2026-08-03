@@ -9,7 +9,7 @@ import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateOutput } from "@/lib/ai/validate";
 import { executivePresenceOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 const EXECUTIVE_SYSTEM_CONTEXT = `You are a C-level executive coach specializing in leadership communication, gravitas, and executive presence. Your goal is to help professionals transition from functional experts to influential leaders. You focus on removing hedging language, increasing clarity, and commanding the room in high-stakes scenarios.`;
 
@@ -87,6 +87,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
     return presence;
   } catch (error) {
+    await decrementRateLimit(userId, "executive_presence");
     return handleServerError(error, "executive-presence");
   }
 }

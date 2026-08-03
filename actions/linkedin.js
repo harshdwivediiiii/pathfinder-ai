@@ -10,7 +10,7 @@ import { linkedInOptimizationSchema } from "@/lib/schemas/forms";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 async function fetchLinkedInProfile(url) {
   try {
@@ -152,6 +152,7 @@ export async function optimizeLinkedInProfile(data) {
     data: record,
   };
 } catch (error) {
+    await decrementRateLimit(userId, "linkedin");
   return handleServerError(error, "linkedin");
 }
 }

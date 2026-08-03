@@ -8,7 +8,7 @@ import { cultureMatchSchema } from "@/lib/schemas/forms";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { safeFetch } from "@/lib/security/safe-fetch";
 
 export async function generateCultureMatch(data) {
@@ -112,6 +112,7 @@ export async function generateCultureMatch(data) {
     revalidatePath("/culture-matcher");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "cultureMatch");
     console.error("Culture Match Error:", error);
     return { success: false, errors: { _form: [error.message || "Failed to generate culture match"] } };
   }

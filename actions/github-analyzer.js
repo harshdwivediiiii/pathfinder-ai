@@ -8,7 +8,7 @@ import { githubAnalyzerSchema } from "@/lib/schemas/forms";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function optimizeGithubProfile(data) {
   const { userId } = await auth();
@@ -118,6 +118,7 @@ ${reposData.map(repo => `- ${repo.name} (Stars: ${repo.stargazers_count}, Langua
     revalidatePath("/github-analyzer");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "githubAnalyzer");
     console.error("GitHub Analyzer Error:", error);
     return { success: false, errors: { _form: [error.message || "Failed to generate optimization"] } };
   }

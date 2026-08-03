@@ -11,7 +11,7 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
 import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function saveResume(rawContent) {
   const { userId } = await auth();
@@ -146,6 +146,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     const improvedText = `${result.data.improvedContent}${highlightsText}`;
     return { success: true, data: improvedText };
   } catch (error) {
+    await decrementRateLimit(userId, "resume");
     return handleServerError(error, "resume");
   }
 }

@@ -117,7 +117,7 @@ export async function updateUser(data) {
     revalidatePath("/");
     revalidatePath("/settings");
 
-    return result;
+    return { success: true, user: result.updatedUser, industryInsight: result.industryInsight };
   } catch (err) {
     return handleServerError(err, "user");
   }

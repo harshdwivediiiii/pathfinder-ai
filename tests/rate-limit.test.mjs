@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { cleanupExpiredBuckets, enforceRateLimit } from "../lib/security/rate-limit.js";
+import { resetEnvCache } from "../lib/security/env.js";
 import {
   createMemoryRateLimitStore,
   createRateLimitStore,
@@ -816,5 +817,90 @@ describe("enforceRateLimit with fallback path", () => {
     expect(typeof result.rejectionRate).toBe("number");
 
     await store.close();
+  });
+});
+
+describe("enforceRateLimit store failure policy", () => {
+  const ORIGINAL_RATE_LIMIT_FAIL_OPEN = process.env.RATE_LIMIT_FAIL_OPEN;
+
+  afterEach(() => {
+    if (ORIGINAL_RATE_LIMIT_FAIL_OPEN == null) {
+      delete process.env.RATE_LIMIT_FAIL_OPEN;
+    } else {
+      process.env.RATE_LIMIT_FAIL_OPEN = ORIGINAL_RATE_LIMIT_FAIL_OPEN;
+    }
+    resetEnvCache();
+  });
+
+  it("rejects requests (fail-closed) when the store errors by default", async () => {
+    const failingStore = {
+      kind: "failing",
+      async checkAndDeduct() {
+        throw new Error("redis connection refused");
+      },
+    };
+    const subject = { kind: "user", value: "fail-closed-test" };
+
+    const result = await enforceRateLimit({
+      endpoint: "/api/generate",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 5,
+      store: failingStore,
+      now: 1_000,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+    expect(result.retryAfterSeconds).toBeGreaterThan(0);
+  });
+
+  it("allows requests (fail-open) only when RATE_LIMIT_FAIL_OPEN=true", async () => {
+    process.env.RATE_LIMIT_FAIL_OPEN = "true";
+    const failingStore = {
+      kind: "failing",
+      async checkAndDeduct() {
+        throw new Error("redis connection refused");
+      },
+    };
+    const subject = { kind: "user", value: "fail-open-test" };
+
+    const result = await enforceRateLimit({
+      endpoint: "/api/generate",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 5,
+      store: failingStore,
+      now: 1_000,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.retryAfterSeconds).toBe(0);
+  });
+
+  it("rejects requests (fail-closed) on fallback path errors by default", async () => {
+    const failingStore = {
+      kind: "failing",
+      async getBucket() {
+        throw new Error("redis connection refused");
+      },
+      async setBucket() {
+        throw new Error("redis connection refused");
+      },
+    };
+    const subject = { kind: "user", value: "fallback-fail-closed-test" };
+
+    const result = await enforceRateLimit({
+      endpoint: "/api/generate",
+      subject,
+      limitPerMinute: 60,
+      burstCapacity: 5,
+      store: failingStore,
+      now: 1_000,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+    expect(result.retryAfterSeconds).toBeGreaterThan(0);
   });
 });

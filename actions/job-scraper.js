@@ -8,13 +8,19 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { parseAIJson } from "@/lib/ai/validate";
 
 import { safeFetch } from "@/lib/security/safe-fetch";
-import { checkRateLimit } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 
 export async function parseJobUrl(url) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
-  await checkRateLimit(userId, "jobScraper");
+  const limit = await checkRateLimit(userId, "jobScraper");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: { _form: [`Job scraping limit reached. Resets in ${formatResetTime(limit.resetAt)}.`] },
+    };
+  }
 
   try {
     const response = await safeFetch(url, {

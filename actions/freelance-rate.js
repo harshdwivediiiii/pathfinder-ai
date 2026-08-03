@@ -8,7 +8,7 @@ import { getAuthenticatedUser } from "@/lib/auth/auth-user";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function calculateRate(skills, experience, targetIncome) {
   const { userId } = await auth();
@@ -69,6 +69,7 @@ export async function calculateRate(skills, experience, targetIncome) {
     revalidatePath("/freelance-rate");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "freelanceRate");
     return handleServerError(error, "freelance-rate");
   }
 }

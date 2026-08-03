@@ -7,7 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function reframeThoughts(doubts, achievements) {
   const { userId } = await auth();
@@ -68,6 +68,7 @@ export async function reframeThoughts(doubts, achievements) {
     revalidatePath("/imposter-syndrome");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "imposterSyndrome");
     return handleServerError(error, "imposter-syndrome");
   }
 }

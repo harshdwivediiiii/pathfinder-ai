@@ -13,7 +13,7 @@ import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
 import { interviewQuestionsOutputSchema, voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { translations } from "@/lib/misc/translations";
 import { unwrap } from "@/lib/db/redis-result";
 
@@ -595,40 +595,30 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 }`,
     });
 
-    let questions = [];
-    let isFallback = false;
+    const rawAiText = await getCachedOrFetch(
+      JSON.stringify(prompt),
+      'interview',
+      async () => {
+        const res = await generateGeminiContent(prompt);
+        return res.response.text();
+      },
+      24 // 24 hour TTL
+    );
+    const quizValidation = validateOutput(interviewQuestionsOutputSchema, rawAiText);
 
-    try {
-      const rawAiText = await getCachedOrFetch(
-        JSON.stringify(prompt),
-        'interview',
-        async () => {
-          const res = await generateGeminiContent(prompt);
-          return res.response.text();
-        },
-        24 // 24 hour TTL
-      );
-      const quizValidation = validateOutput(interviewQuestionsOutputSchema, rawAiText);
-
-      if (!quizValidation.success || !quizValidation.data?.questions?.length) {
-        throw new Error("Invalid questions structure received from AI.");
-      }
-      questions = quizValidation.data.questions.slice(0, 10);
-    } catch (error) {
-      console.error("AI Quiz generation failed, using fallback questions:", error);
-      const industryId = user.industry?.split("-")[0]?.toLowerCase() || "tech";
-      questions = FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS;
-      isFallback = true;
+    if (!quizValidation.success || !quizValidation.data?.questions?.length) {
+      throw new Error("Invalid questions structure received from AI.");
     }
 
-
+    const questions = quizValidation.data.questions.slice(0, 10);
     const sessionId = crypto.randomUUID();
     const cacheStore = getCacheStore();
     const cacheKey = generateCacheKey("quiz-session", userId, sessionId);
     await cacheStore.set(cacheKey, questions, QUIZ_CACHE_TTL_MS);
 
-    return { sessionId, questions, isFallback };
+    return { sessionId, questions, isFallback: false };
   } catch (error) {
+    await decrementRateLimit(userId, "quiz");
     console.error("Quiz generation top-level error:", error);
     if (process.env.NODE_ENV === "test") {
       throw error;
@@ -653,6 +643,8 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       throw new Error("Session ID or questions array is required.");
     }
 
+    const cacheStore = getCacheStore();
+
     let questions;
     let isCached = false;
     let cacheKey = null;
@@ -674,23 +666,20 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       throw new Error("Invalid session ID or questions format.");
     }
 
-    const validation = validateInput(quizResultSaveSessionSchema, { sessionId: validatedSessionId, answers, category });
+    const validation = validateInput(
+      isCached ? quizResultSaveSessionSchema : quizResultSaveSchema,
+      isCached
+        ? { sessionId: validatedSessionId, answers, category }
+        : { questions, answers, category }
+    );
     if (!validation.success) return { success: false, errors: validation.errors };
 
-    const {
-      answers: validatedAnswers,
-      category: validatedCategory,
-    } = validation.data;
+    const validatedAnswers = validation.data.answers;
+    const validatedCategory = validation.data.category;
 
     const feedbackLimit = await checkRateLimit(userId, "quizFeedback");
     if (!feedbackLimit.allowed) {
       throw new Error(`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`);
-    }
-
-
-
-    if (questions.length !== validatedAnswers.length) {
-      throw new Error("Answers must match the number of questions.");
     }
 
     const user = await db.user.findUnique({
@@ -700,11 +689,9 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     const profileContext = buildUserProfileContext(user);
 
-    // Map user answers to question outcomes and compute score server-side
     const sanitizedAnswers = Array.isArray(validatedAnswers)
       ? validatedAnswers.slice(0, questions.length)
       : [];
-
     while (sanitizedAnswers.length < questions.length) {
       sanitizedAnswers.push(null);
     }
@@ -738,7 +725,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       }
     });
 
-    const computedScore = questions.length > 0
     const score = questions.length > 0
       ? Math.round((correctCount / questions.length) * 100)
       : 0;
@@ -756,8 +742,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         task: "You are a supportive career mentor. The candidate completed a quiz. Provide an encouraging, actionable improvement tip (strictly max 2 sentences) recommending key learning areas. Be positive, warm, and professional. Do not refer to question indexes or speak critically.",
         untrustedData: [
           { label: "industry", value: user.industry || "software", maxLength: 200 },
-          { label: "category", value: category, maxLength: 200 },
-          { label: "score", value: String(computedScore), maxLength: 50 },
           { label: "category", value: validatedCategory, maxLength: 200 },
           { label: "score", value: String(score), maxLength: 50 },
           { label: "wrongAnswers", value: wrongText, maxLength: 4000 },
@@ -770,7 +754,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       } catch (e) {
         console.error("Failed to generate custom AI improvement tip:", e);
         const industryText = user.industry ? `in ${user.industry.toLowerCase()}` : "in your field";
-        improvementTip = `Focus on reviewing core ${category.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
+        improvementTip = `Focus on reviewing core ${validatedCategory.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
       }
     }
 
@@ -779,7 +763,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         userId: user.id,
         quizScore: score,
         questions: questionResults,
-        category: category,
+        category: validatedCategory,
         improvementTip,
       },
     });
@@ -790,6 +774,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     return assessment;
   } catch (error) {
+    await decrementRateLimit(userId, "quizFeedback");
     return handleServerError(error, "interview");
   }
 }
@@ -878,7 +863,8 @@ export async function evaluateVoiceAnswer(question, transcribedAnswer) {
     }
     return { success: true, data: validation.data };
   } catch (error) {
-    return handleServerError(error, "interview");
+    const result = handleServerError(error, "interview");
+    return { success: false, error: result.errors?._form?.[0] || "Something went wrong. Please try again." };
   }
 }
 
@@ -923,6 +909,7 @@ export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) 
     }
     return { success: true, data: validation.data };
   } catch (error) {
-    return handleServerError(error, "interview");
+    const result = handleServerError(error, "interview");
+    return { success: false, error: result.errors?._form?.[0] || "Something went wrong. Please try again." };
   }
 }
