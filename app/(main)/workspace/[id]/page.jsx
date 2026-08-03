@@ -1,5 +1,6 @@
 import { Suspense, cache } from "react";
-import { getWorkspace, WorkspaceNotFoundError } from "@/actions/workspace";
+import { getWorkspace } from "@/actions/workspace";
+import { WorkspaceNotFoundError } from "@/lib/errors/workspace-errors";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { 

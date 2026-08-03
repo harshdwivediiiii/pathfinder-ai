@@ -3,14 +3,7 @@
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-
-export class WorkspaceNotFoundError extends Error {
-  constructor(message = "Workspace not found or unauthorized") {
-    super(message);
-    this.name = "WorkspaceNotFoundError";
-    this.code = "WORKSPACE_NOT_FOUND";
-  }
-}
+import { WorkspaceNotFoundError } from "@/lib/errors/workspace-errors";
 
 /**
  * Centralized authorization helpers
