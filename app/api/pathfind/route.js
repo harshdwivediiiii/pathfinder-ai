@@ -1,39 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 import { compareAlgorithms, coordinateAgents, dynamicReplan } from "@/actions/pathfinding";
 
 export async function POST(request) {
   try {
-    const { path } = await request.json();
-
+    const { path, ...rest } = await request.json();
+    let result;
     switch (path) {
-      case "compare": {
-        const body = await request.json();
-        const result = await compareAlgorithms(body);
-        return NextResponse.json(result, { status: result.success ? 200 : 400 });
-      }
-
-      case "coordinate": {
-        const body = await request.json();
-        const result = await coordinateAgents(body);
-        return NextResponse.json(result, { status: result.success ? 200 : 400 });
-      }
-
-      case "replan": {
-        const body = await request.json();
-        const result = await dynamicReplan(body);
-        return NextResponse.json(result, { status: result.success ? 200 : 400 });
-      }
-
-      default:
-        return NextResponse.json(
-          { success: false, error: `Unknown path: ${path}` },
-          { status: 404 }
-        );
+      case "compare": result = await compareAlgorithms(rest); break;
+      case "coordinate": result = await coordinateAgents(rest); break;
+      case "replan": result = await dynamicReplan(rest); break;
+      default: return NextResponse.json({ success: false, error: `Unknown path: '${path}'` }, { status: 404 });
     }
+    return NextResponse.json(result, { status: result.success !== false ? 200 : 400 });
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
     );
   }
@@ -41,7 +22,6 @@ export async function POST(request) {
 
 export async function GET() {
   const { AlgorithmRegistry } = await import("@/lib/algorithms");
-
   return NextResponse.json({
     algorithms: AlgorithmRegistry.getNames(),
     metadata: AlgorithmRegistry.getAllMetadata(),
