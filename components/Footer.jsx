@@ -33,7 +33,7 @@ const footerLinks = {
   ],
   platform: [
     { label: "Features", href: "#features" },
-    { label: "Pricing", href: "#pricing" },
+    { label: "Pricing", href: "/coming-soon" },
     { label: "Help", href: "/help" },
     { label: "FAQ", href: "#question" },
   ],
