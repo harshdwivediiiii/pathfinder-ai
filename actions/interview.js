@@ -919,8 +919,8 @@ export async function evaluateVoiceAnswer(question, transcribedAnswer) {
     }
     return { success: true, data: validation.data };
   } catch (error) {
-    await decrementRateLimit(userId, "voiceEvaluation");
-    return handleServerError(error, "interview");
+    const result = handleServerError(error, "interview");
+    return { success: false, error: result.errors?._form?.[0] || "Something went wrong. Please try again." };
   }
 }
 
@@ -965,7 +965,7 @@ export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) 
     }
     return { success: true, data: validation.data };
   } catch (error) {
-    await decrementRateLimit(userId, "videoEvaluation");
-    return handleServerError(error, "interview");
+    const result = handleServerError(error, "interview");
+    return { success: false, error: result.errors?._form?.[0] || "Something went wrong. Please try again." };
   }
 }
