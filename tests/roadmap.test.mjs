@@ -207,6 +207,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: (ops) => Promise.all(ops),
     $queryRaw: vi.fn(),
+    $transaction: vi.fn((args) => Promise.all(args)),
   },
 }));
 
