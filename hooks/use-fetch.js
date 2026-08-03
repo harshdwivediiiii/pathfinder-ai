@@ -36,7 +36,7 @@ const useFetch = (cb) => {
     try {
       const response = await cb(...args);
       if (response && typeof response === "object") {
-        if (response.success === false) {
+        if (response.success !) {
           throw new Error(getErrorMessage(response) || "An error occurred");
         }
         if (response.error && (response.data === null || response.data === undefined)) {
