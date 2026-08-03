@@ -9,6 +9,9 @@ import {
   getIndustryInsightRefreshTime,
   isIndustryInsightStale,
 } from "@/lib/misc/industry-insights";
+import { generateGeminiContent } from "@/lib/ai/gemini-api";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { parseAIJson } from "@/lib/ai/validate";
 
 export async function getDashboardStats() {
   const { userId } = await auth();
@@ -104,4 +107,61 @@ export async function getIndustryInsights() {
     console.error("Failed to generate industry insights:", error);
     return null;
   }
+}
+
+export async function getWeeklySummaryStats() {
+  const { userId } = await auth();
+  if (!userId) return null;
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+    select: { id: true, currentRole: true, targetRole: true }
+  });
+  
+  if (!user) return null;
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const [resumes, coverLetters, interviews, ats] = await Promise.all([
+    db.resume.count({ where: { userId: user.id, createdAt: { gte: sevenDaysAgo } } }),
+    db.coverLetter.count({ where: { userId: user.id, createdAt: { gte: sevenDaysAgo } } }),
+    db.assessment.count({ where: { userId: user.id, createdAt: { gte: sevenDaysAgo } } }),
+    db.atsAnalysis.count({ where: { userId: user.id, createdAt: { gte: sevenDaysAgo } } }),
+  ]);
+
+  const stats = { resumes, coverLetters, interviews, ats };
+  const hasActivity = Object.values(stats).some(val => val > 0);
+
+  let recommendations = null;
+  
+  if (hasActivity) {
+    recommendations = await getCachedOrFetch(
+      `weekly-recs-${user.id}-${sevenDaysAgo.toDateString()}`,
+      'weekly-recs',
+      async () => {
+        const prompt = buildSecurePrompt({
+          context: "You are a personalized career AI assistant. Review the user's activity for the past 7 days.",
+          task: "Generate 2-3 very short, actionable recommendations for what the user should focus on next week based on what they just accomplished.",
+          untrustedData: [
+            { label: "Activity", value: JSON.stringify(stats), maxLength: 100 },
+            { label: "Role", value: user.currentRole || "Professional", maxLength: 50 },
+            { label: "Target", value: user.targetRole || "Next level", maxLength: 50 }
+          ],
+          outputRules: "Return a JSON array of strings, e.g. [\"Update your resume\", \"Practice behavioral interviews\"]."
+        });
+        
+        try {
+          const aiResult = await generateGeminiContent(prompt);
+          return parseAIJson(aiResult.response.text());
+        } catch (e) {
+          console.error("Failed to generate weekly recs:", e);
+          return ["Keep up the great work!", "Focus on networking and applying to new roles."];
+        }
+      },
+      24 // Cache for 24 hours
+    );
+  }
+
+  return { stats, recommendations, hasActivity };
 }
