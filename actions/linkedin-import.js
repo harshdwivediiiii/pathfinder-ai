@@ -135,7 +135,7 @@ export async function importLinkedInProfile(extractedText) {
     revalidatePath("/onboarding");
     revalidatePath("/settings");
 
-    return { success: true, data: { resumeContent } };
+    return { success: true, data: { bio, currentRole, industry, experience, skills, resumeContent } };
   } catch (error) {
     await decrementRateLimit(userId, "resumeBuilder");
     return handleServerError(error, "linkedin-import");
