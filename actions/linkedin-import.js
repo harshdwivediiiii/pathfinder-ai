@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { validateOutput } from "@/lib/ai/validate";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { z } from "zod";
 import { resumeOutputSchema } from "@/lib/schemas/resume";
@@ -137,6 +137,7 @@ export async function importLinkedInProfile(extractedText) {
 
     return { success: true, data: { resumeContent } };
   } catch (error) {
+    await decrementRateLimit(userId, "resumeBuilder");
     return handleServerError(error, "linkedin-import");
   }
 }

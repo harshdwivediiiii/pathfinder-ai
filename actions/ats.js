@@ -13,7 +13,7 @@ import { validateInput, validateOutput, parseAIJson } from "@/lib/ai/validate";
 import { atsAnalysisSchema } from "@/lib/schemas/forms";
 import { atsAnalysisOutputSchema } from "@/lib/schemas";
 import { normalizeAtsSuggestions } from "@/lib/resume/ats";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
 
 /**
@@ -154,6 +154,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     revalidatePath("/ats-analyzer");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "ats");
     return handleServerError(error, "ats");
   }
 }

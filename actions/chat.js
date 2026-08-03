@@ -10,7 +10,7 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { enforceRateLimit, getRateLimitIdentifier } from "@/lib/security/rate-limit";
 import { validateInput } from "@/lib/ai/validate";
 import { chatPromptSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function chatWithGemini(prompt) {
   try {
@@ -70,6 +70,7 @@ export async function chatWithGemini(prompt) {
     return handleServerError(err, "chat");
   }
   } catch (error) {
+    await decrementRateLimit(userId, "chat");
     return handleServerError(error, "chat");
   }
 }

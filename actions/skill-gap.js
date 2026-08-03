@@ -6,7 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateSkillGapAnalysis(data) {
   try {
@@ -80,6 +80,7 @@ export async function generateSkillGapAnalysis(data) {
 
     return { data: saved, error: null };
   } catch (error) {
+    await decrementRateLimit(userId, "skill-gap");
     return handleServerError(error, "skill-gap");
   }
 }
