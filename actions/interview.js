@@ -614,25 +614,12 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
         throw new Error("Invalid questions structure received from AI.");
       }
       questions = quizValidation.data.questions.slice(0, 10);
-      isFallback = false;
-    } catch (err) {
-      console.error("Interview prep generation error:", err);
-      const isRateLimit = err?.status === 429 || err?.code === 'RATE_LIMITED' || err?.message?.includes('limit reached');
-      
-      return {
-        success: false,
-        error: isRateLimit
-          ? 'AI service is currently busy. Please try again in a moment.'
-          : 'Failed to generate interview prep. Please check your inputs and try again.',
-        errors: {
-          _form: [
-            isRateLimit
-              ? 'AI service is currently busy. Please try again in a moment.'
-              : 'Failed to generate interview prep. Please check your inputs and try again.',
-          ],
-        },
-      };
+    } catch (error) {
+      console.error("AI Quiz generation failed, using fallback questions:", error);
+      const industryId = user.industry?.split("-")[0]?.toLowerCase() || "tech";
+      questions = FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS;
     }
+
 
     const sessionId = crypto.randomUUID();
     const cacheStore = getCacheStore();
@@ -689,9 +676,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     const validation = validateInput(quizResultSaveSessionSchema, { sessionId: validatedSessionId, answers, category });
     if (!validation.success) return { success: false, errors: validation.errors };
 
-
     const {
-      sessionId: finalSessionId,
       answers: validatedAnswers,
       category: validatedCategory,
     } = validation.data;
@@ -701,7 +686,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       throw new Error(`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`);
     }
 
-    const cacheStore = getCacheStore();
+
 
     if (questions.length !== validatedAnswers.length) {
       throw new Error("Answers must match the number of questions.");
@@ -770,6 +755,8 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         task: "You are a supportive career mentor. The candidate completed a quiz. Provide an encouraging, actionable improvement tip (strictly max 2 sentences) recommending key learning areas. Be positive, warm, and professional. Do not refer to question indexes or speak critically.",
         untrustedData: [
           { label: "industry", value: user.industry || "software", maxLength: 200 },
+          { label: "category", value: category, maxLength: 200 },
+          { label: "score", value: String(computedScore), maxLength: 50 },
           { label: "category", value: validatedCategory, maxLength: 200 },
           { label: "score", value: String(score), maxLength: 50 },
           { label: "wrongAnswers", value: wrongText, maxLength: 4000 },
@@ -782,7 +769,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       } catch (e) {
         console.error("Failed to generate custom AI improvement tip:", e);
         const industryText = user.industry ? `in ${user.industry.toLowerCase()}` : "in your field";
-        improvementTip = `Focus on reviewing core ${validatedCategory.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
+        improvementTip = `Focus on reviewing core ${category.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
       }
     }
 
@@ -791,12 +778,12 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         userId: user.id,
         quizScore: score,
         questions: questionResults,
-        category: validatedCategory,
+        category: category,
         improvementTip,
       },
     });
 
-    if (isCached && cacheKey) {
+    if (cacheKey) {
       await cacheStore.delete(cacheKey);
     }
 
