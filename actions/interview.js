@@ -618,6 +618,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
       console.error("AI Quiz generation failed, using fallback questions:", error);
       const industryId = user.industry?.split("-")[0]?.toLowerCase() || "tech";
       questions = FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS;
+      isFallback = true;
     }
 
 
@@ -656,11 +657,11 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     let isCached = false;
     let cacheKey = null;
     let validatedSessionId = "direct-array";
+    const cacheStore = getCacheStore();
 
     if (typeof sessionIdOrQuestions === "string" && sessionIdOrQuestions.trim().length > 0) {
       validatedSessionId = sessionIdOrQuestions;
       cacheKey = generateCacheKey("quiz-session", userId, validatedSessionId);
-      const cacheStore = getCacheStore();
       const questionsResult = await cacheStore.get(cacheKey);
       questions = unwrap(questionsResult);
       if (!questions || !Array.isArray(questions) || questions.length === 0) {
