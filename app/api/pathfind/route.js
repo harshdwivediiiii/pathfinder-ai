@@ -4,23 +4,21 @@ import { compareAlgorithms, coordinateAgents, dynamicReplan } from "@/actions/pa
 
 export async function POST(request) {
   try {
-    const { path } = await request.json();
+    const body = await request.json();
+    const { path } = body;
 
     switch (path) {
       case "compare": {
-        const body = await request.json();
         const result = await compareAlgorithms(body);
         return NextResponse.json(result, { status: result.success ? 200 : 400 });
       }
 
       case "coordinate": {
-        const body = await request.json();
         const result = await coordinateAgents(body);
         return NextResponse.json(result, { status: result.success ? 200 : 400 });
       }
 
       case "replan": {
-        const body = await request.json();
         const result = await dynamicReplan(body);
         return NextResponse.json(result, { status: result.success ? 200 : 400 });
       }
