@@ -133,7 +133,7 @@ export default function EVRouterPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card className="border-border/50 shadow-sm overflow-hidden">
             <div className="bg-slate-900 p-4 flex justify-center items-center overflow-x-auto relative">
-              <canvas 
+              <canvas aria-label="Interactive map showing the EV eco-route, terrain elevations, charging stations, and charge-stop markers between the origin and destination"  
                 ref={canvasRef} 
                 width={width * cellSize} 
                 height={height * cellSize} 
