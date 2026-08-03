@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { ComparativeSolver, AlgorithmRegistry } from "@/lib/algorithms";
-import { MultiAgentCoordinator } from "@/lib/algorithms/agent-engine";
+import { Agent, MultiAgentCoordinator } from "@/lib/algorithms/agent-engine";
 import { DynamicRePlanner } from "@/lib/algorithms/dynamic-replan";
 import { db } from "@/lib/db/prisma";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
