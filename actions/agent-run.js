@@ -47,7 +47,7 @@ export async function getAgentRun(id) {
     });
     if (!user) throw new Error("User not found");
 
-    const run = await db.agentRun.findUnique({
+    const run = await db.agentRun.findFirst({
       where: {
         id,
         userId: user.id,
@@ -114,13 +114,23 @@ export async function updateAgentRun(id, data) {
       updateData.completedAt = data.status !== AgentRunStatus.Running ? new Date() : null;
     }
 
-    const run = await db.agentRun.update({
+    const result = await db.agentRun.updateMany({
       where: {
         id,
         userId: user.id,
       },
       data: updateData,
     });
+
+    if (result.count === 0) throw new Error("Agent run not found");
+
+    const run = await db.agentRun.findFirst({
+      where: {
+        id,
+        userId: user.id,
+      },
+    });
+    if (!run) throw new Error("Agent run not found");
 
     revalidatePath("/agent-history");
     revalidatePath(`/agent-history/${id}`);
