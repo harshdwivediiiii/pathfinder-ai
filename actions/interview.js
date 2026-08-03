@@ -614,19 +614,11 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
         throw new Error("Invalid questions structure received from AI.");
       }
       questions = quizValidation.data.questions.slice(0, 10);
-    } catch (error) {
-      console.error("AI Quiz generation failed, using fallback questions:", error);
-      const industryId = user.industry?.split("-")[0]?.toLowerCase() || "tech";
-      questions = FallbackQuizPool[industryId] || TECH_FALLBACK_QUESTIONS;
-    }
-
-    const sessionId = crypto.randomUUID();
-
-      questions = quizValidation.data.questions.slice(0, 10);
       isFallback = false;
     } catch (err) {
       console.error("Interview prep generation error:", err);
-      const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
+      const isRateLimit = err?.status === 429 || err?.code === 'RATE_LIMITED' || err?.message?.includes('limit reached');
+      
       return {
         success: false,
         error: isRateLimit
@@ -694,15 +686,12 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       throw new Error("Invalid session ID or questions format.");
     }
 
-    const validation = validateInput(quizResultSaveSessionSchema, { sessionId, answers, category });
+    const validation = validateInput(quizResultSaveSessionSchema, { sessionId: validatedSessionId, answers, category });
     if (!validation.success) return { success: false, errors: validation.errors };
 
-    const sanitizedAnswers = Array.isArray(answers)
-      ? answers.slice(0, questions.length)
-      : [];
 
     const {
-      sessionId: validatedSessionId,
+      sessionId: finalSessionId,
       answers: validatedAnswers,
       category: validatedCategory,
     } = validation.data;
@@ -713,13 +702,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     }
 
     const cacheStore = getCacheStore();
-    const cacheKey = generateCacheKey("quiz-session", userId, validatedSessionId);
-    const questionsResult = await cacheStore.get(cacheKey);
-    const questions = unwrap(questionsResult);
-
-    if (!questions || !Array.isArray(questions) || questions.length === 0) {
-      throw new Error("Quiz session expired or not found. Please start a new quiz.");
-    }
 
     if (questions.length !== validatedAnswers.length) {
       throw new Error("Answers must match the number of questions.");
@@ -788,8 +770,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         task: "You are a supportive career mentor. The candidate completed a quiz. Provide an encouraging, actionable improvement tip (strictly max 2 sentences) recommending key learning areas. Be positive, warm, and professional. Do not refer to question indexes or speak critically.",
         untrustedData: [
           { label: "industry", value: user.industry || "software", maxLength: 200 },
-          { label: "category", value: category, maxLength: 200 },
-          { label: "score", value: String(computedScore), maxLength: 50 },
           { label: "category", value: validatedCategory, maxLength: 200 },
           { label: "score", value: String(score), maxLength: 50 },
           { label: "wrongAnswers", value: wrongText, maxLength: 4000 },
@@ -802,10 +782,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       } catch (e) {
         console.error("Failed to generate custom AI improvement tip:", e);
         const industryText = user.industry ? `in ${user.industry.toLowerCase()}` : "in your field";
-        improvementTip = `Focus on reviewing core ${category.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
-      }
-    return handleServerError(e, "interview");
-  }
         improvementTip = `Focus on reviewing core ${validatedCategory.toLowerCase()} concepts and typical industry practices ${industryText} to strengthen your skills.`;
       }
     }
@@ -815,8 +791,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
         userId: user.id,
         quizScore: score,
         questions: questionResults,
-        category: category,
-        category,
         category: validatedCategory,
         improvementTip,
       },
@@ -825,7 +799,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     if (isCached && cacheKey) {
       await cacheStore.delete(cacheKey);
     }
-    await cacheStore.delete(cacheKey);
 
     return assessment;
   } catch (error) {

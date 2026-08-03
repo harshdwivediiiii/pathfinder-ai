@@ -74,11 +74,11 @@ export async function generatePivotStrategy(currentRole, targetRole) {
   const parsedData = parseAiResponse(aiResult);
 
   const record = await createRecord(db.careerPivot, {
-  userId: user.id,
-  currentRole,
-  targetRole,
-  ...withParsedData("analysis", parsedData),
-});
+    userId: user.id,
+    currentRole,
+    targetRole,
+    ...buildParsedResult("result", parsedData),
+  });
 
   revalidatePath("/career-pivot");
   return createSuccessResponse(record);
