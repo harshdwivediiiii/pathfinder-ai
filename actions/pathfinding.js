@@ -131,9 +131,13 @@ export async function dynamicReplan(data) {
       status: "active",
     };
 
-    const result = await replanner.processReplanQueue();
+    replanner.setAgents([agent]);
 
     replanner.onGraphChange({ type: "batch", changes });
+    const result = await replanner.processReplanQueue();
+    if (replanner.pendingTimeout) {
+      clearTimeout(replanner.pendingTimeout);
+    }
 
     return {
       success: true,
