@@ -9,7 +9,7 @@ import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { offersComparisonSchema } from "@/lib/schemas/forms";
 import { validateInput } from "@/lib/ai/validate";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function compareOffers(offers) {
   const { userId } = await auth();
@@ -77,6 +77,7 @@ export async function compareOffers(offers) {
     revalidatePath("/offer-comparer");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "offerComparer");
     return handleServerError(error, "offer-comparer");
   }
 }

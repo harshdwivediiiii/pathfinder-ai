@@ -15,7 +15,7 @@ import { resumeOutputSchema } from "@/lib/schemas/resume";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 async function getResumeBuilderUser(userId) {
@@ -121,6 +121,7 @@ export async function generateResumeContent(jobDescription) {
     revalidatePath("/resume-builder");
     return { success: true, data: record };
   } catch (err) {
+    await decrementRateLimit(userId, "resumeBuilder");
     console.error("Resume generation error:", err);
     const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED';
     return {

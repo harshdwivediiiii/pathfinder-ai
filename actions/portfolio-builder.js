@@ -108,7 +108,18 @@ Rules:
     }
 
     // Default slug logic if none provided
-    const userSlug = slug || user.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') || user.id.slice(0, 8);
+    let userSlug = slug || user.name?.toLowerCase().replace(/[^a-z0-9]/g, '-') || user.id.slice(0, 8);
+
+    // Check slug uniqueness against other users (mirrors updatePortfolio)
+    const existingWithSlug = await db.portfolio.findFirst({
+      where: {
+        slug: userSlug,
+        userId: { not: user.id },
+      },
+    });
+    if (existingWithSlug) {
+      userSlug = `${userSlug}-${user.id.slice(0, 8)}`;
+    }
 
     const portfolio = await db.portfolio.upsert({
       where: {

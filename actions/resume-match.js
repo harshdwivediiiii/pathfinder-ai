@@ -9,7 +9,7 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateInput, parseAIJson } from "@/lib/ai/validate";
 import { resumeMatchSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { validateDevBypass } from "@/lib/auth/dev-bypass";
 
@@ -146,6 +146,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     revalidatePath("/resume-match");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "resume-match");
     return handleServerError(error, "resume-match");
   }
 }

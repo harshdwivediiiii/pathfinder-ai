@@ -7,7 +7,7 @@ import { generateWithStructuredOutput, buildSecurePrompt } from "@/lib/ai/prompt
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { bulletRewriterSchema, bulletRewriterOutputSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { assertFeatureEnabled } from "@/lib/ai/ai-gating";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 
@@ -108,6 +108,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
     return { success: true, data: result.data };
   } catch (error) {
+    await decrementRateLimit(userId, "bulletRewriter");
     return handleServerError(error, "bullet-rewriter");
   }
 }

@@ -10,7 +10,7 @@ import { generateGeminiContent } from "@/lib/ai/gemini";
 import { careerDecisionSchema } from "@/lib/schemas/forms";
 import { careerDecisionOutputSchema } from "@/lib/schemas/outputs";
 import { validateInput } from "@/lib/ai/validate";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { getAuthenticatedUserId } from "@/lib/auth/auth-userid";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
 import { createSuccessResponse } from "@/lib/action-helpers/action-success";
@@ -94,6 +94,7 @@ export async function simulateCareerDecision(input) {
     revalidatePath("/dashboard");
     return createSuccessResponse(record);
   } catch (error) {
+    await decrementRateLimit(userId, "careerDecisionSimulator");
     return handleServerError(error, "career-decision-simulator");
   }
 }
