@@ -30,7 +30,61 @@ vi.mock("@/lib/misc/industry-insights", async () => {
   };
 });
 
-import { getIndustryInsights } from "../actions/dashboard.js";
+import { getDashboardStats, getIndustryInsights } from "../actions/dashboard.js";
+
+describe("getDashboardStats", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("counts resumes, cover letters, and interview sessions using valid User relations", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.findUnique.mockResolvedValue({
+      id: "db-user-1",
+      clerkUserId: "user-1",
+      resume: { id: "resume-1" },
+      coverLetter: [{ id: "cl-1" }, { id: "cl-2" }],
+      mockInterviewSessions: [{ id: "session-1" }, { id: "session-2" }, { id: "session-3" }],
+    });
+
+    const result = await getDashboardStats();
+
+    expect(result).toEqual({
+      totalResumes: 1,
+      totalCoverLetters: 2,
+      totalInterviews: 3,
+    });
+
+    expect(mocks.findUnique).toHaveBeenCalledWith({
+      where: { clerkUserId: "user-1" },
+      include: {
+        resume: true,
+        coverLetter: true,
+        mockInterviewSessions: true,
+      },
+    });
+  });
+
+  it("returns zeros when the user has no relations or user is missing", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.findUnique.mockResolvedValue(null);
+
+    const result = await getDashboardStats();
+
+    expect(result).toEqual({
+      totalResumes: 0,
+      totalCoverLetters: 0,
+      totalInterviews: 0,
+    });
+  });
+
+  it("rejects when the user is not authenticated", async () => {
+    mocks.auth.mockResolvedValue({ userId: null });
+
+    await expect(getDashboardStats()).rejects.toThrow("Unauthorized");
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+  });
+});
 
 describe("getIndustryInsights", () => {
   beforeEach(() => {
