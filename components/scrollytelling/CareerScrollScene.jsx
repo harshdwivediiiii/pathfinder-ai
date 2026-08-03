@@ -227,3 +227,5 @@ export function CareerScrollScene({ scrollProgress }) {
     </div>
   );
 }
+
+.catch(err => console.error("Promise.all failed:", err));
