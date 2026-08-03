@@ -1,14 +1,14 @@
 "use server";
-import { handleServerError } from "@/lib/error-handler";
-import { validateAuthenticatedUser } from "@/lib/auth-user";
-import { isValidAIOutput } from "@/lib/ai-validation";
-import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
-import { getUserByClerkId } from "@/lib/user";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { validateAuthenticatedUser } from "@/lib/auth/auth-user";
+import { isValidAIOutput } from "@/lib/ai/ai-validation";
+import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
+import { getUserByClerkId } from "@/lib/auth/user";
 import { auth } from "@clerk/nextjs/server";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { validateOutput } from "@/lib/validate";
-import { generateGeminiContent } from "@/lib/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { validateOutput } from "@/lib/ai/validate";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 import { createErrorResponse } from "@/lib/action-errors";
 import { z } from "zod";
 
