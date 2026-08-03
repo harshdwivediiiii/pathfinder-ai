@@ -206,7 +206,6 @@ export async function getPublicPortfolio(slug) {
           select: {
             name: true,
             imageUrl: true,
-            email: true,
           }
         }
       }
