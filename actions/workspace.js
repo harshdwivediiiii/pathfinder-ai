@@ -4,14 +4,6 @@ import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-export class WorkspaceNotFoundError extends Error {
-  constructor(message = "Workspace not found or unauthorized") {
-    super(message);
-    this.name = "WorkspaceNotFoundError";
-    this.code = "WORKSPACE_NOT_FOUND";
-  }
-}
-
 /**
  * Centralized authorization helpers
  */
@@ -23,7 +15,11 @@ async function getOwnedWorkspace(id, clerkUserId, include = {}) {
     },
     include,
   });
-  if (!workspace) throw new WorkspaceNotFoundError();
+  if (!workspace) {
+    const err = new Error("Workspace not found or unauthorized");
+    err.code = "WORKSPACE_NOT_FOUND";
+    throw err;
+  }
   return workspace;
 }
 
@@ -35,7 +31,11 @@ async function getOwnedNote(id, clerkUserId, include = {}) {
     },
     include,
   });
-  if (!note) throw new WorkspaceNotFoundError("Note not found or unauthorized");
+  if (!note) {
+    const err = new Error("Note not found or unauthorized");
+    err.code = "WORKSPACE_NOT_FOUND";
+    throw err;
+  }
   return note;
 }
 
@@ -47,7 +47,11 @@ async function getOwnedAgentOutput(id, clerkUserId, include = {}) {
     },
     include,
   });
-  if (!output) throw new WorkspaceNotFoundError("Agent output not found or unauthorized");
+  if (!output) {
+    const err = new Error("Agent output not found or unauthorized");
+    err.code = "WORKSPACE_NOT_FOUND";
+    throw err;
+  }
   return output;
 }
 

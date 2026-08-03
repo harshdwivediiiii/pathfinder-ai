@@ -88,7 +88,7 @@ describe("saveQuizResult", () => {
 
     const answers = ["Measuring temperature"]; // Wrong answer
 
-    actionMocks.cacheGet.mockResolvedValue(questions);
+    actionMocks.cacheGet.mockResolvedValue({ status: "success", value: questions, isSuccess: true });
 
     const result = await saveQuizResult(sessionId, answers, "Technical");
 

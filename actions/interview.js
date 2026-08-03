@@ -649,6 +649,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     let isCached = false;
     let cacheKey = null;
     let validatedSessionId = "direct-array";
+    const cacheStore = getCacheStore();
 
     if (typeof sessionIdOrQuestions === "string" && sessionIdOrQuestions.trim().length > 0) {
       validatedSessionId = sessionIdOrQuestions;
@@ -767,7 +768,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
       },
     });
 
-    if (isCached && cacheKey) {
+    if (cacheKey) {
       await cacheStore.delete(cacheKey);
     }
 
