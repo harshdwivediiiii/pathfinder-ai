@@ -369,3 +369,5 @@ export default function AddJobModal({ isOpen, onClose, onAdd }) {
     </AnimatePresence>
   );
 }
+
+.catch(err => console.error("Promise.all failed:", err));
