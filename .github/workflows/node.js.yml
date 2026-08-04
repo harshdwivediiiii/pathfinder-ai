@@ -32,12 +32,15 @@ jobs:
         DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
         SHADOW_DATABASE_URL: ${{ secrets.CI_SHADOW_DATABASE_URL }}
       run: |
+        # The drift check is unconditional: missing secrets fail the build
+        # instead of silently skipping, so schema edits without a matching
+        # migration can never merge.
         if [ -z "$SHADOW_DATABASE_URL" ]; then
-          echo "SHADOW_DATABASE_URL is not set. Skipping migration check."
-        else
-          # Fail if schema.prisma differs from migrations on disk
-          npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+          echo "::error::SHADOW_DATABASE_URL is not set. Configure the CI_SHADOW_DATABASE_URL repository secret so the Prisma migration drift check always runs."
+          exit 1
         fi
+        # Fail if schema.prisma differs from migrations on disk
+        npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
     - name: Generate Prisma client
       run: npx prisma generate
     - run: npx playwright install --with-deps chromium
