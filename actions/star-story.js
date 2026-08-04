@@ -1,13 +1,38 @@
 "use server";
+
 import { handleServerError } from "@/lib/errors/error-handler";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
-
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+
+function isMeaningfulExperience(input) {
+  if (!input || typeof input !== "string") return false;
+
+  const text = input.trim();
+
+  // Minimum length
+  if (text.length < 20) return false;
+
+  // Must contain enough actual words
+  const words = text
+    .split(/\s+/)
+    .filter((word) => /^[a-zA-Z]+$/.test(word) && word.length >= 2);
+
+  if (words.length < 5) return false;
+
+  // Detect excessive repeated characters like kkkkkkkkk
+  if (/(.)\1{5,}/i.test(text)) return false;
+
+  // Require reasonable amount of alphabetic content
+  const letters = (text.match(/[a-zA-Z]/g) || []).length;
+  if (letters / text.length < 0.6) return false;
+
+  return true;
+}
 
 export async function generateStarStory(rawExperience) {
   const { userId } = await auth();
@@ -26,12 +51,26 @@ export async function generateStarStory(rawExperience) {
     };
   }
 
-  if (!rawExperience || rawExperience.trim().length < 20) {
-    return { success: false, errors: { _form: ["Please provide a valid experience description."] } };
+  // Validate meaningful experience
+  if (!isMeaningfulExperience(rawExperience)) {
+    return {
+      success: false,
+      errors: {
+        _form: [
+          "Please describe a meaningful experience with enough details about the situation, challenge, and actions you took."
+        ],
+      },
+    };
   }
 
+  // Maximum length validation
   if (rawExperience.trim().length > 3000) {
-    return { success: false, errors: { _form: ["Experience description must be under 3000 characters."] } };
+    return {
+      success: false,
+      errors: {
+        _form: ["Experience description must be under 3000 characters."]
+      }
+    };
   }
 
   const prompt = buildSecurePrompt({
