@@ -108,6 +108,7 @@ model User {
   issues                    Issue[]
   agentRuns                 AgentRun[]
   projectWorkspaces         ProjectWorkspace[]
+  interviewBookmarks        InterviewBookmark[]
 }
 
 model Assessment {
@@ -1013,4 +1014,17 @@ model AiResponseCache {
   feature    String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
+}
+
+model InterviewBookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    String   @db.Text
+  options     Json?    
+  answer      String?  @db.Text 
+  category    String
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
 }
