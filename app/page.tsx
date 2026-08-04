@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { OpenSourceCommunity } from "@/components/sections/OpenSourceCommunity";
 import Footer from "@/components/Footer";
+import { GlobalScrollTracker } from "@/components/GlobalScrollTracker";
+import { CareerScrollWrapper } from "@/components/scrollytelling";
 
 /* ──────────────────────────────────────────────────────────────
    TYPEWRITER HOOK
@@ -797,7 +799,7 @@ function CapabilitiesSection() {
         </div>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div id="interviews" className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {capabilities.map((cap) => (
             <CapabilityCard key={cap.title} {...cap} />
           ))}
@@ -815,7 +817,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       <Navbar />
-      <HeroSection />
+      <GlobalScrollTracker />
+      <CareerScrollWrapper />
       <ResumePreviewSection />
       <CapabilitiesSection />
       <OpenSourceCommunity />

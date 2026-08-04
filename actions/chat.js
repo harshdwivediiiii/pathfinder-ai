@@ -10,9 +10,10 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { enforceRateLimit, getRateLimitIdentifier } from "@/lib/security/rate-limit";
 import { validateInput } from "@/lib/ai/validate";
 import { chatPromptSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function chatWithGemini(prompt) {
+  let userId;
   try {
     const validation = validateInput(chatPromptSchema, { prompt });
     if (!validation.success) {
@@ -20,7 +21,7 @@ export async function chatWithGemini(prompt) {
     }
 
     const authResult = await auth();
-    const userId = authResult?.userId;
+    userId = authResult?.userId;
     const headerList = await headers();
 
     const subject = getRateLimitIdentifier({ headers: headerList }, userId);
@@ -70,6 +71,7 @@ export async function chatWithGemini(prompt) {
     return handleServerError(err, "chat");
   }
   } catch (error) {
+    if (userId) await decrementRateLimit(userId, "chat");
     return handleServerError(error, "chat");
   }
 }

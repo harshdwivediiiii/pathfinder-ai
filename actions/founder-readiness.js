@@ -8,13 +8,14 @@ import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateOutput } from "@/lib/ai/validate";
 import { founderReadinessOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 const FOUNDER_SYSTEM_CONTEXT = `You are a top-tier venture capital partner and startup advisor. Your expertise is evaluating early-stage founders and giving blunt, actionable, and highly constructive feedback on their readiness to launch a startup. You identify blind spots, score their founder-market fit, and provide a 90-day transition roadmap.`;
 
 export async function generateFounderReadiness(formData) {
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const limit = await checkRateLimit(userId, "founder_readiness");
@@ -98,6 +99,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
     return readiness;
   } catch (error) {
+    if (userId) await decrementRateLimit(userId, "founder_readiness");
     console.error("Founder Readiness Error:", error);
     return handleServerError(error, "founder-readiness");
   }

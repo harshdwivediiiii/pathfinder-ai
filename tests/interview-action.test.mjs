@@ -32,6 +32,7 @@ vi.mock("@/lib/ai/gemini", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
+  decrementRateLimit: vi.fn(),
   formatResetTime: actionMocks.formatResetTime,
 }));
 
@@ -88,7 +89,7 @@ describe("saveQuizResult", () => {
 
     const answers = ["Measuring temperature"]; // Wrong answer
 
-    actionMocks.cacheGet.mockResolvedValue(questions);
+    actionMocks.cacheGet.mockResolvedValue({ status: "success", value: questions, isSuccess: true });
 
     const result = await saveQuizResult(sessionId, answers, "Technical");
 

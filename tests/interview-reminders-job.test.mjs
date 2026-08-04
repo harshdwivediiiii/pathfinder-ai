@@ -4,14 +4,14 @@ import { JOB_APPLICATION_STATUS } from "@/lib/constants/job-application-status";
 
 const mocks = vi.hoisted(() => ({
   findMany: vi.fn(),
-  update: vi.fn(),
+  updateMany: vi.fn(),
   sendEmail: vi.fn(),
   logInfo: vi.fn(),
   logError: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  db: { jobApplication: { findMany: mocks.findMany, update: mocks.update } },
+  db: { jobApplication: { findMany: mocks.findMany, updateMany: mocks.updateMany } },
 }));
 
 vi.mock("@/lib/email/send-email", () => ({
@@ -30,7 +30,7 @@ describe("interview reminder logic", () => {
   const mockDb = {
     jobApplication: {
       findMany: mocks.findMany,
-      update: mocks.update,
+      updateMany: mocks.updateMany,
     },
   };
 
@@ -90,7 +90,7 @@ describe("interview reminder logic", () => {
 
       mocks.findMany.mockResolvedValue([dueJob]);
       mocks.sendEmail.mockResolvedValue({ id: "msg-1" });
-      mocks.update.mockResolvedValue({ id: "job-1" });
+      mocks.updateMany.mockResolvedValue({ count: 1 });
 
       const result = await processInterviewRemindersJob({
         step,
@@ -105,8 +105,8 @@ describe("interview reminder logic", () => {
         subject: "Interview reminder: Software Engineer at TechCorp",
         html: expect.stringContaining("Software Engineer"),
       });
-      expect(mocks.update).toHaveBeenCalledWith({
-        where: { id: "job-1" },
+      expect(mocks.updateMany).toHaveBeenCalledWith({
+        where: { id: "job-1", interviewReminderSentAt: null },
         data: { interviewReminderSentAt: expect.any(Date) },
       });
       expect(mocks.logInfo).toHaveBeenCalledWith(
@@ -129,7 +129,7 @@ describe("interview reminder logic", () => {
 
       mocks.findMany.mockResolvedValue([dueJob]);
       mocks.sendEmail.mockResolvedValue({});
-      mocks.update.mockResolvedValue({});
+      mocks.updateMany.mockResolvedValue({ count: 1 });
 
       await processInterviewRemindersJob({
         step,
@@ -139,9 +139,9 @@ describe("interview reminder logic", () => {
       });
 
       expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
-      expect(mocks.update).toHaveBeenCalledTimes(1);
-      expect(mocks.update).toHaveBeenCalledWith({
-        where: { id: "job-2" },
+      expect(mocks.updateMany).toHaveBeenCalledTimes(1);
+      expect(mocks.updateMany).toHaveBeenCalledWith({
+        where: { id: "job-2", interviewReminderSentAt: null },
         data: { interviewReminderSentAt: expect.any(Date) },
       });
     });
@@ -157,9 +157,9 @@ describe("interview reminder logic", () => {
 
       mocks.findMany.mockResolvedValue([dueJob]);
       const callOrder = [];
-      mocks.update.mockImplementation(async () => {
-        callOrder.push("update");
-        return {};
+      mocks.updateMany.mockImplementation(async () => {
+        callOrder.push("updateMany");
+        return { count: 1 };
       });
       mocks.sendEmail.mockImplementation(async () => {
         callOrder.push("send");
@@ -175,7 +175,7 @@ describe("interview reminder logic", () => {
 
       // If the flag is persisted first, a failure or retry between the two
       // awaits can never produce a duplicate reminder.
-      expect(callOrder).toEqual(["update", "send"]);
+      expect(callOrder).toEqual(["updateMany", "send"]);
     });
 
     it("does not process jobs where interviewReminderSentAt is already populated", async () => {
@@ -191,7 +191,7 @@ describe("interview reminder logic", () => {
 
       expect(result.sent).toBe(0);
       expect(mocks.sendEmail).not.toHaveBeenCalled();
-      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.updateMany).not.toHaveBeenCalled();
     });
   });
 
@@ -217,7 +217,7 @@ describe("interview reminder logic", () => {
       mocks.findMany.mockResolvedValue(jobs);
       mocks.sendEmail.mockRejectedValueOnce(new Error("smtp unavailable"));
       mocks.sendEmail.mockResolvedValueOnce({ id: "msg-ok" });
-      mocks.update.mockResolvedValue({});
+      mocks.updateMany.mockResolvedValue({ count: 1 });
 
       const result = await processInterviewRemindersJob({
         step,
@@ -229,7 +229,7 @@ describe("interview reminder logic", () => {
       // The second job is still processed despite the first failing.
       expect(result).toEqual({ sent: 1, checked: 2 });
       expect(mocks.sendEmail).toHaveBeenCalledTimes(2);
-      expect(mocks.update).toHaveBeenCalledTimes(2);
+      expect(mocks.updateMany).toHaveBeenCalledTimes(2);
       expect(mocks.logError).toHaveBeenCalledWith(
         "send-interview-reminders-cron",
         expect.any(Error),
@@ -247,7 +247,7 @@ describe("interview reminder logic", () => {
       };
 
       mocks.findMany.mockResolvedValue([dueJob]);
-      mocks.update.mockResolvedValue({});
+      mocks.updateMany.mockResolvedValue({ count: 1 });
       mocks.sendEmail.mockRejectedValue(new Error("smtp unavailable"));
 
       const result = await processInterviewRemindersJob({
@@ -260,9 +260,35 @@ describe("interview reminder logic", () => {
       // The flag was already persisted, so the interview is dropped from the
       // next run's query (interviewReminderSentAt: null) and never re-sent.
       expect(result).toEqual({ sent: 0, checked: 1 });
-      expect(mocks.update).toHaveBeenCalledTimes(1);
+      expect(mocks.updateMany).toHaveBeenCalledTimes(1);
       expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
       expect(mocks.logError).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips sending when a concurrent run already claimed the interview (count !== 1)", async () => {
+      const dueJob = {
+        id: "job-claimed",
+        jobTitle: "Product Manager",
+        companyName: "InnoTech",
+        interviewDate: new Date(),
+        user: { email: "pm@example.com", settings: { emailAlerts: true } },
+      };
+
+      mocks.findMany.mockResolvedValue([dueJob]);
+      mocks.updateMany.mockResolvedValue({ count: 0 });
+      mocks.sendEmail.mockResolvedValue({});
+
+      const result = await processInterviewRemindersJob({
+        step,
+        dbClient: mockDb,
+        sendEmailFn: mocks.sendEmail,
+        logLogger: mockLogger,
+      });
+
+      // The atomic claim returned count 0, so the email must NOT be sent.
+      expect(result).toEqual({ sent: 0, checked: 1 });
+      expect(mocks.updateMany).toHaveBeenCalledTimes(1);
+      expect(mocks.sendEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -287,7 +313,7 @@ describe("interview reminder logic", () => {
 
       expect(result).toEqual({ sent: 0, checked: 1 });
       expect(mocks.sendEmail).not.toHaveBeenCalled();
-      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.updateMany).not.toHaveBeenCalled();
     });
 
     it("skips jobs where user email is missing or empty", async () => {
@@ -317,7 +343,7 @@ describe("interview reminder logic", () => {
 
       expect(result).toEqual({ sent: 0, checked: 2 });
       expect(mocks.sendEmail).not.toHaveBeenCalled();
-      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.updateMany).not.toHaveBeenCalled();
     });
   });
 

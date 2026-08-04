@@ -9,7 +9,7 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateOutput } from "@/lib/ai/validate";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
 import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 const ROADMAP_SYSTEM_CONTEXT = `You are a senior career strategist and technical mentor. Your expertise is creating personalized, actionable career roadmaps that break down long-term goals into concrete milestones. Each milestone should be a stepping stone that builds on the previous one, with clear skills to develop and a realistic time frame.`;
 
@@ -171,6 +171,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     const returnData = { ...roadmap, isFallback: false };
     return returnData;
   } catch (error) {
+    if (authUserId) await decrementRateLimit(authUserId, "roadmap");
     return handleServerError(error, "roadmap");
   }
 }

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { generateIndustryInsightData, getIndustryInsightRefreshTime } from '../lib/industry-insights.js';
+import { generateIndustryInsightData, getIndustryInsightRefreshTime } from '../lib/misc/industry-insights.js';
 
 const db = new PrismaClient();
 const industry = process.argv[2] || 'tech-software-development';

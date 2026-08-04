@@ -186,6 +186,7 @@ const actionMocks = vi.hoisted(() => ({
   generateGeminiContent: vi.fn(),
   checkRateLimit: vi.fn(),
   formatResetTime: vi.fn(),
+  decrementRateLimit: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -205,9 +206,9 @@ vi.mock("@/lib/db/prisma", () => ({
       deleteMany: vi.fn(),
       update: vi.fn(),
     },
-    $transaction: vi.fn((ops) => Promise.all(ops)),
+    $transaction: (ops) => Promise.all(ops),
     $queryRaw: vi.fn(),
-    $transaction: vi.fn(async (arr) => Promise.all(arr)),
+    $transaction: vi.fn((args) => Promise.all(args)),
   },
 }));
 
@@ -217,7 +218,9 @@ vi.mock("@/lib/ai/gemini", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
+  decrementRateLimit: vi.fn(),
   formatResetTime: actionMocks.formatResetTime,
+  decrementRateLimit: actionMocks.decrementRateLimit,
 }));
 
 vi.mock("next/cache", () => ({

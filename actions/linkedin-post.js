@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateLinkedInPosts(topic) {
   const { userId } = await auth();
@@ -77,6 +77,7 @@ export async function generateLinkedInPosts(topic) {
     revalidatePath("/linkedin-post");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "linkedin");
     return handleServerError(error, "linkedin-post");
   }
 }

@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { ComparativeSolver, AlgorithmRegistry } from "@/lib/algorithms";
-import { MultiAgentCoordinator } from "@/lib/algorithms/agent-engine";
+import { Agent, MultiAgentCoordinator } from "@/lib/algorithms/agent-engine";
 import { DynamicRePlanner } from "@/lib/algorithms/dynamic-replan";
 import { db } from "@/lib/db/prisma";
+import { getUserByScope } from "@/lib/db/user-scope";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 
 export async function compareAlgorithms(data) {
@@ -38,9 +39,14 @@ export async function compareAlgorithms(data) {
     });
 
     if (options.saveToDatabase ?? false) {
+      const dbUser = await getUserByScope(userId);
+      if (!dbUser) {
+        return respondError(ERROR_CODES.UNAUTHORIZED, "User not found");
+      }
+
       await db.pathfindingSession.create({
         data: {
-          userId,
+          userId: dbUser.id,
           name: options.sessionName ?? `Pathfinding ${start} → ${goal}`,
           algorithmType: algorithmNames.join(","),
           status: "active",
@@ -54,7 +60,8 @@ export async function compareAlgorithms(data) {
       data: result,
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    console.error("compareAlgorithms failed:", error);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -100,7 +107,8 @@ export async function coordinateAgents(data) {
       },
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    console.error("coordinateAgents failed:", error);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -131,9 +139,13 @@ export async function dynamicReplan(data) {
       status: "active",
     };
 
-    const result = await replanner.processReplanQueue();
+    replanner.setAgents([agent]);
 
     replanner.onGraphChange({ type: "batch", changes });
+    const result = await replanner.processReplanQueue();
+    if (replanner.pendingTimeout) {
+      clearTimeout(replanner.pendingTimeout);
+    }
 
     return {
       success: true,
@@ -143,6 +155,7 @@ export async function dynamicReplan(data) {
       },
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    console.error("dynamicReplan failed:", error);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }

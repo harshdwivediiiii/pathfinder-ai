@@ -99,9 +99,9 @@ model User {
   founderReadinesses    FounderReadiness[]
   executivePresences    ExecutivePresence[]
 
-  exportRecords         ExportRecord[]
-  auditLogs             AuditLog[]
-  resumeMatchAnalyses   ResumeMatchAnalysis[]
+  exportRecords             ExportRecord[]
+  auditLogs                 AuditLog[]
+  resumeMatchAnalyses       ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
   mockInterviewSessions MockInterviewSession[]
   issues                Issue[]
@@ -311,13 +311,13 @@ model AiRateLimit {
 }
 
 model Roadmap {
-  id        String             @id @default(cuid())
-  userId    String             @unique
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   Json // The full roadmap milestones JSON
+  id         String             @id @default(cuid())
+  userId     String             @unique
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    Json // The full roadmap milestones JSON
   milestones RoadmapMilestone[]
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
 }
 
 model RoadmapMilestone {
@@ -337,24 +337,24 @@ model RoadmapMilestone {
 }
 
 model JobApplication {
-  id            String       @id @default(cuid())
-  userId        String
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyName   String
-  jobTitle      String
-  status        String       @default("Wishlist")
-  url           String?
-  salary        String?
-  location      String?
-  notes         String?      @db.Text
-  atsAnalysisId String?
-  atsAnalysis   AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: SetNull)
-  coverLetterId String?
-  coverLetter   CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: SetNull)
+  id                      String       @id @default(cuid())
+  userId                  String
+  user                    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName             String
+  jobTitle                String
+  status                  String       @default("Wishlist")
+  url                     String?
+  salary                  String?
+  location                String?
+  notes                   String?      @db.Text
+  atsAnalysisId           String?
+  atsAnalysis             AtsAnalysis? @relation(fields: [atsAnalysisId], references: [id], onDelete: Restrict)
+  coverLetterId           String?
+  coverLetter             CoverLetter? @relation(fields: [coverLetterId], references: [id], onDelete: Restrict)
   interviewDate           DateTime?
   interviewReminderSentAt DateTime?
   createdAt               DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  updatedAt               DateTime     @updatedAt
 
   @@index([userId])
 }
@@ -488,30 +488,29 @@ model CareerPivot {
 }
 
 model PathfindingSession {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  algorithmType String
-  status      String   @default("active")
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  versions    PathfindingVersion[]
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation("PathfindingSessionUser", fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  algorithmType       String
+  status              String               @default("active")
+  metadata            Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  pathfindingVersions PathfindingVersion[] @relation("PathfindingSessionVersions")
 
   @@index([userId])
   @@index([status])
 }
 
 model PathfindingVersion {
-  id          String   @id @default(cuid())
-  sessionId   String
-  session     PathfindingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id            String             @id @default(cuid())
+  sessionId     String
+  session       PathfindingSession @relation("PathfindingSessionVersions", fields: [sessionId], references: [id], onDelete: Cascade)
   versionNumber Int
-  state       Json
+  state         Json
   snapshotLabel String?
-  createdAt   DateTime @default(now())
+  createdAt     DateTime           @default(now())
 
   @@unique([sessionId, versionNumber])
 }
@@ -930,18 +929,18 @@ enum AgentRunStatus {
 }
 
 model AgentRun {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agentName      String
-  userPrompt     String   @db.Text
-  output         Json?
-  status         AgentRunStatus   // "Running", "Completed", "Failed", "Cancelled"
-  errorMessage   String?  @db.Text
-  startedAt      DateTime @default(now())
-  completedAt    DateTime?
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentName           String
+  userPrompt          String               @db.Text
+  output              Json?
+  status              AgentRunStatus // "Running", "Completed", "Failed", "Cancelled"
+  errorMessage        String?              @db.Text
+  startedAt           DateTime             @default(now())
+  completedAt         DateTime?
   projectAgentOutputs ProjectAgentOutput[]
-  
+
   @@index([userId, startedAt(sort: Desc)])
 }
 
@@ -962,28 +961,28 @@ model ProjectWorkspace {
 }
 
 model ProjectNote {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   workspaceId String
   workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  content     String   @db.Text
-  isPinned    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  content     String           @db.Text
+  isPinned    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([workspaceId])
 }
 
 model ProjectAgentOutput {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   workspaceId String
   workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   title       String
   content     Json
-  isPinned    Boolean  @default(false)
-  agentRunId  String?  
-  agentRun    AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPinned    Boolean          @default(false)
+  agentRunId  String?
+  agentRun    AgentRun?        @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([workspaceId])
 }
@@ -999,12 +998,12 @@ enum ProjectActivityType {
 }
 
 model ProjectActivity {
-  id          String   @id @default(cuid())
+  id          String              @id @default(cuid())
   workspaceId String
-  workspace   ProjectWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  type        ProjectActivityType   
+  workspace   ProjectWorkspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        ProjectActivityType
   description String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime            @default(now())
 
   @@index([workspaceId])
 }

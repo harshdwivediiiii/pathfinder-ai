@@ -1,5 +1,5 @@
 import { Suspense, cache } from "react";
-import { getWorkspace, WorkspaceNotFoundError } from "@/actions/workspace";
+import { getWorkspace } from "@/actions/workspace";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { 
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }) {
       title: `${workspace.title} | Project Workspace`,
     };
   } catch (e) {
-    if (e instanceof WorkspaceNotFoundError || e.code === "WORKSPACE_NOT_FOUND") {
+    if (e.code === "WORKSPACE_NOT_FOUND") {
       return { title: "Workspace Not Found" };
     }
     throw e;
@@ -40,7 +40,7 @@ export default async function WorkspacePage({ params }) {
   try {
     workspace = await getCachedWorkspace(id);
   } catch (error) {
-    if (error instanceof WorkspaceNotFoundError || error.code === "WORKSPACE_NOT_FOUND") {
+    if (error.code === "WORKSPACE_NOT_FOUND") {
       notFound();
     }
     throw error;

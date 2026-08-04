@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     assessmentFindFirst: vi.fn(),
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
     formatResetTime: vi.fn().mockReturnValue("1h"),
+    decrementRateLimit: vi.fn(),
   };
 });
 
@@ -55,7 +56,9 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
+  decrementRateLimit: vi.fn(),
   formatResetTime: mocks.formatResetTime,
+  decrementRateLimit: mocks.decrementRateLimit,
 }));
 
 vi.mock("@/lib/ai/gemini", () => ({
@@ -78,7 +81,9 @@ vi.mock("@/lib/cache", async () => {
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
+  decrementRateLimit: vi.fn(),
   formatResetTime: mocks.formatResetTime,
+  decrementRateLimit: mocks.decrementRateLimit,
 }));
 
 
@@ -142,10 +147,10 @@ describe("interview actions", () => {
 
       const result = await generateQuiz("Technical");
 
-      // When AI fails, handleServerError returns an error response
-      expect(result).toHaveProperty("success");
-      expect(result.success).toBe(false);
-      expect(result.errors).toHaveProperty("_form");
+      // When AI fails, it successfully returns fallback questions
+      expect(result).toHaveProperty("sessionId");
+      expect(result).toHaveProperty("questions");
+      expect(result.isFallback).toBe(true);
     });
   });
 

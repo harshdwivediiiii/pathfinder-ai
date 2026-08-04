@@ -10,7 +10,7 @@ import { projectIdeaSchema } from "@/lib/schemas/forms";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateProjectIdeas(data) {
   const { userId } = await auth();
@@ -70,6 +70,7 @@ export async function generateProjectIdeas(data) {
     revalidatePath("/project-ideas");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "portfolio");
     return handleServerError(error, "portfolio");
   }
 }

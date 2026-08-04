@@ -29,6 +29,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  decrementRateLimit: vi.fn(),
 }));
 
 import { parseJobUrl } from "../actions/job-scraper.js";

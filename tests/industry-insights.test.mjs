@@ -172,6 +172,12 @@ describe("industry insights helper", () => {
         ttl: 5 * 60 * 1000,
       })
     );
+
+    // The grounded and estimate branches must never share a cache slot,
+    // otherwise an estimate could be served as web-sourced data.
+    const groundedKey = mocks.cachedGenerateGeminiContent.mock.calls[0][2].key;
+    const estimateKey = mocks.cachedGenerateGeminiContent.mock.calls[1][2].key;
+    expect(groundedKey).not.toBe(estimateKey);
   });
 
   it("falls back to default estimate when Gemini returns non-JSON text (extractJSON throws)", async () => {

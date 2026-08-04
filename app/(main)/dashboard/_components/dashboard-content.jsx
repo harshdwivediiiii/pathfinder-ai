@@ -9,6 +9,7 @@ import { SalaryAnalytics } from "./salary-analytics";
 import { IndustryTrends } from "./industry-trends";
 import { SkillGap } from "./skill-gap";
 import { AiRecommendations } from "./ai-recommendations";
+import { WeeklySummary } from "./weekly-summary";
 import { QuickActions } from "./quick-actions";
 import { cn } from "@/lib/misc/utils";
 import { Calendar, Split } from "lucide-react";
@@ -21,6 +22,7 @@ const sectionDefs = [
   { id: "salary", label: "Salary" },
   { id: "trends", label: "Trends" },
   { id: "skillgap", label: "Skills" },
+  { id: "activity", label: "Weekly Summary" },
   { id: "recommendations", label: "Recommendations" },
   { id: "actions", label: "Actions" },
 ];
@@ -107,6 +109,7 @@ export function DashboardContent({
   insight,
   upcomingInterviews = [],
   recentDecisions = [],
+  weeklySummary = null,
 }) {
   const scores = useMemo(() => computeScores(insight), [insight]);
 
@@ -130,6 +133,7 @@ export function DashboardContent({
     { id: "salary", Component: SalaryAnalytics, props: { insight } },
     { id: "trends", Component: IndustryTrends, props: { insight } },
     { id: "skillgap", Component: SkillGap, props: { insight, userSkills: skills } },
+    { id: "activity", Component: WeeklySummary, props: { summary: weeklySummary } },
     { id: "recommendations", Component: AiRecommendations, props: { insight, currentRole, targetRole } },
     { id: "actions", Component: QuickActions, props: {} },
   ];

@@ -7,6 +7,7 @@ import { updateJobApplicationStatus } from "@/actions/job-tracker";
 import { Plus, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { JOB_STATUSES } from "@/lib/schemas/forms";
+import { toDisplayStatus } from "@/lib/constants/job-application-status";
 
 const COLUMN_CONFIG = {
   "Saved": { label: "Saved", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
@@ -94,7 +95,7 @@ export default function KanbanBoard({ initialJobs, setJobs }) {
       <div className="flex h-full overflow-x-auto gap-6 pb-4 custom-scrollbar snap-x">
         {COLUMNS.map(column => {
           const columnJobs = initialJobs.filter(j => 
-            j.status === column.id || (column.id === "Saved" && j.status === "Wishlist")
+            toDisplayStatus(j.status) === column.id
           );
           
           return (

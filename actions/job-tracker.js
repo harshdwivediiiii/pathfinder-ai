@@ -9,6 +9,7 @@ import { fetchRecentJobEmails } from "@/lib/google/gmail";
 import { extractJobApplicationFromEmail } from "@/lib/ai/gemini";
 import { validateInput } from "@/lib/ai/validate";
 import { jobApplicationSchema, jobApplicationUpdateStatusSchema } from "@/lib/schemas/forms";
+import { toCanonicalStatus, toDisplayStatus } from "@/lib/constants/job-application-status";
 
 export async function getJobApplications() {
   const { userId } = await auth();
@@ -58,6 +59,7 @@ export async function createJobApplication(data) {
       data: {
         userId: user.id,
         ...validation.data,
+        status: toCanonicalStatus(validation.data.status),
       },
     });
 
@@ -88,7 +90,7 @@ export async function updateJobApplicationStatus(id, status) {
         userId: user.id,
       },
       data: {
-        status: validation.data.status,
+        status: toCanonicalStatus(validation.data.status),
       },
     });
 
@@ -169,6 +171,70 @@ export async function deleteJobApplication(id) {
   }
 }
 
+export async function disassociateAtsAnalysis(id) {
+  const { userId } = await auth();
+  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+  if (!user) return createErrorResponse("User not found");
+
+  try {
+    const job = await db.jobApplication.updateMany({
+      where: {
+        id,
+        userId: user.id,
+      },
+      data: {
+        atsAnalysisId: null,
+      },
+    });
+
+    if (job.count === 0) {
+      return { success: false, errors: { _form: ["Job application not found"] } };
+    }
+
+    revalidatePath("/job-tracker");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return handleServerError(error, "job-tracker");
+  }
+}
+
+export async function disassociateCoverLetter(id) {
+  const { userId } = await auth();
+  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+  if (!user) return createErrorResponse("User not found");
+
+  try {
+    const job = await db.jobApplication.updateMany({
+      where: {
+        id,
+        userId: user.id,
+      },
+      data: {
+        coverLetterId: null,
+      },
+    });
+
+    if (job.count === 0) {
+      return { success: false, errors: { _form: ["Job application not found"] } };
+    }
+
+    revalidatePath("/job-tracker");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return handleServerError(error, "job-tracker");
+  }
+}
+
 export async function getJobAnalytics() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: null };
@@ -198,10 +264,7 @@ export async function getJobAnalytics() {
     const companyStats = {};
 
     jobs.forEach(job => {
-      let normalizedStatus = job.status;
-      if (normalizedStatus === "Interviewing") normalizedStatus = "Interview";
-      if (normalizedStatus === "Offer Received") normalizedStatus = "Offer";
-      if (normalizedStatus === "Wishlist") normalizedStatus = "Saved";
+      const normalizedStatus = toDisplayStatus(job.status);
 
       statusCounts[normalizedStatus] = (statusCounts[normalizedStatus] || 0) + 1;
 

@@ -8,7 +8,7 @@ import { auth } from "@clerk/nextjs/server";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { validateOutput } from "@/lib/ai/validate";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { z } from "zod";
 
@@ -89,6 +89,7 @@ export async function decodeJobDescription(jobDescription) {
 
     return { success: true, data: validation.data };
   } catch (error) {
+    await decrementRateLimit(userId, "jdDecoder");
     return handleServerError(error, "jd-decoder");
   }
 }
