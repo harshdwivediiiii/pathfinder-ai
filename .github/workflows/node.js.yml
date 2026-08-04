@@ -14,6 +14,21 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     strategy:
       matrix:
         node-version: [22.x]
@@ -40,11 +55,25 @@ jobs:
         fi
     - name: Generate Prisma client
       run: npx prisma generate
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
     - run: npx playwright install --with-deps chromium
     - name: Run tests
-      run: npm run test:unit
+      run: |
+        # Wait for postgres to be fully ready before pushing schema
+        for i in $(seq 1 30); do
+          if pg_isready -h localhost -p 5432 -U test > /dev/null 2>&1; then
+            echo "Postgres is ready"
+            break
+          fi
+          echo "Waiting for postgres... ($i/30)"
+          sleep 2
+        done
+        npx prisma db push
+        npm run test:unit
       env:
         NODE_ENV: test
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
     - run: npm run build --if-present
       env:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
