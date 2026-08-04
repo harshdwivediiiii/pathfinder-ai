@@ -9,7 +9,7 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { validateOutput } from "@/lib/ai/validate";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
-import { createErrorResponse } from "@/lib/action-errors";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { z } from "zod";
 
 const reverseInterviewerSchema = z.object({

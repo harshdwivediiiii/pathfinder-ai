@@ -799,7 +799,7 @@ function CapabilitiesSection() {
         </div>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div id="interviews" className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {capabilities.map((cap) => (
             <CapabilityCard key={cap.title} {...cap} />
           ))}

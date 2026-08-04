@@ -1,8 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContentStream } from "@/lib/ai/gemini";
 import { db } from "@/lib/db/prisma";
-
-const rateLimitMap = new Map();
+import {
+  enforceRateLimit,
+  buildRateLimitResponse,
+} from "@/lib/security/rate-limit";
 
 const INJECTION_PATTERNS = [
   /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions|directions)/i,
@@ -31,18 +33,19 @@ export async function POST(req) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    const now = Date.now();
-    const rateData = rateLimitMap.get(userId) || { count: 0, resetTime: now + 60000 };
-    if (now > rateData.resetTime) {
-      rateData.count = 1;
-      rateData.resetTime = now + 60000;
-    } else {
-      rateData.count++;
-      if (rateData.count > 10) {
-        return new Response(JSON.stringify({ error: "Too many requests" }), { status: 429 });
-      }
+    const rateLimit = await enforceRateLimit({
+      endpoint: "/api/ai/chat",
+      subject: { kind: "user", value: userId },
+      limitPerMinute: 10,
+      burstCapacity: 10,
+    });
+
+    if (!rateLimit.allowed) {
+      return buildRateLimitResponse({
+        message: "Too Many Requests",
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      });
     }
-    rateLimitMap.set(userId, rateData);
 
     const body = await req.json();
     let { messages, currentPage, userRole } = body;

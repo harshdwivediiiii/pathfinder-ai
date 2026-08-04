@@ -13,7 +13,7 @@ import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 const NAV_LINKS = [
   { id: "features", label: "Features", href: "/#features" },
-  { id: "pricing", label: "Pricing", href: "/#pricing" },
+  { id: "pricing", label: "Pricing", href: "/coming-soon" },
   { id: "about", label: "About", href: "/#about" },
   { id: "question", label: "FAQ", href: "/#question" },
 ];

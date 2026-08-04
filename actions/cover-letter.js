@@ -13,7 +13,7 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { coverLetterInputSchema } from "@/lib/schemas/forms";
 import { coverLetterOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/security/input-limits";
 
 const FALLBACK_COVER_LETTER = `Dear Hiring Manager,
@@ -128,6 +128,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
 
     return { ...coverLetter, isFallback: false };
   } catch (err) {
+    await decrementRateLimit(userId, "coverLetter");
     console.error("Cover letter generation error:", err);
     const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
     return {

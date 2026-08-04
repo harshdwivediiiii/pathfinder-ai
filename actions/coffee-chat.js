@@ -6,7 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function startCoffeeChat(industry, targetRole) {
   const { userId } = await auth();
@@ -55,6 +55,7 @@ export async function startCoffeeChat(industry, targetRole) {
       data: record,
     };
   } catch (error) {
+    await decrementRateLimit(userId, "coffeeChat");
     return handleServerError(error, "coffee-chat");
   }
 }
@@ -108,6 +109,7 @@ export async function sendCoffeeChatMessage(sessionId, userMessage) {
     revalidatePath(`/coffee-chat/${sessionId}`);
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "coffeeChat");
     return handleServerError(error, "coffee-chat");
   }
 }
@@ -158,6 +160,7 @@ export async function generateCoffeeChatFeedback(sessionId) {
     revalidatePath(`/coffee-chat/${sessionId}`);
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "coffeeChat");
     return handleServerError(error, "coffee-chat");
   }
 }
