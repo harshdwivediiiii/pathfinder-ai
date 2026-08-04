@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
 
 const mocks = vi.hoisted(() => {
   const findUniqueUserMock = vi.fn();
@@ -56,37 +55,27 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
+  decrementRateLimit: vi.fn().mockResolvedValue(true),
   formatResetTime: mocks.formatResetTime,
-  decrementRateLimit: mocks.decrementRateLimit,
 }));
 
 vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/cache", async () => {
-  const actual = await vi.importActual("@/lib/cache");
-  const mockCacheStore = {
+vi.mock("@/lib/cache", () => ({
+  cachedGenerateGeminiContent: mocks.generateGeminiContent,
+  QUIZ_CACHE_TTL_MS: 3600000,
+  generateCacheKey: (...args) => args.join(":"),
+  getCacheStore: () => ({
     get: mocks.cacheGet,
     set: mocks.cacheSet,
     delete: mocks.cacheDelete,
-  };
-  return {
-    ...actual,
-    cacheStore: mockCacheStore,
-    getCacheStore: () => mockCacheStore,
-  };
-});
-
-vi.mock("@/lib/security/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
-  formatResetTime: mocks.formatResetTime,
-  decrementRateLimit: mocks.decrementRateLimit,
+  }),
+  getCachedOrFetch: async (key, ns, fetcher) => fetcher(),
 }));
 
-
+import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
 
 describe("interview actions", () => {
   beforeEach(() => {

@@ -15,10 +15,15 @@ export async function parseJobUrl(url) {
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
   const limit = await checkRateLimit(userId, "jobScraper");
-  if (!limit.allowed) {
+  if (limit && !limit.allowed) {
+    const resetAt = limit?.resetAt ?? Date.now();
     return {
       success: false,
-      errors: { _form: [`Job scraping limit reached. Resets in ${formatResetTime(limit.resetAt)}.`] },
+      errors: {
+        _form: [
+          `Job scraping limit reached. Resets in ${formatResetTime(resetAt)}.`,
+        ],
+      },
     };
   }
 
@@ -80,7 +85,23 @@ export async function parseJobUrl(url) {
     });
 
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+
+    const rawText = await (async () => {
+      try {
+        if (!aiResult) return "";
+        if (typeof aiResult === "string") return aiResult;
+        if (aiResult?.response && typeof aiResult.response.text === "function") {
+          return await aiResult.response.text();
+        }
+        if (aiResult?.text) return aiResult.text;
+        return "";
+      } catch (err) {
+        console.warn("[job-scraper] Failed to read AI response text:", err);
+        return "";
+      }
+    })();
+
+    const parsedData = rawText ? parseAIJson(rawText) : {};
 
     return {
       success: true,
