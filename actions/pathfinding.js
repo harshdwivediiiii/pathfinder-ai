@@ -60,7 +60,7 @@ export async function compareAlgorithms(data) {
       data: result,
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR, error.message);
   }
 }
 
@@ -106,7 +106,7 @@ export async function coordinateAgents(data) {
       },
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR, error.message);
   }
 }
 
@@ -153,6 +153,6 @@ export async function dynamicReplan(data) {
       },
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR, error.message);
   }
 }
