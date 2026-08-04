@@ -57,30 +57,25 @@ jobs:
       run: npx prisma generate
     - name: Set up test database
       run: |
-        sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null 2>&1
-        # Wait for postgres with explicit retries
-        echo "Waiting for postgres..."
-        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-          if PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "SELECT 1" > /dev/null 2>&1; then
-            echo "Postgres ready (attempt $i)"
+        sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+        # Wait for postgres (up to 60s)
+        for i in $(seq 1 20); do
+          if PGPASSWORD=test psql -h localhost -U test -d test -c "SELECT 1" > /dev/null 2>&1; then
+            echo "Postgres ready on attempt $i"
             break
           fi
-          echo "  attempt $i/20 - retrying in 3s..."
+          echo "Waiting for postgres (attempt $i/20)..."
           sleep 3
         done
-        # Create dummy user
-        PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "DO \$\\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='dummy') THEN CREATE USER dummy WITH PASSWORD 'dummy' CREATEDB; END IF; END \$\$" 2>&1 || true
-        # Create dummy database
-        PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "CREATE DATABASE dummy WITH OWNER dummy" 2>&1 || echo "DB may already exist, continuing..."
-        # Push Prisma schema
-        echo "Pushing Prisma schema..."
-        DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma db push --skip-generate --accept-data-loss --no-color
+        # Use 'test' database (auto-created by postgres service via POSTGRES_DB=test)
+        # Run migrations via prisma db push
+        DATABASE_URL="postgresql://test:test@localhost:5432/test" npx prisma db push --skip-generate --accept-data-loss --no-color
     - run: npx playwright install --with-deps chromium
     - name: Run tests
       run: npm run test:unit
       env:
         NODE_ENV: test
-        DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
     - run: npm run build --if-present
       env:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
@@ -89,4 +84,4 @@ jobs:
       env:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
         CLERK_SECRET_KEY: sk_test_dummy
-        DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
