@@ -52,14 +52,22 @@ jobs:
 
       - name: Set up test database
         run: |
-          # Wait for postgres to be ready
-          until pg_isready -h localhost -p 5432 -U test; do sleep 1; done
+          # Wait for postgres to be fully ready with retry loop
+          for i in $(seq 1 30); do
+            if PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "SELECT 1" > /dev/null 2>&1; then
+              echo "Postgres ready after ${i} attempts"
+              break
+            fi
+            echo "Waiting for postgres... attempt $i/30"
+            sleep 2
+          done
           # Create dummy user and database (matches vitest.config.mjs DATABASE_URL)
-          PGPASSWORD=test psql -h localhost -p 5432 -U test -c "CREATE USER dummy WITH PASSWORD 'dummy';" 2>/dev/null || true
-          PGPASSWORD=test psql -h localhost -p 5432 -U test -c "CREATE DATABASE dummy OWNER dummy;" 2>/dev/null || true
-          PGPASSWORD=test psql -h localhost -p 5432 -U test -c "GRANT ALL PRIVILEGES ON DATABASE dummy TO test;" 2>/dev/null || true
-          # Push schema to dummy database
-          DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma db push --skip-generate --accept-data-loss
+          PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname='dummy'" | grep -q '1' || \
+            PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "CREATE USER dummy WITH PASSWORD 'dummy' CREATEDB;"
+          PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "SELECT 1 FROM pg_database WHERE datname='dummy'" | grep -q '1' || \
+            PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "CREATE DATABASE dummy OWNER dummy;"
+          # Push schema to dummy database (uses dummy user credentials)
+          DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma db push --skip-generate --accept-data-loss --no-color
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
