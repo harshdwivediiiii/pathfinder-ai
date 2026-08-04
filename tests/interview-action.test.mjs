@@ -32,6 +32,7 @@ vi.mock("@/lib/ai/gemini", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
+  decrementRateLimit: vi.fn(),
   formatResetTime: actionMocks.formatResetTime,
 }));
 

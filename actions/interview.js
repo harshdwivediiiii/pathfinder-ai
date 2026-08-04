@@ -627,7 +627,6 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
       success: false,
       error: error.message || "Failed to generate quiz."
     };
-    return handleServerError(error, "interview");
   }
 }
 
@@ -649,7 +648,6 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     let isCached = false;
     let cacheKey = null;
     let validatedSessionId = "direct-array";
-    const cacheStore = getCacheStore();
 
     if (typeof sessionIdOrQuestions === "string" && sessionIdOrQuestions.trim().length > 0) {
       validatedSessionId = sessionIdOrQuestions;
