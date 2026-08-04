@@ -1,17 +1,21 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
-import { db } from "@/lib/db/prisma";
-import { generateGeminiContent } from "@/lib/ai/gemini";
-import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
-import { validateInput, validateOutput, parseAIJson } from "@/lib/ai/validate";
-import { interviewQuestionsOutputSchema, quizFeedbackOutputSchema, quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/ai/schemas";
-import { cachedGenerateGeminiContent, QUIZ_CACHE_TTL_MS, generateCacheKey, getCacheStore } from "@/lib/cache";
-import { translations } from "@/lib/data/translations";
+import crypto from "crypto";
 import { handleServerError } from "@/lib/errors/error-handler";
-import { checkRateLimit, decrementRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
-import { buildUserProfileContext } from "@/lib/utils/user-context";
-import { unwrap } from "@/lib/cache/wrapper";
+import { db } from "@/lib/db/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { cachedGenerateGeminiContent, QUIZ_CACHE_TTL_MS, generateCacheKey, getCacheStore } from "@/lib/cache";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { parseAIJson } from "@/lib/ai/validate";
+import { validateInput, validateOutput } from "@/lib/ai/validate";
+import { getCachedOrFetch } from "@/lib/ai/ai-cache";
+import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
+import { interviewQuestionsOutputSchema } from "@/lib/schemas";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { translations } from "@/lib/misc/translations";
+import { unwrap } from "@/lib/db/redis-result";
 
 // Fallback MCQ questions in case Gemini generation fails, categorized by industry
 const TECH_FALLBACK_QUESTIONS = [
@@ -466,6 +470,49 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
     if (userId) {
       await decrementRateLimit(userId, "quizFeedback");
     }
+    return handleServerError(error, "interview");
+  }
+}
+
+export async function getAssessments() {
+  try {
+    const { userId } = await auth();
+    if (!userId) return [];
+
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) return [];
+
+    return db.assessment.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    return handleServerError(error, "interview");
+  }
+}
+
+/**
+ * Fetches a single assessment by ID.
+ */
+export async function getAssessment(id) {
+  try {
+    const { userId } = await auth();
+    if (!userId) return null;
+
+    const user = await db.user.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (!user) return null;
+
+    return db.assessment.findFirst({
+      where: {
+        id,
+        userId: user.id,
+      },
+    });
+  } catch (error) {
     return handleServerError(error, "interview");
   }
 }
