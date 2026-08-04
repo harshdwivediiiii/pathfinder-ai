@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -188,7 +188,26 @@ export default function AppSidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
 
+  const openTriggerRef = useRef(null);
+  const drawerRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const previousIsOpenRef = useRef(isOpen);
+
   useScrollLock(isMobile && isOpen);
+
+  useEffect(() => {
+    if (isMobile) {
+      if (isOpen && !previousIsOpenRef.current) {
+        const timer = setTimeout(() => {
+          (closeButtonRef.current || drawerRef.current)?.focus();
+        }, 50);
+        return () => clearTimeout(timer);
+      } else if (!isOpen && previousIsOpenRef.current) {
+        openTriggerRef.current?.focus();
+      }
+    }
+    previousIsOpenRef.current = isOpen;
+  }, [isOpen, isMobile]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -242,6 +261,7 @@ export default function AppSidebar() {
             </button>
           ) : (
             <button
+              ref={closeButtonRef}
               onClick={() => setIsOpen(false)}
               aria-label="Close navigation menu"
               aria-expanded={isOpen}
@@ -385,6 +405,7 @@ export default function AppSidebar() {
     <>
       {isMobile && !isOpen && (
         <Button
+          ref={openTriggerRef}
           variant="outline"
           size="icon"
           onClick={() => setIsOpen(true)}
@@ -410,6 +431,10 @@ export default function AppSidebar() {
       </AnimatePresence>
 
       <motion.div
+        ref={drawerRef}
+        tabIndex={isMobile && isOpen ? -1 : undefined}
+        aria-hidden={isMobile && !isOpen ? true : undefined}
+        inert={isMobile && !isOpen ? "" : undefined}
         initial={false}
         animate={{ 
           width: isMobile ? (isOpen ? "85vw" : 0) : (isOpen ? 280 : 100), 

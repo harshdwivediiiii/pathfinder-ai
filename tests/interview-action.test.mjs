@@ -9,6 +9,7 @@ const actionMocks = vi.hoisted(() => ({
   formatResetTime: vi.fn(),
   cacheGet: vi.fn(),
   cacheDelete: vi.fn(),
+  decrementRateLimit: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -32,7 +33,7 @@ vi.mock("@/lib/ai/gemini", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
+  decrementRateLimit: actionMocks.decrementRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));
 

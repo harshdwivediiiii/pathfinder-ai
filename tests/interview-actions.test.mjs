@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => {
     assessmentFindFirst: vi.fn(),
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
     formatResetTime: vi.fn().mockReturnValue("1h"),
-    decrementRateLimit: vi.fn(),
+    decrementRateLimit: vi.fn().mockResolvedValue(true),
   };
 });
 
@@ -55,7 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
-  decrementRateLimit: vi.fn().mockResolvedValue(true),
+  decrementRateLimit: mocks.decrementRateLimit,
   formatResetTime: mocks.formatResetTime,
 }));
 
@@ -140,6 +140,15 @@ describe("interview actions", () => {
       expect(result).toHaveProperty("sessionId");
       expect(result).toHaveProperty("questions");
       expect(result.isFallback).toBe(true);
+      expect(mocks.decrementRateLimit).toHaveBeenCalledWith("clerk-user-1", "quiz");
+    });
+
+    it("does not refund rate limit when checkRateLimit denies the request", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: Date.now() });
+
+      await generateQuiz("Technical");
+      expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
     });
   });
 

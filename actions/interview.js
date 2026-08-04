@@ -164,6 +164,34 @@ const FallbackQuizPool = {
   nonprofit: BUSINESS_FALLBACK_QUESTIONS,
 };
 
+export function getFallbackQuestionsForIndustry(industry) {
+  const key = industry?.toLowerCase() || "tech";
+  const primaryPool = FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS;
+  if (primaryPool.length >= 10) {
+    return primaryPool.slice(0, 10);
+  }
+
+  const pool = [...primaryPool];
+  const poolsToSearch = [
+    TECH_FALLBACK_QUESTIONS,
+    HEALTHCARE_FALLBACK_QUESTIONS,
+    FINANCE_FALLBACK_QUESTIONS,
+    BUSINESS_FALLBACK_QUESTIONS,
+  ];
+
+  for (const extraPool of poolsToSearch) {
+    for (const q of extraPool) {
+      if (pool.length >= 10) break;
+      if (!pool.some((existing) => existing.question === q.question)) {
+        pool.push(q);
+      }
+    }
+    if (pool.length >= 10) break;
+  }
+
+  return pool.slice(0, 10);
+}
+
 export async function getCoachQuestions(locale = "en") {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -172,8 +200,8 @@ export async function getCoachQuestions(locale = "en") {
     where: { clerkUserId: userId },
     select: { industry: true },
   });
-  const key = user?.industry?.toLowerCase() || "tech";
-  const pool = (FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS).map((q) => q.question);
+  const fallbackQuestions = getFallbackQuestionsForIndustry(user?.industry);
+  const pool = fallbackQuestions.map((q) => q.question);
 
   if (locale !== "en" && translations[locale]?.interviewQuestion) {
     const localized = translations[locale].interviewQuestion;
@@ -296,7 +324,8 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
     return { sessionId, questions, isFallback: false };
   } catch (error) {
-    if (userId) {
+    const isRateLimitError = error.message?.includes("limit reached");
+    if (userId && !isRateLimitError) {
       await decrementRateLimit(userId, "quiz");
     }
     console.warn("Quiz generation error, falling back to default questions:", error);
@@ -306,8 +335,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
         where: { clerkUserId: userId },
         select: { industry: true },
       });
-      const key = user?.industry?.toLowerCase() || "tech";
-      const fallbackQuestions = (FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS).slice(0, 10);
+      const fallbackQuestions = getFallbackQuestionsForIndustry(user?.industry);
       const sessionId = crypto.randomUUID();
       const cacheStore = getCacheStore();
       const cacheKey = generateCacheKey("quiz-session", userId, sessionId);
@@ -315,6 +343,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
       return { sessionId, questions: fallbackQuestions, isFallback: true };
     } catch (fallbackErr) {
+      console.error("Quiz fallback generation failed:", fallbackErr);
       return {
         success: false,
         error: error.message || "Failed to generate quiz."
@@ -467,7 +496,8 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     return assessment;
   } catch (error) {
-    if (userId) {
+    const isRateLimitError = error.message?.includes("limit reached");
+    if (userId && !isRateLimitError) {
       await decrementRateLimit(userId, "quizFeedback");
     }
     return handleServerError(error, "interview");

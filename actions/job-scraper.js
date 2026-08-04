@@ -16,7 +16,7 @@ export async function parseJobUrl(url) {
 
   const limit = await checkRateLimit(userId, "jobScraper");
   if (limit && !limit.allowed) {
-    const resetAt = limit?.resetAt ?? Date.now();
+    const resetAt = limit?.resetAt ? new Date(limit.resetAt) : new Date();
     return {
       success: false,
       errors: {
@@ -86,22 +86,20 @@ export async function parseJobUrl(url) {
 
     const aiResult = await generateGeminiContent(prompt);
 
-    const rawText = await (async () => {
-      try {
-        if (!aiResult) return "";
-        if (typeof aiResult === "string") return aiResult;
-        if (aiResult?.response && typeof aiResult.response.text === "function") {
-          return await aiResult.response.text();
-        }
-        if (aiResult?.text) return aiResult.text;
-        return "";
-      } catch (err) {
-        console.warn("[job-scraper] Failed to read AI response text:", err);
-        return "";
-      }
-    })();
+    let rawText = "";
+    if (typeof aiResult === "string") {
+      rawText = aiResult;
+    } else if (aiResult?.response && typeof aiResult.response.text === "function") {
+      rawText = await aiResult.response.text();
+    } else if (aiResult?.text) {
+      rawText = aiResult.text;
+    }
 
-    const parsedData = rawText ? parseAIJson(rawText) : {};
+    if (!rawText || !rawText.trim()) {
+      throw new Error("Failed to extract readable text from AI response.");
+    }
+
+    const parsedData = parseAIJson(rawText);
 
     return {
       success: true,
