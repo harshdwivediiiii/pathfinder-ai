@@ -57,3 +57,5 @@ export default async function ATSAnalyzerRoute() {
     </div>
   );
 }
+
+.catch(err => console.error("Promise.all failed:", err));
