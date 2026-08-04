@@ -230,18 +230,35 @@ export default function AppSidebar() {
             </motion.div>
           )}
 
-          {!isMobile && (
+          {!isMobile ? (
             <button 
               onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+              aria-expanded={isOpen}
+              aria-controls="app-sidebar"
               className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden lg:block"
             >
               {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsOpen(false)}
+              aria-label="Close navigation menu"
+              aria-expanded={isOpen}
+              aria-controls="app-sidebar"
+              className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground lg:hidden"
+            >
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
 
       {/* Navigation Groups */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-8 custom-scrollbar">
+      <nav 
+        id="app-sidebar" 
+        aria-label="Primary navigation" 
+        className="flex-1 overflow-y-auto px-4 pb-8 space-y-8 custom-scrollbar"
+      >
         {MENU_GROUPS.map((group, idx) => (
           <div key={idx} className="space-y-3">
             {group.title && (isOpen || isMobile) && (
@@ -265,6 +282,7 @@ export default function AppSidebar() {
                     href={link.href} 
                     onClick={() => isMobile && setIsOpen(false)}
                     title={!isOpen && !isMobile ? link.label : undefined}
+                    aria-current={isActive ? "page" : undefined}
                   >
                     <div className={cn(
                       "flex items-center rounded-2xl transition-all duration-300 relative group",
@@ -326,7 +344,7 @@ export default function AppSidebar() {
             </div>
           </div>
         ))}
-      </div>
+      </nav>
 
       {/* User Section */}
       <div className="p-4 border-t border-sidebar-border bg-sidebar/50 backdrop-blur-md">
@@ -370,6 +388,9 @@ export default function AppSidebar() {
           variant="outline"
           size="icon"
           onClick={() => setIsOpen(true)}
+          aria-label="Open navigation menu"
+          aria-expanded={false}
+          aria-controls="app-sidebar"
           className="fixed bottom-6 left-6 z-[70] rounded-2xl h-14 w-14 shadow-2xl bg-primary text-primary-foreground border-none hover:scale-110 transition-all"
         >
           <Menu className="h-6 w-6" />
