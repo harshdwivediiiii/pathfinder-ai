@@ -55,6 +55,9 @@ jobs:
         fi
     - name: Generate Prisma client
       run: npx prisma generate
+    - name: Install psql client
+      run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
     - name: Set up test database
       run: |
         # Wait for postgres to be fully ready with retry loop
