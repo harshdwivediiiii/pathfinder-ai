@@ -5,7 +5,7 @@ import { ACTION_CONTEXT } from "@/lib/action-helpers/action-context";
 import { getAiResponseText } from "@/lib/ai/ai-response";
 import { db } from "@/lib/db/prisma";
 import { finalizeAiPersistence } from "@/lib/ai/ai-persistence";
-import { requireAuthenticatedUser } from "@/lib/auth/authenticated-user";
+import { requireAuthenticatedUser } from "@/lib/auth/auth-guards";
 import { buildUserLookup } from "@/lib/db/user-query";
 import { getAuthenticatedHistoryResponse } from "@/lib/history/history-response-auth";
 import { createSuccessResponse } from "@/lib/action-helpers/action-success";
