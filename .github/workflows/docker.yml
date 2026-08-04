@@ -17,6 +17,22 @@ jobs:
       contents: read
       packages: write
       # required for github container registry
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,6 +50,17 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
+      - name: Set up test database
+        run: |
+          # Wait for postgres to be ready
+          until pg_isready -h localhost -p 5432 -U test; do sleep 1; done
+          # Create dummy user and database (matches vitest.config.mjs DATABASE_URL)
+          PGPASSWORD=test psql -h localhost -p 5432 -U test -c "CREATE USER dummy WITH PASSWORD 'dummy';" 2>/dev/null || true
+          PGPASSWORD=test psql -h localhost -p 5432 -U test -c "CREATE DATABASE dummy OWNER dummy;" 2>/dev/null || true
+          PGPASSWORD=test psql -h localhost -p 5432 -U test -c "GRANT ALL PRIVILEGES ON DATABASE dummy TO test;" 2>/dev/null || true
+          # Push schema to dummy database
+          DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma db push --skip-generate --accept-data-loss
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
@@ -44,10 +71,11 @@ jobs:
           CLERK_SECRET_KEY: sk_test_dummy
 
       - name: Run tests
-        run: npm run test:ci # Assuming `test:ci` runs both unit and e2e tests
+        run: npm run test:ci
         env:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
           CLERK_SECRET_KEY: sk_test_dummy
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
       - name: Log in to the Container registry
         if: github.event_name != 'pull_request'
