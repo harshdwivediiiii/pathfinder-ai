@@ -46,11 +46,19 @@ jobs:
           DATABASE_URL: "postgresql://test:test@localhost:5432/test"
 
       - name: Set up test database
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
         run: |
+          echo "Installing postgresql-client for diagnostics..."
+          sudo apt-get update && sudo apt-get install -y postgresql-client
           echo "Waiting for postgres service (20s for full startup)..."
           sleep 20
-          echo "Pushing Prisma schema to test database..."
-          DATABASE_URL="postgresql://test:test@localhost:5432/test" npx prisma db push --skip-generate --accept-data-loss --no-color
+          echo "Testing postgres connection with psql..."
+          PGPASSWORD=test psql -h localhost -U test -d test -c "SELECT version();"
+          echo "psql connection: SUCCESS"
+          echo "Running prisma db push..."
+          npx prisma db push --skip-generate --accept-data-loss
+          echo "Prisma db push: SUCCESS"
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
