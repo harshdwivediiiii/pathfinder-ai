@@ -25,6 +25,7 @@ import { completePersistence } from "@/lib/persistence/persistence-complete";
 import { createRecord } from "@/lib/db/record-create";
 import { getAuthenticatedUserId } from "@/lib/auth/auth-userid";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { withParsedData } from "@/lib/persistence/persistence-data";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
 import { parseAiOutput } from "@/lib/ai/ai-output";
