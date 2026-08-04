@@ -20,12 +20,13 @@ import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
  * Runs an ATS analysis using Gemini AI and persists the result safely.
  */
 export async function analyzeATS(rawParams) {
+  let userId;
   try {
     if (!isFeatureEnabled("ats")) {
       return { success: false, errors: { _form: ["ATS analysis feature is currently disabled (missing configuration)."] } };
     }
 
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
 
     if (!userId) {
       return { success: false, errors: { _form: ["Sign-in required to scan applications."] } };
@@ -154,7 +155,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     revalidatePath("/ats-analyzer");
     return { success: true, data: record };
   } catch (error) {
-    await decrementRateLimit(userId, "ats");
+    if (userId) await decrementRateLimit(userId, "ats");
     return handleServerError(error, "ats");
   }
 }

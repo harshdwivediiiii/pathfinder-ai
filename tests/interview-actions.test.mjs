@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     assessmentFindFirst: vi.fn(),
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
     formatResetTime: vi.fn().mockReturnValue("1h"),
+    decrementRateLimit: vi.fn(),
   };
 });
 
@@ -57,6 +58,7 @@ vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   decrementRateLimit: vi.fn(),
   formatResetTime: mocks.formatResetTime,
+  decrementRateLimit: mocks.decrementRateLimit,
 }));
 
 vi.mock("@/lib/ai/gemini", () => ({
@@ -81,6 +83,7 @@ vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   decrementRateLimit: vi.fn(),
   formatResetTime: mocks.formatResetTime,
+  decrementRateLimit: mocks.decrementRateLimit,
 }));
 
 

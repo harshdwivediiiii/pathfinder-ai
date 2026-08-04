@@ -513,8 +513,9 @@ export async function getCoachQuestions(locale = "en") {
  * Generates 10 unique MCQ questions based on user's industry, skills, and quiz category.
  */
 export async function generateQuiz(category = "Technical") {
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const categoryValidation = validateInput(quizCategorySchema, { category });
@@ -618,7 +619,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
     return { sessionId, questions, isFallback: false };
   } catch (error) {
-    await decrementRateLimit(userId, "quiz");
+    if (userId) await decrementRateLimit(userId, "quiz");
     console.error("Quiz generation top-level error:", error);
     if (process.env.NODE_ENV === "test") {
       throw error;
@@ -634,8 +635,9 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
  * Saves a quiz result and generates AI-powered feedback if mistakes were made.
  */
 export async function saveQuizResult(sessionIdOrQuestions, answers, category = "Technical") {
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     if (!sessionIdOrQuestions) {
@@ -772,7 +774,7 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     return assessment;
   } catch (error) {
-    await decrementRateLimit(userId, "quizFeedback");
+    if (userId) await decrementRateLimit(userId, "quizFeedback");
     return handleServerError(error, "interview");
   }
 }

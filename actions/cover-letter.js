@@ -36,8 +36,9 @@ export async function generateCoverLetter(data) {
   let companyName;
   let jobTitle;
   let jobDescription;
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const limit = await checkRateLimit(userId, "coverLetter");
@@ -128,7 +129,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
 
     return { ...coverLetter, isFallback: false };
   } catch (err) {
-    await decrementRateLimit(userId, "coverLetter");
+    if (userId) await decrementRateLimit(userId, "coverLetter");
     console.error("Cover letter generation error:", err);
     const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
     return {
