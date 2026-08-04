@@ -46,6 +46,8 @@ export default async function DashboardPage() {
     user.id,
     { createdAt: "desc" }
   );
+  
+  const weeklySummary = await getWeeklySummaryStats();
 
   return (
     <DashboardContent
@@ -59,6 +61,7 @@ export default async function DashboardPage() {
       insight={insight}
       upcomingInterviews={upcomingInterviews}
       recentDecisions={recentDecisions.slice(0, 3)}
+      weeklySummary={weeklySummary}
     />
   );
 }
