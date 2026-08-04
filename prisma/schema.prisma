@@ -107,6 +107,8 @@ model User {
   issues                Issue[]
   agentRuns             AgentRun[]
   projectWorkspaces     ProjectWorkspace[]
+  evidenceItems         EvidenceItem[]
+  pathfindingSessions   PathfindingSession[]
 }
 
 model Assessment {
@@ -1005,4 +1007,19 @@ model ProjectActivity {
   createdAt   DateTime @default(now())
 
   @@index([workspaceId])
+}
+
+model EvidenceItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  url         String?  @db.Text
+  category    String   // GITHUB, CERTIFICATE, PROJECT, METRIC, ARTICLE, RECOMMENDATION, OTHER
+  description String?  @db.Text
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
 }
