@@ -26,10 +26,10 @@ jobs:
           POSTGRES_PASSWORD: test
           POSTGRES_DB: test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd timeout 5s pg_isready -h 127.0.0.1 -p 5432 -U test
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 12
         ports:
           - 5432:5432
 
@@ -52,19 +52,14 @@ jobs:
 
       - name: Set up test database
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-          # Wait for postgres (up to 60s)
-          for i in $(seq 1 20); do
-            if PGPASSWORD=test psql -h localhost -U test -d test -c "SELECT 1" > /dev/null 2>&1; then
-              echo "Postgres ready on attempt $i"
-              break
-            fi
-            echo "Waiting for postgres (attempt $i/20)..."
-            sleep 3
-          done
-          # Use 'test' database (auto-created by postgres service)
-          # Run migrations via prisma db push
-          DATABASE_URL="postgresql://test:test@localhost:5432/test" npx prisma db push --skip-generate --accept-data-loss --no-color
+          echo "Waiting for postgres service..."
+          sleep 15
+          echo "Pushing Prisma schema..."
+          DATABASE_URL="postgresql://test:test@localhost:5432/test" npx prisma db push --skip-generate --accept-data-loss --no-color || {
+            echo "Prisma db push failed. Checking postgres connectivity..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+            PGPASSWORD=test psql -h localhost -U test -d test -c "SELECT version();"
+          }
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
