@@ -14,8 +14,9 @@ import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/secur
 const EXECUTIVE_SYSTEM_CONTEXT = `You are a C-level executive coach specializing in leadership communication, gravitas, and executive presence. Your goal is to help professionals transition from functional experts to influential leaders. You focus on removing hedging language, increasing clarity, and commanding the room in high-stakes scenarios.`;
 
 export async function generateExecutivePresence(formData) {
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const limit = await checkRateLimit(userId, "executive_presence");
@@ -87,7 +88,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
     return presence;
   } catch (error) {
-    await decrementRateLimit(userId, "executive_presence");
+    if (userId) await decrementRateLimit(userId, "executive_presence");
     return handleServerError(error, "executive-presence");
   }
 }

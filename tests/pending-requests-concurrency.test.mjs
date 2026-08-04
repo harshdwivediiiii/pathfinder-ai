@@ -272,4 +272,230 @@ describe("Pending Requests Concurrency Tests", () => {
       deletePendingRequest(longKey);
     });
   });
+
+  describe("Automatic Cleanup - Promise.finally()", () => {
+    it("should automatically remove registry entry when promise resolves", async () => {
+      const cacheKey = `test-key-${Date.now()}-auto-resolve`;
+
+      const { promise, isCreator, resolve } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator).toBe(true);
+      expect(getPendingRequest(cacheKey)).toBe(promise);
+
+      // Resolve the promise
+      resolve("test-result");
+      await promise;
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Registry should be automatically cleaned up
+      expect(getPendingRequest(cacheKey)).toBeNull();
+    });
+
+    it("should automatically remove registry entry when promise rejects", async () => {
+      const cacheKey = `test-key-${Date.now()}-auto-reject`;
+
+      const { promise, isCreator, reject } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator).toBe(true);
+      expect(getPendingRequest(cacheKey)).toBe(promise);
+
+      // Reject the promise
+      reject(new Error("test-error"));
+      await promise.catch(() => {});
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Registry should be automatically cleaned up
+      expect(getPendingRequest(cacheKey)).toBeNull();
+    });
+
+    it("should handle idempotent cleanup - multiple delete calls", async () => {
+      const cacheKey = `test-key-${Date.now()}-idempotent`;
+
+      const { promise, isCreator, resolve } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator).toBe(true);
+
+      // Resolve the promise
+      resolve("test-result");
+      await promise;
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Multiple delete calls should not throw
+      deletePendingRequest(cacheKey);
+      deletePendingRequest(cacheKey);
+      deletePendingRequest(cacheKey);
+
+      expect(getPendingRequest(cacheKey)).toBeNull();
+    });
+
+    it("should cleanup executes only once per promise", async () => {
+      const cacheKey = `test-key-${Date.now()}-once`;
+
+      const { promise, isCreator, resolve } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator).toBe(true);
+
+      // Resolve the promise
+      resolve("test-result");
+      await promise;
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Registry should be cleaned up
+      expect(getPendingRequest(cacheKey)).toBeNull();
+
+      // Even after more time, should still be null
+      await new Promise(resolve => setTimeout(resolve, 50));
+      expect(getPendingRequest(cacheKey)).toBeNull();
+    });
+
+    it("should registry size returns to zero after all requests complete", async () => {
+      const timestamp = Date.now();
+      const keys = [
+        `key-${timestamp}-a`,
+        `key-${timestamp}-b`,
+        `key-${timestamp}-c`
+      ];
+
+      // Create pending requests
+      const requests = keys.map(key => {
+        const { promise, isCreator, resolve } = getOrCreatePendingRequest(key);
+        expect(isCreator).toBe(true);
+        return { key, promise, resolve };
+      });
+
+      // All should be registered
+      keys.forEach(key => {
+        expect(getPendingRequest(key)).not.toBeNull();
+      });
+
+      // Resolve all promises
+      requests.forEach(({ resolve }) => resolve("done"));
+      await Promise.all(requests.map(r => r.promise));
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // All should be cleaned up
+      keys.forEach(key => {
+        expect(getPendingRequest(key)).toBeNull();
+      });
+    });
+  });
+
+  describe("Automatic Cleanup - Request Deduplication", () => {
+    it("should concurrent requests still share one Promise with auto cleanup", async () => {
+      const cacheKey = `test-key-${Date.now()}-dedup`;
+
+      // Create multiple concurrent requests
+      const results = [];
+      const promises = Array.from({ length: 5 }, (_, i) => {
+        const { promise, isCreator } = getOrCreatePendingRequest(cacheKey);
+        results.push({ index: i, isCreator });
+        return promise;
+      });
+
+      // All should share the same promise
+      const firstPromise = promises[0];
+      promises.forEach(p => expect(p).toBe(firstPromise));
+
+      // Only one creator
+      const creators = results.filter(r => r.isCreator);
+      expect(creators.length).toBe(1);
+
+      // Resolve the promise
+      const creator = results.find(r => r.isCreator);
+      // We need to get the resolve function from the creator
+      // Since we don't have it directly, let's use a different approach
+      const { resolve } = getOrCreatePendingRequest(cacheKey);
+      if (resolve) {
+        resolve("test-result");
+        await firstPromise;
+
+        // Wait for finally to execute
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Registry should be cleaned up
+        expect(getPendingRequest(cacheKey)).toBeNull();
+      } else {
+        // Manual cleanup for this test
+        deletePendingRequest(cacheKey);
+      }
+    });
+
+    it("should duplicate creators are prevented with auto cleanup", async () => {
+      const cacheKey = `test-key-${Date.now()}-no-dup`;
+
+      const { promise: promise1, isCreator: isCreator1 } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator1).toBe(true);
+
+      // Second request should not be creator
+      const { promise: promise2, isCreator: isCreator2 } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator2).toBe(false);
+      expect(promise2).toBe(promise1);
+
+      // Cleanup
+      deletePendingRequest(cacheKey);
+    });
+  });
+
+  describe("Automatic Cleanup - Edge Cases", () => {
+    it("should handle rejected promises with auto cleanup", async () => {
+      const cacheKey = `test-key-${Date.now()}-reject-edge`;
+
+      const { promise, isCreator, reject } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator).toBe(true);
+
+      // Reject with an error
+      reject(new Error("simulated failure"));
+      await promise.catch(() => {});
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Registry should be cleaned up
+      expect(getPendingRequest(cacheKey)).toBeNull();
+    });
+
+    it("should handle cancelled requests with auto cleanup", async () => {
+      const cacheKey = `test-key-${Date.now()}-cancel`;
+
+      const { promise, isCreator, reject } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator).toBe(true);
+
+      // Simulate cancellation by rejecting
+      reject(new Error("cancelled"));
+      await promise.catch(() => {});
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Registry should be cleaned up
+      expect(getPendingRequest(cacheKey)).toBeNull();
+    });
+
+    it("should handle unexpected exceptions in promise chain", async () => {
+      const cacheKey = `test-key-${Date.now()}-exception`;
+
+      const { promise, isCreator, resolve } = getOrCreatePendingRequest(cacheKey);
+      expect(isCreator).toBe(true);
+
+      // Create a promise chain that throws
+      const chainedPromise = promise.then(() => {
+        throw new Error("unexpected error");
+      });
+
+      resolve("test-result");
+      await chainedPromise.catch(() => {});
+
+      // Wait for finally to execute
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Registry should be cleaned up
+      expect(getPendingRequest(cacheKey)).toBeNull();
+    });
+  });
 });

@@ -20,16 +20,16 @@ export async function getDashboardStats() {
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
     include: {
-      resumes: true,
-      coverLetters: true,
-      interviews: true,
+      resume: true,
+      coverLetter: true,
+      mockInterviewSessions: true,
     },
   });
 
   return {
-    totalResumes: user?.resumes?.length || 0,
-    totalCoverLetters: user?.coverLetters?.length || 0,
-    totalInterviews: user?.interviews?.length || 0,
+    totalResumes: user?.resume ? 1 : 0,
+    totalCoverLetters: user?.coverLetter?.length || 0,
+    totalInterviews: user?.mockInterviewSessions?.length || 0,
   };
 }
 

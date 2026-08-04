@@ -171,7 +171,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     const returnData = { ...roadmap, isFallback: false };
     return returnData;
   } catch (error) {
-    await decrementRateLimit(userId, "roadmap");
+    if (authUserId) await decrementRateLimit(authUserId, "roadmap");
     return handleServerError(error, "roadmap");
   }
 }

@@ -112,7 +112,8 @@ describe("updateUser action", () => {
       })
     );
     expect(result).toEqual({
-      updatedUser: mockUpdatedUser,
+      success: true,
+      user: mockUpdatedUser,
       industryInsight: {
         industry: "Quantum Computing",
         ...mockAiInsights,
@@ -163,7 +164,7 @@ describe("updateUser action", () => {
         }),
       })
     );
-    expect(result.updatedUser).toEqual(mockUpdatedUser);
+    expect(result.user).toEqual(mockUpdatedUser);
     expect(result.industryInsight.growthRate).toBe(0);
     expect(result.industryInsight.demandLevel).toBe("Medium");
   });

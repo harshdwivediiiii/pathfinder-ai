@@ -9,6 +9,7 @@ import { fetchRecentJobEmails } from "@/lib/google/gmail";
 import { extractJobApplicationFromEmail } from "@/lib/ai/gemini";
 import { validateInput } from "@/lib/ai/validate";
 import { jobApplicationSchema, jobApplicationUpdateStatusSchema } from "@/lib/schemas/forms";
+import { toCanonicalStatus, toDisplayStatus } from "@/lib/constants/job-application-status";
 
 export async function getJobApplications() {
   const { userId } = await auth();
@@ -58,6 +59,7 @@ export async function createJobApplication(data) {
       data: {
         userId: user.id,
         ...validation.data,
+        status: toCanonicalStatus(validation.data.status),
       },
     });
 
@@ -88,7 +90,7 @@ export async function updateJobApplicationStatus(id, status) {
         userId: user.id,
       },
       data: {
-        status: validation.data.status,
+        status: toCanonicalStatus(validation.data.status),
       },
     });
 
@@ -262,10 +264,7 @@ export async function getJobAnalytics() {
     const companyStats = {};
 
     jobs.forEach(job => {
-      let normalizedStatus = job.status;
-      if (normalizedStatus === "Interviewing") normalizedStatus = "Interview";
-      if (normalizedStatus === "Offer Received") normalizedStatus = "Offer";
-      if (normalizedStatus === "Wishlist") normalizedStatus = "Saved";
+      const normalizedStatus = toDisplayStatus(job.status);
 
       statusCounts[normalizedStatus] = (statusCounts[normalizedStatus] || 0) + 1;
 
