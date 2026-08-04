@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db/prisma";
 import { isIndustryInsightStale } from "@/lib/misc/industry-insights";
-import { getIndustryInsights } from "@/actions/dashboard";
+import { getIndustryInsights, getWeeklySummaryStats } from "@/actions/dashboard";
 import { getUpcomingInterviews } from "@/lib/jobs/upcoming-interviews";
 import { getUserHistory } from "@/lib/history/history-query";
 import { DashboardContent } from "./_components/dashboard-content";
