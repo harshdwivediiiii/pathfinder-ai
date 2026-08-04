@@ -1006,3 +1006,11 @@ model ProjectActivity {
 
   @@index([workspaceId])
 }
+
+model AiResponseCache {
+  promptHash String   @id
+  response   String   @db.Text
+  feature    String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
