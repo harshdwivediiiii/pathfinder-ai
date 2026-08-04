@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   validateDevBypass,
+  validateE2EBypass,
   validateVideoCoachBypass,
   _resetWarningFlag,
 } from "../lib/auth/dev-bypass.js";
@@ -148,6 +149,152 @@ describe("Development Authentication Bypass Validation", () => {
       expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
 
       consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe("validateE2EBypass", () => {
+    it("allows bypass in non-production mode on localhost with E2E_TEST=true", () => {
+      process.env.NODE_ENV = "test";
+      const result = validateE2EBypass({
+        hostname: "localhost",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it("allows bypass in development mode on 127.0.0.1 with E2E_TEST=true", () => {
+      process.env.NODE_ENV = "development";
+      const result = validateE2EBypass({
+        hostname: "127.0.0.1",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it("rejects bypass when E2E_TEST is not enabled without an error", () => {
+      process.env.NODE_ENV = "development";
+      const result = validateE2EBypass({
+        hostname: "localhost",
+        e2eTestEnabled: false,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeUndefined();
+    });
+
+    it("rejects bypass in production mode with descriptive error", () => {
+      process.env.NODE_ENV = "production";
+      const result = validateE2EBypass({
+        hostname: "localhost",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.error.message).toContain("NOT allowed in production");
+      expect(result.error.message).toContain("E2E_TEST");
+      expect(result.error.message).toContain("NODE_ENV");
+    });
+
+    it("rejects bypass on non-localhost hostname with descriptive error", () => {
+      process.env.NODE_ENV = "development";
+      const result = validateE2EBypass({
+        hostname: "example.com",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.error.message).toContain("only allowed on localhost");
+      expect(result.error.message).toContain("example.com");
+    });
+
+    it("rejects bypass on deployed environment hostname with descriptive error", () => {
+      process.env.NODE_ENV = "development";
+      const result = validateE2EBypass({
+        hostname: "myapp.vercel.app",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.error.message).toContain("only allowed on localhost");
+      expect(result.error.message).toContain("myapp.vercel.app");
+    });
+
+    it("emits console warning when bypass is allowed", () => {
+      process.env.NODE_ENV = "test";
+      const consoleWarnSpy = vi.spyOn(console, "warn");
+
+      validateE2EBypass({
+        hostname: "localhost",
+        e2eTestEnabled: true,
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      const warningCall = consoleWarnSpy.mock.calls[0][0];
+      expect(warningCall).toContain("WARNING");
+      expect(warningCall).toContain("Authentication is currently DISABLED");
+      expect(warningCall).toContain("E2E_TEST=true");
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("only emits warning once for multiple validations", () => {
+      process.env.NODE_ENV = "test";
+      const consoleWarnSpy = vi.spyOn(console, "warn");
+
+      validateE2EBypass({
+        hostname: "localhost",
+        e2eTestEnabled: true,
+      });
+
+      validateE2EBypass({
+        hostname: "127.0.0.1",
+        e2eTestEnabled: true,
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("handles whitespace in hostname with strict equality", () => {
+      process.env.NODE_ENV = "test";
+      const result = validateE2EBypass({
+        hostname: " localhost ",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it("handles case-sensitive NODE_ENV check", () => {
+      process.env.NODE_ENV = "PRODUCTION";
+      const result = validateE2EBypass({
+        hostname: "localhost",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it("prevents bypass when both production and localhost", () => {
+      process.env.NODE_ENV = "production";
+      const result = validateE2EBypass({
+        hostname: "localhost",
+        e2eTestEnabled: true,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.error.message).toContain("NOT allowed in production");
     });
   });
 
