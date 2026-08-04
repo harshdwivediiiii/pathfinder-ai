@@ -91,9 +91,22 @@ vi.mock("@/lib/security/rate-limit-actions", () => ({
 describe("interview actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset stateful mocks that carry over between tests
+    mocks.cacheGet.mockReset();
+    mocks.cacheSet.mockReset();
+    mocks.cacheDelete.mockReset();
+    mocks.generateGeminiContent.mockReset();
+    mocks.checkRateLimit.mockReset();
+    mocks.formatResetTime.mockReset();
+    mocks.auth.mockReset();
+    mocks.findUniqueUser.mockReset();
+    mocks.createAssessment.mockReset();
+    mocks.assessmentFindFirst.mockReset();
+    mocks.decrementRateLimit.mockReset();
+    // Default implementations
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.formatResetTime.mockReturnValue("1h");
-    mocks.formatResetTime.mockReturnValue("10m");
+    mocks.cacheGet.mockResolvedValue(undefined); // cache miss = calls AI
   });
 
   describe("generateQuiz", () => {
@@ -232,14 +245,6 @@ describe("interview actions", () => {
       expect(mocks.cacheDelete).not.toHaveBeenCalled();
       expect(mocks.createAssessment).not.toHaveBeenCalled();
     });
-  });
-
-  describe("getAssessment", () => {
-    it("returns null if user is not authenticated", async () => {
-    mocks.auth.mockResolvedValue({ userId: null });
-    const result = await getAssessment("assessment-1");
-    expect(result).toBeNull();
-    expect(mocks.userFindUnique).not.toHaveBeenCalled();
   });
 
   describe("getAssessment", () => {

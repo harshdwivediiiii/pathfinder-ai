@@ -621,13 +621,9 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
   } catch (error) {
     if (userId) await decrementRateLimit(userId, "quiz");
     console.error("Quiz generation top-level error:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    return {
-      success: false,
-      error: error.message || "Failed to generate quiz."
-    };
+    const fallbackPool = (FallbackQuizPool[category?.toLowerCase()] || FallbackQuizPool.tech || TECH_FALLBACK_QUESTIONS).slice(0, 10);
+    const sessionId = crypto.randomUUID();
+    return { sessionId, questions: fallbackPool, isFallback: true };
   }
 }
 

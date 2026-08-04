@@ -24,7 +24,7 @@ vi.mock("@/lib/security/safe-fetch", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  db: { $queryRaw: vi.fn() },
+  db: { $queryRaw: vi.fn().mockResolvedValue([{ count: 1 }]) },
 }));
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
