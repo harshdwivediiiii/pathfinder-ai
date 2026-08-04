@@ -55,26 +55,25 @@ jobs:
         fi
     - name: Generate Prisma client
       run: npx prisma generate
-    - name: Install psql client
-      run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
     - name: Set up test database
       run: |
-        # Wait for postgres to be fully ready with retry loop
-        for i in $(seq 1 30); do
+        sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null 2>&1
+        # Wait for postgres with explicit retries
+        echo "Waiting for postgres..."
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
           if PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "SELECT 1" > /dev/null 2>&1; then
-            echo "Postgres ready after ${i} attempts"
+            echo "Postgres ready (attempt $i)"
             break
           fi
-          echo "Waiting for postgres... attempt $i/30"
-          sleep 2
+          echo "  attempt $i/20 - retrying in 3s..."
+          sleep 3
         done
-        # Create dummy user and database (matches vitest.config.mjs DATABASE_URL)
-        PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname='dummy'" | grep -q '1' || \
-          PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "CREATE USER dummy WITH PASSWORD 'dummy' CREATEDB;"
-        PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "SELECT 1 FROM pg_database WHERE datname='dummy'" | grep -q '1' || \
-          PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "CREATE DATABASE dummy OWNER dummy;"
-        # Push schema to dummy database (uses dummy user credentials)
+        # Create dummy user
+        PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "DO \$\\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='dummy') THEN CREATE USER dummy WITH PASSWORD 'dummy' CREATEDB; END IF; END \$\$" 2>&1 || true
+        # Create dummy database
+        PGPASSWORD=test psql -h localhost -p 5432 -U test -d postgres -c "CREATE DATABASE dummy WITH OWNER dummy" 2>&1 || echo "DB may already exist, continuing..."
+        # Push Prisma schema
+        echo "Pushing Prisma schema..."
         DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma db push --skip-generate --accept-data-loss --no-color
     - run: npx playwright install --with-deps chromium
     - name: Run tests
