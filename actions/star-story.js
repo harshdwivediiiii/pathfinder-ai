@@ -28,6 +28,10 @@ function isMeaningfulExperience(input) {
   // Detect excessive repeated characters (e.g., "kkkkkkkkkk")
   if (/(.)\1{5,}/i.test(text)) return false;
 
+  // Check for repeated words (gibberish detection)
+  const uniqueWords = new Set(words.map(word => word.toLowerCase()));
+  if (uniqueWords.size < 3) return false;
+
   // Calculate alphabetic ratio
   const letterCount = (text.match(/[a-zA-Z]/g) || []).length;
   const alphabeticRatio = letterCount / text.length;
@@ -52,17 +56,7 @@ export async function generateStarStory(rawExperience) {
     return createErrorResponse("User not found");
   }
 
-  // Check rate limit
-  const limit = await checkRateLimit(userId, "starStory");
-  if (!limit.allowed) {
-    return {
-      success: false,
-      errors: {
-        _form: [`STAR story generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
-      },
-    };
-  }
-
+  // First validate the input before checking rate limit
   // Validate meaningful experience
   if (!isMeaningfulExperience(rawExperience)) {
     return {
@@ -80,8 +74,19 @@ export async function generateStarStory(rawExperience) {
     return {
       success: false,
       errors: {
-        _form: ["Experience description must be under 3000 characters."]
+        _form: ["Experience description must be 3000 characters or fewer."]
       }
+    };
+  }
+
+  // Check rate limit after validation (to avoid consuming quota on invalid input)
+  const limit = await checkRateLimit(userId, "starStory");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`STAR story generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
     };
   }
 
