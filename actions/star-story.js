@@ -9,6 +9,39 @@ import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
+/**
+ * Validates raw experience input for gibberish or meaningless content.
+ * Rejects single words, keyboard mashes, and highly repetitive strings.
+ *
+ * @param {string} text - The raw experience input
+ * @returns {string|null} Error message if invalid, null if valid
+ */
+function validateRawExperience(text) {
+  const trimmed = text.trim();
+
+  // Reject single words or very sparse content
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) {
+    return "Please describe your experience in at least two words.";
+  }
+
+  // Reject if fewer than 30% of characters are alphabetic
+  // (catches keyboard mashes like "asdfjkl; qwertyuiop zxcvbnm")
+  const alphaCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
+  const alphaRatio = alphaCount / trimmed.length;
+  if (alphaRatio < 0.3) {
+    return "Please provide a meaningful description using real words.";
+  }
+
+  // Reject excessive character repetition (e.g. "aaaaaaa bbbbb ccccc")
+  const repetitionPattern = /(.)\1{5,}/g;
+  if (repetitionPattern.test(trimmed)) {
+    return "Please provide a real description instead of repeated characters.";
+  }
+
+  return null;
+}
+
 export async function generateStarStory(rawExperience) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -32,6 +65,11 @@ export async function generateStarStory(rawExperience) {
 
   if (rawExperience.trim().length > 3000) {
     return { success: false, errors: { _form: ["Experience description must be under 3000 characters."] } };
+  }
+
+  const validationError = validateRawExperience(rawExperience);
+  if (validationError) {
+    return { success: false, errors: { _form: [validationError] } };
   }
 
   const prompt = buildSecurePrompt({
