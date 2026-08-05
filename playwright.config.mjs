@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: {
     command: isCI
-      ? "DATABASE_URL=postgresql://test:test@localhost:5432/test npm run start -- --port 3000"
+      ? "DATABASE_URL=postgresql://test:test@localhost:5432/test sh -c 'mkdir -p .next/standalone/public .next/standalone/.next/static && cp -r public/* .next/standalone/public/ 2>/dev/null || true && cp -r .next/static/* .next/standalone/.next/static/ 2>/dev/null || true && PORT=3000 node .next/standalone/server.js'"
       : "npm run dev -- --port 3000 -H 127.0.0.1",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !isCI,
