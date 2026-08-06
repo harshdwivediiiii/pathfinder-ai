@@ -48,3 +48,5 @@ export default async function SettingsPage() {
     </div>
   );
 }
+
+.catch(err => console.error("Promise.all failed:", err));
