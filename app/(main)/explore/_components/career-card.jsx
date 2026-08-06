@@ -1,6 +1,7 @@
 "use client";
 
 import { useCareerShortlist } from "@/hooks/use-career-shortlist";
+import { isValidMatchScore } from "@/lib/misc/explore-careers";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,7 @@ export function CareerCard({ career }) {
   const { isShortlisted, toggleShortlist } = useCareerShortlist();
   const saved = isShortlisted(career.id);
   const isPersonalized = Boolean(career.isPersonalized);
-  const hasMatchScore = typeof career.matchScore === "number";
+  const hasMatchScore = isValidMatchScore(career.matchScore);
   const showMatched = isPersonalized && career.matchedSkills?.length > 0;
   const primarySkills = showMatched ? career.matchedSkills : career.skills;
 

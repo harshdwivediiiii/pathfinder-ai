@@ -1,6 +1,7 @@
 "use client";
 
 import { useCareerShortlist } from "@/hooks/use-career-shortlist";
+import { isValidMatchScore } from "@/lib/misc/explore-careers";
 import { motion } from "framer-motion";
 import { ArrowLeft, Layers, Check, Trophy, AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -31,10 +32,10 @@ export default function ComparePage() {
     );
   }
 
-  // Find max values to highlight (matchScore may be null for browse examples)
+  // Find max values to highlight (matchScore may be null/invalid for browse examples)
   const numericMatches = shortlist
     .map((c) => c.matchScore)
-    .filter((score) => typeof score === "number");
+    .filter(isValidMatchScore);
   const highestMatch = numericMatches.length ? Math.max(...numericMatches) : null;
   const highestSalary = Math.max(...shortlist.map(c => c.salaryValue));
   const highestGrowth = Math.max(...shortlist.map(c => c.growthValue));
@@ -92,7 +93,7 @@ export default function ComparePage() {
                   Remove
                 </button>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${career.color}`}>
-                  {typeof career.matchScore === "number" ? (
+                  {isValidMatchScore(career.matchScore) ? (
                     <span className="text-xl font-bold">{career.matchScore}%</span>
                   ) : (
                     <span className="text-[10px] font-bold uppercase tracking-wide px-1 text-center leading-tight">
@@ -111,7 +112,7 @@ export default function ComparePage() {
               label="Match Score" 
               renderValue={(c) => (
                 <div className="flex items-center gap-2">
-                  {typeof c.matchScore === "number" ? (
+                  {isValidMatchScore(c.matchScore) ? (
                     <>
                       <span className={`text-2xl font-black ${c.matchScore === highestMatch ? 'text-primary' : 'text-foreground'}`}>
                         {c.matchScore}%

@@ -1,9 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   asBrowseCareers,
+  isValidMatchScore,
   rankExploreCareers,
   scoreCareerAgainstProfile,
 } from "../lib/misc/explore-careers.js";
+import { readShortlistForOwner } from "../lib/misc/career-shortlist.js";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -91,6 +93,59 @@ describe("explore career ranking", () => {
     expect(browse.every((c) => c.matchScore === null && c.isPersonalized === false)).toBe(
       true
     );
+  });
+
+  it("treats whitespace-only skills as no profile signal", () => {
+    const result = rankExploreCareers(sampleCareers, {
+      skills: [" ", "\t"],
+      targetRole: "  ",
+    });
+
+    expect(result.every((career) => career.isPersonalized === false)).toBe(true);
+    expect(result.every((career) => career.matchScore === null)).toBe(true);
+  });
+
+  it("rejects invalid match scores", () => {
+    expect(isValidMatchScore(88)).toBe(true);
+    expect(isValidMatchScore(0)).toBe(true);
+    expect(isValidMatchScore(100)).toBe(true);
+    expect(isValidMatchScore(NaN)).toBe(false);
+    expect(isValidMatchScore(Infinity)).toBe(false);
+    expect(isValidMatchScore(-1)).toBe(false);
+    expect(isValidMatchScore(101)).toBe(false);
+    expect(isValidMatchScore(null)).toBe(false);
+  });
+});
+
+describe("career shortlist owner scoping", () => {
+  const sampleItem = {
+    id: "frontend-developer",
+    title: "Frontend Developer",
+    matchScore: 88,
+    isPersonalized: true,
+    skills: ["React"],
+  };
+
+  it("returns items only when ownerId matches", () => {
+    const raw = JSON.stringify({
+      ownerId: "user_1",
+      items: [sampleItem],
+    });
+
+    expect(readShortlistForOwner(raw, "user_1")).toEqual([sampleItem]);
+    expect(readShortlistForOwner(raw, "user_2")).toEqual([]);
+    expect(readShortlistForOwner(raw, "anonymous")).toEqual([]);
+  });
+
+  it("strips personalization from legacy anonymous arrays and ignores them for signed-in users", () => {
+    const legacy = JSON.stringify([sampleItem]);
+
+    expect(readShortlistForOwner(legacy, "anonymous")[0]).toMatchObject({
+      id: "frontend-developer",
+      matchScore: null,
+      isPersonalized: false,
+    });
+    expect(readShortlistForOwner(legacy, "user_1")).toEqual([]);
   });
 });
 
