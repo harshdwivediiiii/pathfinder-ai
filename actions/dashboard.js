@@ -9,7 +9,7 @@ import {
   getIndustryInsightRefreshTime,
   isIndustryInsightStale,
 } from "@/lib/misc/industry-insights";
-import { generateGeminiContent } from "@/lib/ai/gemini-api";
+import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { parseAIJson } from "@/lib/ai/validate";
 

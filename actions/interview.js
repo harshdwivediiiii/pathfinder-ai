@@ -621,13 +621,29 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
   } catch (error) {
     if (userId) await decrementRateLimit(userId, "quiz");
     console.error("Quiz generation top-level error:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
+    
+    // Only throw auth or limit errors
+    if (error.message === "Unauthorized" || error.message.includes("limit reached")) {
+      if (process.env.NODE_ENV === "test") throw error;
+      return { success: false, error: error.message };
     }
-    return {
-      success: false,
-      error: error.message || "Failed to generate quiz."
-    };
+
+    try {
+      const sessionId = crypto.randomUUID();
+      const cacheStore = getCacheStore();
+      const cacheKey = generateCacheKey("quiz-session", userId, sessionId);
+      const fallbackQuestions = TECH_FALLBACK_QUESTIONS.slice(0, 10);
+      await cacheStore.set(cacheKey, fallbackQuestions, QUIZ_CACHE_TTL_MS);
+      return { sessionId, questions: fallbackQuestions, isFallback: true };
+    } catch (fallbackError) {
+      if (process.env.NODE_ENV === "test") {
+        throw error;
+      }
+      return {
+        success: false,
+        error: error.message || "Failed to generate quiz."
+      };
+    }
   }
 }
 
