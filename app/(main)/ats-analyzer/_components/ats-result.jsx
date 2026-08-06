@@ -397,7 +397,7 @@ async function downloadReport(result) {
 
   const el = document.createElement("div");
 
-  el.innerHTML = DOMPurify.sanitize(html);
+  el.textContent = DOMPurify.sanitize(html);
 
   document.body.appendChild(el);
 
