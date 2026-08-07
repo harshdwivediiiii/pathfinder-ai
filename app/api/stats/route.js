@@ -41,3 +41,5 @@ export async function GET() {
     return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR, "Failed to load stats");
   }
 }
+
+.catch(err => console.error("Promise.all failed:", err));
