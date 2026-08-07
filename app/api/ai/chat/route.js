@@ -115,7 +115,21 @@ Guidelines:
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          // Handle client disconnect via abort signal
+          if (req.signal?.aborted) {
+            controller.close();
+            return;
+          }
+          req.signal?.addEventListener('abort', () => {
+            try {
+              controller.close();
+            } catch {
+              // Controller may already be closed
+            }
+          }, { once: true });
+
           for await (const chunk of result.stream) {
+            if (req.signal?.aborted) break;
             const chunkText = chunk.text();
             if (chunkText) {
               controller.enqueue(encoder.encode(chunkText));
