@@ -101,7 +101,7 @@ export default function SwarmRouterPage() {
         newPositions[agent.id] = path[timeStep];
       } else if (path && path.length > 0) {
         // Agent finished, stay at last position
-        newPositions[agent.id] = path[path.length - 1];
+        newPositions[agent.id] = path.at(-1);
       }
     });
 
