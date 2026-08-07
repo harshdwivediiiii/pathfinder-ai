@@ -71,3 +71,4 @@ export async function PUT(request) {
     return new Response(JSON.stringify({ error: "Inngest handler error" }), { status: 500 });
   }
 }
+.catch(err => console.error("Promise.all failed:", err));
