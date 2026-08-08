@@ -121,7 +121,7 @@ const extractChunkText = (chunk) => {
   try {
     const rawText = typeof chunk.text === "function" ? chunk.text() : chunk?.text;
 
-    if (rawText == null) return "";
+    if (rawText === null) return "";
     if (typeof rawText === "string") return rawText;
 
     return String(rawText);
