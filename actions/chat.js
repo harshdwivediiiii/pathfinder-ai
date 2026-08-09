@@ -68,8 +68,8 @@ export async function chatWithGemini(prompt) {
       const { response } = await generateGeminiContent(securePrompt);
       return { success: true, data: response.text() };
     } catch (err) {
-    return handleServerError(err, "chat");
-  }
+      return handleServerError(err, "chat");
+    }
   } catch (error) {
     if (userId) await decrementRateLimit(userId, "chat");
     return handleServerError(error, "chat");
