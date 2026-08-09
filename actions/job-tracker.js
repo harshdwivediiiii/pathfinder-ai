@@ -351,12 +351,15 @@ export async function syncJobApplicationsFromEmail() {
       if (!parsedData || !parsedData.companyName) continue;
 
       const { companyName, jobTitle, status, interviewDate } = parsedData;
+      const normalizedJobTitle = jobTitle || "Unknown Role";
+      const canonicalStatus = toCanonicalStatus(status || "Applied");
 
-      // Find existing by company (basic deduplication)
+      // Find an existing application for the same company and role.
       const existing = await db.jobApplication.findFirst({
         where: {
           userId: user.id,
-          companyName: { contains: companyName, mode: "insensitive" }
+          companyName: { equals: companyName, mode: "insensitive" },
+          jobTitle: { equals: normalizedJobTitle, mode: "insensitive" },
         },
         orderBy: { updatedAt: 'desc' }
       });
@@ -366,14 +369,14 @@ export async function syncJobApplicationsFromEmail() {
 
       if (existing) {
         // Update if status changed or new interview date
-        const isNewStatus = existing.status !== status && status !== "Applied"; // Don't downgrade
+        const isNewStatus = existing.status !== canonicalStatus && canonicalStatus !== "Applied"; // Don't downgrade
         const isNewDate = validDate && (!existing.interviewDate || existing.interviewDate.getTime() !== validDate.getTime());
         
         if (isNewStatus || isNewDate) {
           await db.jobApplication.update({
             where: { id: existing.id },
             data: {
-              ...(isNewStatus ? { status } : {}),
+              ...(isNewStatus ? { status: canonicalStatus } : {}),
               ...(isNewDate ? { interviewDate: validDate } : {})
             }
           });
@@ -384,8 +387,8 @@ export async function syncJobApplicationsFromEmail() {
           data: {
             userId: user.id,
             companyName,
-            jobTitle: jobTitle || "Unknown Role",
-            status: status || "Applied",
+            jobTitle: normalizedJobTitle,
+            status: canonicalStatus,
             interviewDate: validDate,
             notes: `Auto-synced from email: ${email.subject}`
           }
