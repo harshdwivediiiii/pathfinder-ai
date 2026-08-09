@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { parseAIJson } from "@/lib/ai/validate";
+import { getAiResponseText } from "@/lib/ai/ai-response";
 
 export async function analyzeSystemDesign(base64Image) {
   try {
@@ -51,8 +52,7 @@ Return ONLY a valid JSON object matching this schema:
       generationConfig: { responseMimeType: "application/json" }
     });
 
-    const textOutput = aiResult.response?.text?.() ?? aiResult.response?.text ?? "";
-    const parsedData = parseAIJson(textOutput);
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     return {
       success: true,
