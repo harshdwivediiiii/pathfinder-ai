@@ -3,6 +3,34 @@
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const workspaceInputSchema = z.object({
+  title: z.string().trim().min(1, "Workspace title is required").max(160, "Workspace title is too long"),
+  description: z.string().trim().max(2000, "Workspace description is too long").optional().or(z.literal("")),
+});
+
+const noteContentSchema = z.string().trim().min(1, "Note content is required").max(20000, "Note content is too long");
+const pinTypeSchema = z.enum(["note", "agentOutput"]);
+
+const agentOutputSchema = z.object({
+  title: z.string().trim().min(1, "Agent output title is required").max(200, "Agent output title is too long"),
+  content: z.unknown().refine((value) => {
+    try {
+      return JSON.stringify(value).length <= 100000;
+    } catch {
+      return false;
+    }
+  }, "Agent output content is too large or invalid"),
+  agentRunId: z.string().cuid().nullable().optional(),
+});
+
+function parseWorkspaceInput(data) {
+  return workspaceInputSchema.parse({
+    title: data?.title,
+    description: data?.description || "",
+  });
+}
 
 /**
  * Centralized authorization helpers
@@ -113,6 +141,7 @@ export async function createWorkspace(data) {
       throw new Error("Unauthorized");
     }
 
+    const validatedData = parseWorkspaceInput(data);
     const user = await db.user.findUnique({ where: { clerkUserId: userId } });
     if (!user) {
       throw new Error("User not found");
@@ -121,8 +150,8 @@ export async function createWorkspace(data) {
     const workspace = await db.projectWorkspace.create({
       data: {
         userId: user.id,
-        title: data.title,
-        description: data.description,
+        title: validatedData.title,
+        description: validatedData.description,
         activities: {
           create: {
             type: "CREATED",
@@ -145,13 +174,14 @@ export async function updateWorkspace(id, data) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
+    const validatedData = parseWorkspaceInput(data);
     const existing = await getOwnedWorkspace(id, userId);
 
     const workspace = await db.projectWorkspace.update({
       where: { id: existing.id },
       data: {
-        title: data.title,
-        description: data.description,
+        title: validatedData.title,
+        description: validatedData.description,
         activities: {
           create: {
             type: "UPDATED",
@@ -194,12 +224,13 @@ export async function createNote(workspaceId, content) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
     
+    const validatedContent = noteContentSchema.parse(content);
     const workspace = await getOwnedWorkspace(workspaceId, userId);
 
     const note = await db.projectNote.create({
       data: {
         workspaceId: workspace.id,
-        content,
+        content: validatedContent,
       },
     });
 
@@ -224,11 +255,12 @@ export async function updateNote(noteId, content) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
+    const validatedContent = noteContentSchema.parse(content);
     const note = await getOwnedNote(noteId, userId);
 
     const updatedNote = await db.projectNote.update({
       where: { id: note.id },
-      data: { content },
+      data: { content: validatedContent },
     });
 
     await db.projectActivity.create({
@@ -279,15 +311,16 @@ export async function togglePin(type, id) {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
     
+    const validatedType = pinTypeSchema.parse(type);
     let workspaceId;
-    if (type === "note") {
+    if (validatedType === "note") {
       const note = await getOwnedNote(id, userId);
       workspaceId = note.workspaceId;
       
       // Atomic raw update for nitpick requirement
       await db.$executeRaw`UPDATE "ProjectNote" SET "isPinned" = NOT "isPinned" WHERE "id" = ${note.id}`;
       
-    } else if (type === "agentOutput") {
+    } else if (validatedType === "agentOutput") {
       const output = await getOwnedAgentOutput(id, userId);
       workspaceId = output.workspaceId;
       
@@ -302,7 +335,7 @@ export async function togglePin(type, id) {
       data: {
         workspaceId,
         type: "PIN_TOGGLED",
-        description: `Toggled pin for ${type === "note" ? "a note" : "an agent output"}`,
+        description: `Toggled pin for ${validatedType === "note" ? "a note" : "an agent output"}`,
       },
     });
 
@@ -319,14 +352,34 @@ export async function saveAgentOutput(workspaceId, title, content, agentRunId = 
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
     
+    const validatedOutput = agentOutputSchema.parse({
+      title,
+      content,
+      agentRunId,
+    });
     const workspace = await getOwnedWorkspace(workspaceId, userId);
+    const validatedAgentRunId = validatedOutput.agentRunId || null;
+
+    if (validatedAgentRunId) {
+      const ownedRun = await db.agentRun.findFirst({
+        where: {
+          id: validatedAgentRunId,
+          user: { clerkUserId: userId },
+        },
+        select: { id: true },
+      });
+
+      if (!ownedRun) {
+        throw new Error("Agent run not found or unauthorized");
+      }
+    }
 
     const output = await db.projectAgentOutput.create({
       data: {
         workspaceId: workspace.id,
-        title,
-        content,
-        agentRunId,
+        title: validatedOutput.title,
+        content: validatedOutput.content,
+        agentRunId: validatedAgentRunId,
       },
     });
 
@@ -334,7 +387,7 @@ export async function saveAgentOutput(workspaceId, title, content, agentRunId = 
       data: {
         workspaceId: workspace.id,
         type: "AGENT_OUTPUT_SAVED",
-        description: `Saved agent output: ${title}`,
+        description: `Saved agent output: ${validatedOutput.title}`,
       },
     });
 
