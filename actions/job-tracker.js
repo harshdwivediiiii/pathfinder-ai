@@ -55,11 +55,43 @@ export async function createJobApplication(data) {
   if (!user) return createErrorResponse("User not found");
 
   try {
+    const { atsAnalysisId, coverLetterId, ...jobData } = validation.data;
+
+    if (atsAnalysisId) {
+      const atsAnalysis = await db.atsAnalysis.findFirst({
+        where: {
+          id: atsAnalysisId,
+          userId: user.id,
+        },
+        select: { id: true },
+      });
+
+      if (!atsAnalysis) {
+        return { success: false, errors: { atsAnalysisId: ["ATS analysis not found"] } };
+      }
+    }
+
+    if (coverLetterId) {
+      const coverLetter = await db.coverLetter.findFirst({
+        where: {
+          id: coverLetterId,
+          userId: user.id,
+        },
+        select: { id: true },
+      });
+
+      if (!coverLetter) {
+        return { success: false, errors: { coverLetterId: ["Cover letter not found"] } };
+      }
+    }
+
     const job = await db.jobApplication.create({
       data: {
         userId: user.id,
-        ...validation.data,
-        status: toCanonicalStatus(validation.data.status),
+        ...jobData,
+        ...(atsAnalysisId ? { atsAnalysisId } : {}),
+        ...(coverLetterId ? { coverLetterId } : {}),
+        status: toCanonicalStatus(jobData.status),
       },
     });
 
