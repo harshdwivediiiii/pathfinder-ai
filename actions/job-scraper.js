@@ -8,7 +8,7 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { parseAIJson } from "@/lib/ai/validate";
 
 import { safeFetch } from "@/lib/security/safe-fetch";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, decrementRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
 
 export async function parseJobUrl(url) {
   const { userId } = await auth();
@@ -36,10 +36,12 @@ export async function parseJobUrl(url) {
     });
 
     if (!response.success) {
+      await decrementRateLimit(userId, "jobScraper");
       return response;
     }
 
     if (response.status !== 200) {
+      await decrementRateLimit(userId, "jobScraper");
       return {
         success: false,
         errors: { _form: [`Fetch failed with status ${response.status}`] },
@@ -106,6 +108,7 @@ export async function parseJobUrl(url) {
       data: parsedData,
     };
   } catch (error) {
+    await decrementRateLimit(userId, "jobScraper");
     return handleServerError(error, "job-scraper");
   }
 }
