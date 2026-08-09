@@ -398,7 +398,7 @@ Rules:
 
   // Atomically get or create the pending request BEFORE any async work
   const { promise: pendingPromise, isCreator, resolve: resolvePending, reject: rejectPending } =
-    getOrCreatePendingGenerationRequest(cacheUser, promptCheck.prompt);
+    getOrCreatePendingGenerationRequest(cacheUser, restrictedPrompt);
 
   const encoder = new TextEncoder();
   const abortController = new AbortController();
@@ -607,4 +607,3 @@ Rules:
     headers,
   });
 }
-
