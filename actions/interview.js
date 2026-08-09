@@ -13,6 +13,7 @@ import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
 import { interviewQuestionsOutputSchema } from "@/lib/schemas";
+import { voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas/interview";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { translations } from "@/lib/misc/translations";
 import { unwrap } from "@/lib/db/redis-result";
@@ -536,6 +537,90 @@ export async function getAssessment(id) {
         userId: user.id,
       },
     });
+  } catch (error) {
+    return handleServerError(error, "interview");
+  }
+}
+
+/**
+ * Evaluates a transcribed voice answer using the AI coach.
+ */
+export async function evaluateVoiceAnswer(question, transcribedAnswer) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const voiceLimit = await checkRateLimit(userId, "voiceEvaluation");
+    if (!voiceLimit.allowed) {
+      return { success: false, error: `Voice evaluation limit reached. Resets in ${formatResetTime(voiceLimit.resetAt)}.` };
+    }
+
+    const prompt = buildSecurePrompt({
+      context: "You are an expert interview coach evaluating a spoken answer from a candidate.",
+      task: "Evaluate the transcribed answer based on confidence, filler words, and content quality.",
+      untrustedData: [
+        { label: "question", value: question, maxLength: 1000 },
+        { label: "transcribedAnswer", value: transcribedAnswer, maxLength: 3000 },
+      ],
+      outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+{
+  "score": 85,
+  "fillerWordsCount": 3,
+  "confidence": "High",
+  "feedback": "Your answer was very structured, but you used 'um' a few times."
+}`,
+    });
+
+    const aiResult = await generateGeminiContent(prompt);
+    const validation = validateOutput(voiceFeedbackOutputSchema, aiResult.response.text());
+    if (!validation.success) {
+      console.error("Voice evaluation output validation failed:", validation.errors);
+      return { success: false, error: "AI returned an unexpected format." };
+    }
+    return { success: true, data: validation.data };
+  } catch (error) {
+    return handleServerError(error, "interview");
+  }
+}
+
+/**
+ * Evaluates a transcribed video answer along with basic body language metrics.
+ */
+export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const videoLimit = await checkRateLimit(userId, "videoEvaluation");
+    if (!videoLimit.allowed) {
+      return { success: false, error: `Video evaluation limit reached. Resets in ${formatResetTime(videoLimit.resetAt)}.` };
+    }
+
+    const prompt = buildSecurePrompt({
+      context: "You are an expert interview coach evaluating a video interview response.",
+      task: "Evaluate the transcribed answer and the provided facial metrics (e.g., face detected percentage).",
+      untrustedData: [
+        { label: "question", value: question, maxLength: 1000 },
+        { label: "transcribedAnswer", value: transcribedAnswer, maxLength: 3000 },
+        { label: "metrics", value: JSON.stringify(metrics), maxLength: 500 },
+      ],
+      outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+{
+  "score": 85,
+  "fillerWordsCount": 3,
+  "confidence": "High",
+  "bodyLanguageFeedback": "You maintained great eye contact and presence.",
+  "verbalFeedback": "Your answer was very structured, but you used 'um' a few times."
+}`,
+    });
+
+    const aiResult = await generateGeminiContent(prompt);
+    const validation = validateOutput(videoFeedbackOutputSchema, aiResult.response.text());
+    if (!validation.success) {
+      console.error("Video evaluation output validation failed:", validation.errors);
+      return { success: false, error: "AI returned an unexpected format." };
+    }
+    return { success: true, data: validation.data };
   } catch (error) {
     return handleServerError(error, "interview");
   }
