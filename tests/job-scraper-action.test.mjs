@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   generateGeminiContent: vi.fn(),
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -37,6 +38,7 @@ import { parseJobUrl } from "../actions/job-scraper.js";
 describe("parseJobUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.checkRateLimit.mockResolvedValue({ allowed: true });
   });
 
   it("successfully parses a job URL using generateGeminiContent and parseAIJson", async () => {
