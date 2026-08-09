@@ -9,9 +9,19 @@ import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { z } from "zod";
 
+const safeUrlRefinement = (value) => {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 const evidenceSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title is too long"),
-  url: z.string().url().optional().or(z.literal("")),
+  url: z.string().url().refine(safeUrlRefinement, "Only HTTP/HTTPS URLs are permitted").optional().or(z.literal("")),
   category: z.enum(["GITHUB", "CERTIFICATE", "PROJECT", "METRIC", "ARTICLE", "RECOMMENDATION", "OTHER"]),
   description: z.string().max(2000, "Description is too long").optional().or(z.literal("")),
   tags: z.array(z.string()).max(10, "Maximum 10 tags allowed").optional(),
