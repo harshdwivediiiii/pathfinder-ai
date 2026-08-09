@@ -32,7 +32,7 @@ import { getCircuitBreaker } from "@/lib/cache/circuit-breaker";
 import { createLogger } from "@/lib/observability/logger";
 import { incrementCacheHit, incrementCacheMiss, recordAiGenerationDuration, setCircuitBreakerState, recordError } from "@/lib/observability/metrics";
 import { validateInput, validateId } from "@/lib/ai/validate";
-import { chatPromptSchema } from "@/lib/schemas/forms";
+import { chatPromptSchema as chatPromptInputSchema } from "@/lib/schemas/forms";
 import { getEnv } from "@/lib/security/env";
 
 const SSE_BASE_HEADERS = {
@@ -193,7 +193,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    const promptValidation = validateInput(chatPromptSchema, { prompt: body.prompt });
+    const promptValidation = validateInput(chatPromptInputSchema, { prompt: body.prompt });
     if (!promptValidation.success) {
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid prompt", promptValidation.errors);
     }
