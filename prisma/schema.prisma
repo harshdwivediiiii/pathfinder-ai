@@ -103,12 +103,12 @@ model User {
   auditLogs                 AuditLog[]
   resumeMatchAnalyses       ResumeMatchAnalysis[]
   careerDecisionSimulations CareerDecisionSimulation[]
-  mockInterviewSessions MockInterviewSession[]
-  issues                Issue[]
-  agentRuns             AgentRun[]
-  projectWorkspaces     ProjectWorkspace[]
-  evidenceItems         EvidenceItem[]
-  pathfindingSessions   PathfindingSession[]
+  mockInterviewSessions     MockInterviewSession[]
+  pathfindingSessions       PathfindingSession[]       @relation("PathfindingSessionUser")
+  issues                    Issue[]
+  agentRuns                 AgentRun[]
+  projectWorkspaces         ProjectWorkspace[]
+  interviewBookmarks        InterviewBookmark[]
 }
 
 model Assessment {
@@ -1019,6 +1019,19 @@ model EvidenceItem {
   tags        String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model InterviewBookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    String   @db.Text
+  options     Json?    
+  answer      String?  @db.Text 
+  category    String
+  createdAt   DateTime @default(now())
 
   @@index([userId])
 }

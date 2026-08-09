@@ -201,4 +201,37 @@ describe("ComparativeSolver", () => {
     expect(result.results[0].success).toBe(true);
     expect(result.results[0].path).toEqual([]);
   });
+
+  it("ranks the cheaper path first when costs differ and exploration is equal", () => {
+    const solver = new ComparativeSolver();
+    const results = [
+      { algorithm: "dijkstra", success: true, result: { path: ["A", "B", "C"], cost: 2, nodesExplored: 10 } },
+      { algorithm: "astar", success: true, result: { path: ["A", "D", "E", "F"], cost: 4, nodesExplored: 10 } },
+    ];
+
+    const comparison = solver.compareResults(results, {
+      weights: { cost: 0.6, speed: 0.2, safety: 0.05, scenic: 0.05, risk: 0.1 },
+    });
+
+    expect(comparison.weightedRanking[0].algorithm).toBe("dijkstra");
+    expect(comparison.weightedRanking[1].algorithm).toBe("astar");
+    expect(comparison.weightedRanking[0].score).toBeGreaterThan(comparison.weightedRanking[1].score);
+    expect(comparison.bestOverall.algorithm).toBe("dijkstra");
+  });
+
+  it("gives equal-cost results the same cost score", () => {
+    const solver = new ComparativeSolver();
+    const results = [
+      { algorithm: "dijkstra", success: true, result: { path: ["A", "B"], cost: 3, nodesExplored: 8 } },
+      { algorithm: "astar", success: true, result: { path: ["A", "C"], cost: 3, nodesExplored: 12 } },
+    ];
+
+    const comparison = solver.compareResults(results, {
+      weights: { cost: 1 },
+    });
+
+    // Equal costs collapse the range, so the cost term contributes the same
+    // score to both candidates.
+    expect(comparison.weightedRanking[0].score).toBe(comparison.weightedRanking[1].score);
+  });
 });
