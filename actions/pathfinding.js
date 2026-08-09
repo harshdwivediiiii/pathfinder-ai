@@ -60,7 +60,8 @@ export async function compareAlgorithms(data) {
       data: result,
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    console.error("compareAlgorithms failed:", error);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -106,7 +107,8 @@ export async function coordinateAgents(data) {
       },
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    console.error("coordinateAgents failed:", error);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }
 
@@ -153,6 +155,7 @@ export async function dynamicReplan(data) {
       },
     };
   } catch (error) {
-    return respondError(ERROR_CODES.INTERNAL_ERROR, error.message);
+    console.error("dynamicReplan failed:", error);
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }

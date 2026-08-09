@@ -196,6 +196,72 @@ describe('BucketMutex', () => {
       expect(order).toEqual(['hold-start', 'hold-end', 'success-waiter']);
       expect(mutex.getLockCount()).toBe(0);
     });
+
+    it('should clear timer on timeout', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(200);
+      });
+
+      const waiter = mutex.withLock('test-key', async () => {}, { timeoutMs: 50 });
+
+      await expect(waiter).rejects.toThrow(MutexTimeoutError);
+      
+      // After timeout, the waiter should be removed and timer cleared
+      const lock = mutex.locks.get('test-key');
+      expect(lock.waiters.length).toBe(0);
+
+      await holdLock;
+    });
+
+    it('should handle timeout during heavy contention', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const results = [];
+
+      // Hold the lock
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(150);
+      });
+
+      // Add many waiters with short timeouts
+      const waiters = [];
+      for (let i = 0; i < 10; i++) {
+        waiters.push(
+          mutex.withLock('test-key', async () => {
+            results.push(i);
+          }, { timeoutMs: 50 })
+        );
+      }
+
+      // All should timeout
+      await Promise.all(waiters.map(w => w.catch(() => {})));
+      expect(results).toEqual([]);
+
+      await holdLock;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should not leave stale queue entries after timeout', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(200);
+      });
+
+      // Add waiters that will timeout
+      for (let i = 0; i < 5; i++) {
+        await mutex.withLock('test-key', async () => {}, { timeoutMs: 50 }).catch(() => {});
+      }
+
+      await holdLock;
+      await delay(10);
+
+      // Queue should be empty
+      const stats = mutex.getStats();
+      expect(stats.totalWaiters).toBe(0);
+      expect(mutex.getLockCount()).toBe(0);
+    });
   });
 
   describe('Hanging callback handling', () => {
@@ -320,6 +386,82 @@ describe('BucketMutex', () => {
 
       await holdLock;
       await waiter;
+    });
+
+    it('should use explicit state for cleanup instead of timer internals', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(200);
+      });
+
+      // Add waiters that will timeout
+      const waiters = [];
+      for (let i = 0; i < 3; i++) {
+        waiters.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(waiters.map(w => w.catch(() => {})));
+      
+      // Verify waiters are marked as expired without checking timer internals
+      const lock = mutex.locks.get('test-key');
+      expect(lock).toBeDefined();
+      expect(lock.waiters.length).toBe(0); // Should be removed immediately on timeout
+
+      await holdLock;
+    });
+
+    it('should cleanup be idempotent', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(100);
+      });
+
+      // Add waiters that will timeout
+      const waiters = [];
+      for (let i = 0; i < 3; i++) {
+        waiters.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(waiters.map(w => w.catch(() => {})));
+      
+      // Call cleanup multiple times
+      mutex.cleanup();
+      mutex.cleanup();
+      mutex.cleanup();
+
+      const stats = mutex.getStats();
+      expect(stats.totalWaiters).toBe(0);
+
+      await holdLock;
+    });
+
+    it('should handle cleanup during active execution', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const executing = mutex.withLock('test-key', async () => {
+        // Cleanup while lock is held
+        mutex.cleanup();
+        await delay(50);
+      });
+
+      await executing;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should handle cleanup with empty queue', async () => {
+      mutex.cleanup();
+      expect(mutex.getLockCount()).toBe(0);
+      
+      mutex.cleanup();
+      mutex.cleanup();
+      
+      expect(mutex.getLockCount()).toBe(0);
     });
   });
 
@@ -586,6 +728,290 @@ describe('BucketMutex', () => {
         return 42;
       });
       expect(result).toBe(42);
+    });
+
+    it('should handle callback that throws', async () => {
+      await expect(
+        mutex.withLock('test-key', async () => {
+          throw new Error('Callback error');
+        })
+      ).rejects.toThrow('Callback error');
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should handle callback that rejects', async () => {
+      await expect(
+        mutex.withLock('test-key', async () => {
+          return Promise.reject(new Error('Rejected'));
+        })
+      ).rejects.toThrow('Rejected');
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should handle callback that resolves immediately', async () => {
+      const result = await mutex.withLock('test-key', async () => {
+        return 'immediate';
+      });
+      expect(result).toBe('immediate');
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should handle multiple timeout events', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(300);
+      });
+
+      // First batch of timeouts
+      const batch1 = [];
+      for (let i = 0; i < 3; i++) {
+        batch1.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(batch1.map(w => w.catch(() => {})));
+
+      // Second batch of timeouts
+      const batch2 = [];
+      for (let i = 0; i < 3; i++) {
+        batch2.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(batch2.map(w => w.catch(() => {})));
+
+      await holdLock;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should handle repeated cleanup calls', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(100);
+      });
+
+      // Add waiters that will timeout
+      const waiters = [];
+      for (let i = 0; i < 3; i++) {
+        waiters.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(waiters.map(w => w.catch(() => {})));
+
+      // Call cleanup multiple times
+      for (let i = 0; i < 10; i++) {
+        mutex.cleanup();
+      }
+
+      await holdLock;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should handle queue becoming empty during execution', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(100);
+      });
+
+      // Add waiters that will timeout
+      const waiters = [];
+      for (let i = 0; i < 3; i++) {
+        waiters.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(waiters.map(w => w.catch(() => {})));
+
+      // Queue should be empty
+      const lock = mutex.locks.get('test-key');
+      expect(lock.waiters.length).toBe(0);
+
+      await holdLock;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should handle lock removal correctly', async () => {
+      await mutex.withLock('test-key', async () => {
+        // Lock is held
+      });
+      
+      // Lock should be removed after execution
+      expect(mutex.locks.has('test-key')).toBe(false);
+      expect(mutex.getLockCount()).toBe(0);
+    });
+  });
+
+  describe('Runtime compatibility', () => {
+    it('should not depend on timer._destroyed property', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(200);
+      });
+
+      // Add waiters that will timeout
+      const waiters = [];
+      for (let i = 0; i < 3; i++) {
+        waiters.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(waiters.map(w => w.catch(() => {})));
+
+      // Verify cleanup works without checking timer internals
+      mutex.cleanup();
+
+      const lock = mutex.locks.get('test-key');
+      expect(lock.waiters.length).toBe(0);
+
+      await holdLock;
+    });
+
+    it('should not depend on timer._idleTimeout property', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(200);
+      });
+
+      const waiter = mutex.withLock('test-key', async () => {}, { timeoutMs: 50 });
+
+      await expect(waiter).rejects.toThrow(MutexTimeoutError);
+
+      // Verify cleanup works without timer._idleTimeout
+      mutex.cleanup();
+
+      await holdLock;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should not depend on timer._idleStart property', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(200);
+      });
+
+      const waiter = mutex.withLock('test-key', async () => {}, { timeoutMs: 50 });
+
+      await expect(waiter).rejects.toThrow(MutexTimeoutError);
+
+      // Verify cleanup works without timer._idleStart
+      mutex.cleanup();
+
+      await holdLock;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should work with explicit state only', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(200);
+      });
+
+      // Add waiters
+      const waiters = [];
+      for (let i = 0; i < 3; i++) {
+        waiters.push(
+          mutex.withLock('test-key', async () => {}, { timeoutMs: 50 })
+        );
+      }
+
+      await Promise.all(waiters.map(w => w.catch(() => {})));
+
+      // Verify waiters use explicit state
+      const lock = mutex.locks.get('test-key');
+      expect(lock.waiters.length).toBe(0);
+
+      await holdLock;
+    });
+  });
+
+  describe('Success path', () => {
+    it('should remove completed waiter from queue', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const order = [];
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        order.push('hold');
+        await delay(50);
+      });
+
+      const waiter = mutex.withLock('test-key', async () => {
+        order.push('waiter');
+      });
+
+      await holdLock;
+      await waiter;
+
+      expect(order).toEqual(['hold', 'waiter']);
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should clear timer on successful acquisition', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(50);
+      });
+
+      const waiter = mutex.withLock('test-key', async () => {
+        // This should succeed
+      });
+
+      await holdLock;
+      await waiter;
+
+      // Timer should be cleared and waiter removed
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
+    it('should execute callback after successful acquisition', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      let executed = false;
+
+      const holdLock = mutex.withLock('test-key', async () => {
+        await delay(50);
+      });
+
+      const waiter = mutex.withLock('test-key', async () => {
+        executed = true;
+      });
+
+      await holdLock;
+      await waiter;
+
+      expect(executed).toBe(true);
+    });
+
+    it('should handle multiple successful acquisitions', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const results = [];
+
+      const promises = [];
+      for (let i = 0; i < 5; i++) {
+        promises.push(
+          mutex.withLock('test-key', async () => {
+            results.push(i);
+            await delay(10);
+          })
+        );
+      }
+
+      await Promise.all(promises);
+
+      expect(results).toEqual([0, 1, 2, 3, 4]);
+      expect(mutex.getLockCount()).toBe(0);
     });
   });
 });

@@ -15,11 +15,12 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { generateQuiz, saveQuizResult } from "@/actions/interview";
+import { saveBookmark, removeBookmark, checkIsBookmarked } from "@/actions/bookmarks";
 import QuizResult from "./quiz-result";
 import useFetch from "@/hooks/use-fetch";
 import { BarLoader } from "react-spinners";
 import { Loader2 } from "lucide-react"; // Imported for the inline spinner
-import { Code, Users, Lightbulb } from "lucide-react";
+import { Code, Users, Lightbulb, Bookmark, BookmarkCheck } from "lucide-react";
 
 const CATEGORIES = [
   {
@@ -47,6 +48,10 @@ export default function Quiz() {
   const [answers, setAnswers] = useState([]);
   const [showExplanation, setShowExplanation] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Technical");
+  
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkId, setBookmarkId] = useState(null);
+  const [togglingBookmark, setTogglingBookmark] = useState(false);
 
   const {
     loading: generatingQuiz,
@@ -70,6 +75,27 @@ export default function Quiz() {
       setAnswers(new Array(questions.length).fill(null));
     }
   }, [quizData, questions]);
+
+  useEffect(() => {
+    const question = questions?.[currentQuestion];
+    if (!question) return;
+
+    const checkBookmark = async () => {
+      try {
+        const bm = await checkIsBookmarked(question.question);
+        if (bm) {
+          setIsBookmarked(true);
+          setBookmarkId(bm.id);
+        } else {
+          setIsBookmarked(false);
+          setBookmarkId(null);
+        }
+      } catch (error) {
+        console.error("Failed to check bookmark", error);
+      }
+    };
+    checkBookmark();
+  }, [currentQuestion, questions]);
 
   const handleAnswer = (answer) => {
     const newAnswers = [...answers];
@@ -101,6 +127,36 @@ export default function Quiz() {
     setShowExplanation(false);
     generateQuizFn(selectedCategory);
     setResultData(null);
+  };
+
+  const handleBookmarkToggle = async () => {
+    if (togglingBookmark) return;
+    const question = questions?.[currentQuestion];
+    if (!question) return;
+    
+    setTogglingBookmark(true);
+    try {
+      if (isBookmarked && bookmarkId) {
+        await removeBookmark(bookmarkId);
+        setIsBookmarked(false);
+        setBookmarkId(null);
+        toast.success("Bookmark removed");
+      } else {
+        const bm = await saveBookmark({
+          question: question.question,
+          options: question.options,
+          answer: question.explanation,
+          category: selectedCategory,
+        });
+        setIsBookmarked(true);
+        setBookmarkId(bm.id);
+        toast.success("Question bookmarked");
+      }
+    } catch (error) {
+      toast.error("Failed to toggle bookmark");
+    } finally {
+      setTogglingBookmark(false);
+    }
   };
 
   if (generatingQuiz) {
@@ -217,7 +273,23 @@ export default function Quiz() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-lg font-medium">{question.question}</p>
+        <div className="flex justify-between items-start gap-4">
+          <p className="text-lg font-medium">{question.question}</p>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBookmarkToggle}
+            disabled={togglingBookmark}
+            className="shrink-0"
+            title={isBookmarked ? "Remove bookmark" : "Bookmark question"}
+          >
+            {isBookmarked ? (
+              <BookmarkCheck className="h-5 w-5 text-primary" />
+            ) : (
+              <Bookmark className="h-5 w-5 text-muted-foreground hover:text-primary" />
+            )}
+          </Button>
+        </div>
         <RadioGroup
           onValueChange={handleAnswer}
           value={answers[currentQuestion]}

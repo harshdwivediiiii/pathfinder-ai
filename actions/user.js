@@ -8,7 +8,6 @@ import { generateAIInsights } from "./dashboard";
 import { getIndustryInsightRefreshTime } from "@/lib/misc/industry-insights";
 import { validateInput } from "@/lib/ai/validate";
 import { userProfileSchema } from "@/lib/schemas/forms";
-import { withAuth } from "@/lib/auth/auth-errors";
 
 /**
  * Updates the current user's profile with industry and other info.

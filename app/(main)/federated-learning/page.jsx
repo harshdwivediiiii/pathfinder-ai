@@ -1,245 +1,186 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { initializeFederatedClients, performLocalTraining, aggregateGlobalModel } from "./_components/federated-algorithm";
-import { Lock, Server, Smartphone, ShieldCheck, DownloadCloud, UploadCloud, RefreshCw } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
+import React, { useState } from "react";
+import { trainLocalModel, aggregateGlobalModel } from "./_components/federated-algorithm";
+import { Shield, Smartphone, Server, UploadCloud, Lock, CheckCircle2, Network } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function FederatedLearningPage() {
-  const canvasRef = useRef(null);
-  
-  const [numClients, setNumClients] = useState([10]); 
-  const [clients, setClients] = useState([]);
-  const [globalModel, setGlobalModel] = useState([0, 0]);
-  const [round, setRound] = useState(0);
-  const [status, setStatus] = useState("Idle");
+  const [isTraining, setIsTraining] = useState(false);
+  const [localWeights, setLocalWeights] = useState(null);
+  const [isAggregating, setIsAggregating] = useState(false);
+  const [globalModel, setGlobalModel] = useState(null);
 
-  // Canvas scaling
-  const WIDTH = 600;
-  const HEIGHT = 400;
-
-  useEffect(() => {
-    setClients(initializeFederatedClients(numClients[0]));
-    setGlobalModel([0, 0]);
-    setRound(0);
-    setStatus("Idle - Ready for Training");
-  }, [numClients]);
-
-  const runFederatedRound = async () => {
-    setStatus("Broadcasting Global Model...");
-    
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 600));
-    
-    // Clients train locally
-    setStatus("Local On-Device Training (No data shared)...");
-    const trainedClients = performLocalTraining(clients, 5, 0.1);
-    setClients(trainedClients);
-    
-    await new Promise(r => setTimeout(r, 800));
-    
-    // Server aggregates
-    setStatus("Aggregating Encrypted Weight Updates...");
-    const newGlobalModel = aggregateGlobalModel(trainedClients);
-    
-    await new Promise(r => setTimeout(r, 600));
-    
-    setGlobalModel(newGlobalModel);
-    
-    // Reset client update flags for next round
-    setClients(trainedClients.map(c => ({ ...c, hasUpdate: false })));
-    setRound(r => r + 1);
-    setStatus("Global Model Updated.");
+  // Mock highly sensitive user telemetry that should NEVER leave the device
+  const sensitiveUserTelemetry = {
+      userId: 'client_7749',
+      struggleTimeMinutes: 45,
+      quizScore: 30, // Failed
+      hintsUsed: 8,
+      anxietyMarkers: true // Highly sensitive
   };
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
-
-    // Draw server in center
-    const serverX = WIDTH / 2;
-    const serverY = HEIGHT / 2;
-    
-    // Draw connections
-    clients.forEach(client => {
-      const cx = 50 + client.x * (WIDTH - 100);
-      const cy = 50 + client.y * (HEIGHT - 100);
+  const runLocalTraining = () => {
+      setIsTraining(true);
       
-      ctx.beginPath();
-      ctx.moveTo(serverX, serverY);
-      ctx.lineTo(cx, cy);
+      // Simulate edge-device training time
+      setTimeout(() => {
+          const weights = trainLocalModel(sensitiveUserTelemetry);
+          setLocalWeights(weights);
+          setIsTraining(false);
+      }, 1500);
+  };
+  
+  const uploadAndAggregate = () => {
+      setIsAggregating(true);
       
-      if (status.includes("Broadcasting")) {
-          ctx.strokeStyle = "rgba(56, 189, 248, 0.4)"; // Sky blue
-          ctx.setLineDash([5, 5]);
-      } else if (status.includes("Aggregating") && client.hasUpdate) {
-          ctx.strokeStyle = "rgba(16, 185, 129, 0.4)"; // Emerald
-          ctx.setLineDash([5, 5]);
-      } else {
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
-          ctx.setLineDash([]);
-      }
-      
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.setLineDash([]);
-      
-      // Draw client
-      ctx.beginPath();
-      ctx.arc(cx, cy, 12, 0, Math.PI * 2);
-      ctx.fillStyle = status.includes("Training") ? "#f59e0b" : "#1e293b";
-      ctx.fill();
-      ctx.strokeStyle = status.includes("Training") ? "#fbbf24" : "#475569";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // Draw lock icon indicating privacy
-      ctx.fillStyle = "#10b981";
-      ctx.font = "10px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("🔒", cx, cy + 4);
-    });
-
-    // Draw server
-    ctx.beginPath();
-    ctx.arc(serverX, serverY, 30, 0, Math.PI * 2);
-    ctx.fillStyle = "#0f172a";
-    ctx.fill();
-    
-    // Server glow if updating
-    if (status.includes("Aggregating") || status.includes("Updated")) {
-        ctx.shadowColor = "#3b82f6";
-        ctx.shadowBlur = 15;
-    }
-    
-    ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    
-    ctx.shadowBlur = 0; // reset
-    
-    ctx.fillStyle = "#60a5fa";
-    ctx.font = "24px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("☁️", serverX, serverY + 8);
-
-  }, [clients, status, globalModel]);
+      // Simulate uploading weights to server and running FedAvg
+      setTimeout(() => {
+          // Mocking other users' weights already on the server
+          const otherClients = [
+              { modelWeights: [0.2, 0.4, 0.1] },
+              { modelWeights: [0.8, 0.9, 0.7] },
+              { modelWeights: [0.5, 0.5, 0.5] }
+          ];
+          
+          const aggregated = aggregateGlobalModel([...otherClients, localWeights]);
+          setGlobalModel(aggregated);
+          setIsAggregating(false);
+      }, 2000);
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
-          <Lock className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+        <div className="p-3 bg-teal-100 dark:bg-teal-900/30 rounded-xl">
+          <Shield className="w-8 h-8 text-teal-600 dark:text-teal-400" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Federated Learning for Privacy</h1>
-          <p className="text-muted-foreground">Train traffic prediction models without raw location data ever leaving the user's device.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Privacy-Preserving Federated Learning</h1>
+          <p className="text-muted-foreground">Train AI models locally on edge devices. Only share anonymized mathematical weights, never raw user data.</p>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-border/50 shadow-sm overflow-hidden">
-            <div className="bg-slate-900 p-4 flex justify-center items-center overflow-x-auto relative min-h-[450px]">
-              <canvas 
-                ref={canvasRef} 
-                width={WIDTH} 
-                height={HEIGHT} 
-                className="bg-slate-950 rounded-md shadow-inner"
-                style={{ width: WIDTH, height: HEIGHT }}
-                aria-label="Interactive map showing federated learning nodes"
-              />
-              
-              <div className="absolute top-6 left-6 bg-background/90 backdrop-blur p-3 rounded-lg shadow-lg border border-border">
-                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Global Traffic Model</p>
-                <div className="text-sm font-mono flex flex-col gap-1">
-                    <span>w1: <span className="text-blue-400">{globalModel[0].toFixed(4)}</span></span>
-                    <span>w2: <span className="text-blue-400">{globalModel[1].toFixed(4)}</span></span>
-                </div>
-              </div>
-
-              <div className="absolute bottom-6 left-6 right-6 flex justify-center pointer-events-none">
-                 <Badge variant="secondary" className="px-4 py-2 text-sm shadow-xl border-border bg-slate-800 text-slate-200">
-                    {status}
-                 </Badge>
-              </div>
-            </div>
-          </Card>
-        </div>
-
+      <div className="grid lg:grid-cols-2 gap-8">
+        
+        {/* Left Column: Local Edge Device */}
         <div className="space-y-6">
-          <Card className="border-emerald-500/20 shadow-sm">
-            <CardHeader className="bg-emerald-50 dark:bg-emerald-950/20 pb-4 border-b border-emerald-100 dark:border-emerald-900/30">
-              <CardTitle className="text-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                    Pipeline Controls
-                </div>
+          <Card className="border-teal-500/30 shadow-sm h-full flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Smartphone className="w-32 h-32" />
+            </div>
+            
+            <CardHeader className="bg-slate-50 dark:bg-slate-900/50 pb-4 border-b relative z-10">
+              <CardTitle className="text-lg flex items-center gap-2">
+                 <Smartphone className="w-5 h-5 text-teal-500" />
+                 Local User Device (Edge)
               </CardTitle>
+              <CardDescription>All raw data remains securely on this device.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-6">
+            <CardContent className="pt-6 flex-grow space-y-6 relative z-10">
               
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-muted-foreground" />
-                    Participating Devices
-                  </label>
-                  <span className="text-xs font-mono bg-muted px-2 py-1 rounded-md">{numClients[0]} nodes</span>
-                </div>
-                <Slider 
-                  value={numClients} 
-                  onValueChange={setNumClients} 
-                  min={3} max={50} step={1} 
-                  className="py-2"
-                />
-                <p className="text-xs text-muted-foreground">Adjust the number of decentralized devices training the model.</p>
+              <div className="p-4 bg-rose-50 border border-rose-100 dark:bg-rose-950/20 dark:border-rose-900/30 rounded-lg">
+                  <h4 className="text-sm font-semibold flex items-center gap-2 text-rose-800 dark:text-rose-400 mb-3">
+                      <Lock className="w-4 h-4" /> Sensitive Raw Telemetry
+                  </h4>
+                  <pre className="text-xs font-mono text-rose-700 dark:text-rose-300 whitespace-pre-wrap">
+                      {JSON.stringify(sensitiveUserTelemetry, null, 2)}
+                  </pre>
               </div>
-
+              
               <Button 
-                className="w-full bg-emerald-600 hover:bg-emerald-700" 
-                onClick={runFederatedRound}
-                disabled={status !== "Idle - Ready for Training" && status !== "Global Model Updated."}
+                  onClick={runLocalTraining} 
+                  disabled={isTraining || localWeights}
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Run Training Round
+                  {isTraining ? "Training Local Model..." : "Train Model Locally"}
               </Button>
-
+              
+              {localWeights && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30 rounded-lg animate-in fade-in">
+                      <h4 className="text-sm font-semibold flex items-center gap-2 text-emerald-800 dark:text-emerald-400 mb-3">
+                          <CheckCircle2 className="w-4 h-4" /> Generated Model Weights
+                      </h4>
+                      <p className="text-xs text-muted-foreground mb-2">Mathematical representation, completely stripped of PII.</p>
+                      <div className="flex gap-2 font-mono text-sm text-emerald-700 dark:text-emerald-300 bg-white dark:bg-slate-900 p-2 rounded border border-emerald-100 dark:border-emerald-900/50">
+                          [{localWeights.modelWeights.map(w => w.toFixed(3)).join(', ')}]
+                      </div>
+                      
+                      <Button 
+                          onClick={uploadAndAggregate}
+                          disabled={isAggregating || globalModel}
+                          variant="outline"
+                          className="w-full mt-4 border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-800 dark:text-teal-400 dark:hover:bg-teal-950/50"
+                      >
+                          {isAggregating ? "Uploading via TLS..." : <><UploadCloud className="w-4 h-4 mr-2" /> Upload Weights to Server</>}
+                      </Button>
+                  </div>
+              )}
+              
             </CardContent>
           </Card>
-
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Server className="w-4 h-4 text-blue-500" />
-                  Aggregation Stats
-                </div>
-                <Badge variant="outline" className="text-blue-600 border-blue-200">
-                  Round {round}
-                </Badge>
+        </div>
+        
+        {/* Right Column: Central Server */}
+        <div className="space-y-6">
+          <Card className="border-indigo-500/30 shadow-sm h-full flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Server className="w-32 h-32" />
+            </div>
+            
+            <CardHeader className="bg-slate-50 dark:bg-slate-900/50 pb-4 border-b relative z-10">
+              <CardTitle className="text-lg flex items-center gap-2">
+                 <Server className="w-5 h-5 text-indigo-500" />
+                 Central Cloud Server
               </CardTitle>
+              <CardDescription>Federated Averaging (FedAvg) Hub</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3 pt-2">
-                  <div className="flex justify-between text-sm items-center p-2 bg-muted/50 rounded-md">
-                    <span className="text-muted-foreground flex items-center gap-1"><DownloadCloud className="w-3 h-3"/> Raw Data Exported</span>
-                    <span className="font-mono font-medium text-emerald-600">0 Bytes</span>
+            <CardContent className="pt-6 flex-grow space-y-6 relative z-10">
+              
+              {!globalModel && !isAggregating && (
+                  <div className="h-full min-h-[200px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-8 text-center text-muted-foreground bg-slate-50/50 dark:bg-slate-900/20">
+                      <Network className="w-12 h-12 mb-4 text-slate-300 dark:text-slate-700" />
+                      <p>Awaiting client weight uploads.</p>
+                      <p className="text-sm">Server does not and will never possess raw user telemetry.</p>
                   </div>
-                  <div className="flex justify-between text-sm items-center p-2 bg-muted/50 rounded-md">
-                    <span className="text-muted-foreground flex items-center gap-1"><UploadCloud className="w-3 h-3"/> Weights Transferred</span>
-                    <span className="font-mono font-medium text-blue-600">{numClients[0] * 2} params</span>
+              )}
+              
+              {isAggregating && (
+                  <div className="h-full min-h-[200px] border rounded-xl flex flex-col items-center justify-center p-8 text-center bg-card">
+                      <div className="relative w-20 h-20 mb-6">
+                          <Server className="absolute inset-0 m-auto w-8 h-8 text-indigo-500 z-10" />
+                          <div className="absolute inset-0 border-4 border-indigo-200 dark:border-indigo-900 rounded-full animate-ping opacity-75"></div>
+                          <div className="absolute inset-0 border-4 border-indigo-500 rounded-full border-l-transparent animate-spin"></div>
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Executing FedAvg Algorithm</h3>
+                      <p className="text-sm text-muted-foreground animate-pulse">Averaging weights from 4 edge devices...</p>
                   </div>
-                  <p className="text-xs text-muted-foreground pt-2">
-                    The cloud server never sees GPS coordinates or individual trajectories, completely anonymizing the traffic model.
-                  </p>
-              </div>
+              )}
+              
+              {globalModel && !isAggregating && (
+                  <div className="space-y-4 animate-in zoom-in-95 duration-500">
+                      <div className="p-6 rounded-xl border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-900/30 text-center">
+                          <Shield className="w-12 h-12 mx-auto mb-4 text-indigo-500" />
+                          <h3 className="text-xl font-bold text-indigo-900 dark:text-indigo-300 mb-2">Global Model Updated!</h3>
+                          <p className="text-sm text-indigo-700 dark:text-indigo-400 mb-6">
+                              The pathway recommendation engine has successfully learned from the user's struggle patterns without ever seeing their PII.
+                          </p>
+                          
+                          <div className="text-left space-y-2">
+                              <span className="text-xs font-semibold text-indigo-500 uppercase">New Global Weights</span>
+                              <div className="p-3 bg-white dark:bg-slate-900 rounded border border-indigo-100 dark:border-indigo-900/50 font-mono text-indigo-800 dark:text-indigo-300 flex justify-center gap-4">
+                                  {globalModel.map((w, i) => (
+                                      <span key={i} className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 rounded">
+                                          W{i+1}: {w}
+                                      </span>
+                                  ))}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              )}
+              
             </CardContent>
           </Card>
         </div>
