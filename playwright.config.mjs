@@ -21,7 +21,9 @@ export default defineConfig({
     stdout: "pipe",
     stderr: "pipe",
     env: {
-      NODE_ENV: isCI ? "production" : "development",
+      // E2E_TEST bypass never activates in production, so the web server must
+      // not run with NODE_ENV=production.
+      NODE_ENV: isCI ? "test" : "development",
       E2E_TEST: "true",
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA",
       CLERK_SECRET_KEY: "sk_test_dummy",
