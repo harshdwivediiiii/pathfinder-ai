@@ -17,6 +17,8 @@
     "test:ci": "npm run test:unit && npm run test:e2e",
     "test:stream": "node scripts/validate-stream-reconciliation.mjs",
     "lint": "next lint",
+    "refresh:insight": "node --import ./scripts/cli-shim.mjs ./scripts/refresh-insight.mjs",
+    "check:insight": "node --import ./scripts/cli-shim.mjs ./scripts/check-insight.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
