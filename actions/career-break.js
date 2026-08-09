@@ -74,7 +74,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
 );
 
   try {
-    const aiResult = await runAiGeneration(prompt);
+    const aiResult = await runAiGeneration(prompt, { userId });
     const parsedData = parseAiResponse(aiResult);
     
 
