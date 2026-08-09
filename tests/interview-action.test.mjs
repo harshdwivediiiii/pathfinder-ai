@@ -9,6 +9,7 @@ const actionMocks = vi.hoisted(() => ({
   formatResetTime: vi.fn(),
   cacheGet: vi.fn(),
   cacheDelete: vi.fn(),
+  decrementRateLimit: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -32,19 +33,21 @@ vi.mock("@/lib/ai/gemini", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
+  decrementRateLimit: actionMocks.decrementRateLimit,
   formatResetTime: actionMocks.formatResetTime,
 }));
 
-vi.mock("@/lib/cache", async () => {
-  const actual = await vi.importActual("@/lib/cache");
+vi.mock("@/lib/cache", () => {
+  const store = {
+    get: actionMocks.cacheGet,
+    delete: actionMocks.cacheDelete,
+    set: vi.fn(async () => ({ status: "success", value: true, isSuccess: true, isMiss: false, isError: false })),
+  };
   return {
-    ...actual,
-    cacheStore: {
-      get: actionMocks.cacheGet,
-      delete: actionMocks.cacheDelete,
-      set: vi.fn(async (key, value) => ({ status: "success", value: true, isSuccess: true, isMiss: false, isError: false })),
-    },
+    getCacheStore: () => store,
+    generateCacheKey: (...args) => args.join(":"),
+    QUIZ_CACHE_TTL_MS: 3600000,
+    getCachedOrFetch: async (key, ns, fetcher) => fetcher(),
   };
 });
 
@@ -84,8 +87,8 @@ describe("saveQuizResult", () => {
     ];
 
     const cacheKey = generateCacheKey("quiz-session", "user-123", sessionId);
-    const cacheStore = getCacheStore();
-    await cacheStore.set(cacheKey, questions);
+    const store = getCacheStore();
+    await store.set(cacheKey, questions);
 
     const answers = ["Measuring temperature"]; // Wrong answer
 
