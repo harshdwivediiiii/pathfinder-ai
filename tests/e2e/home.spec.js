@@ -23,6 +23,16 @@ test("landing page loads without errors", async ({ page }) => {
       !e.includes("Content Security Policy") &&
       !e.includes("connect-src") &&
       !e.includes("clerk.pathfin")
+  // Verify no console errors at Error level (excluding expected warnings)
+  const consoleErrors = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "error") consoleErrors.push(msg.text());
+  });
+  // Give the page 2 seconds to render and collect any console errors
+  await page.waitForTimeout(2000);
+  // Filter out known non-critical errors (external resource failures, etc.)
+  const criticalErrors = consoleErrors.filter(
+    (e) => !e.includes("Failed to load resource") && !e.includes("net::ERR")
   );
   expect(criticalErrors).toHaveLength(0);
 });

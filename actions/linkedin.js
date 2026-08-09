@@ -11,22 +11,24 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { safeFetch } from "@/lib/security/safe-fetch";
 
 async function fetchLinkedInProfile(url) {
   try {
-    const response = await fetch(url, {
+    // Use safeFetch to prevent SSRF attacks
+    const result = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
     });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch LinkedIn profile: ${response.statusText}`);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch LinkedIn profile');
     }
-    
-    const html = await response.text();
+
+    const html = result.text;
     
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     const title = titleMatch ? titleMatch[1] : '';
