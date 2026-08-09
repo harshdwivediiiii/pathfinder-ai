@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   generateGeminiContent: vi.fn(),
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  formatResetTime: vi.fn().mockReturnValue("10 minutes"),
+  decrementRateLimit: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -29,6 +31,9 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: mocks.checkRateLimit,
+  decrementRateLimit: mocks.decrementRateLimit,
+  formatResetTime: mocks.formatResetTime,
   checkRateLimit: () => Promise.resolve({ allowed: true }),
   decrementRateLimit: () => Promise.resolve(),
 }));
@@ -39,6 +44,7 @@ describe("parseJobUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
+    mocks.formatResetTime.mockReturnValue("10 minutes");
   });
 
   it("successfully parses a job URL using generateGeminiContent and parseAIJson", async () => {
@@ -76,5 +82,16 @@ describe("parseJobUrl", () => {
     const result = await parseJobUrl("https://example.com/jobs/1");
     expect(result.success).toBe(false);
     expect(result.errors._form).toContain("Unauthorized");
+  });
+
+  it("handles rate limit exceeded with missing resetAt by passing a Date instance to formatResetTime", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.checkRateLimit.mockResolvedValue({ allowed: false }); // No resetAt provided
+
+    const result = await parseJobUrl("https://example.com/jobs/1");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toContain("Job scraping limit reached. Resets in 10 minutes.");
+    expect(mocks.formatResetTime).toHaveBeenCalledWith(expect.any(Date));
   });
 });

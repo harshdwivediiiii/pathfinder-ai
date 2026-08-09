@@ -1,7 +1,7 @@
 "use server";
-import { handleServerError } from "@/lib/errors/error-handler";
 
 import crypto from "crypto";
+import { handleServerError } from "@/lib/errors/error-handler";
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
@@ -12,7 +12,7 @@ import { parseAIJson } from "@/lib/ai/validate";
 import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
-import { interviewQuestionsOutputSchema, voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas";
+import { interviewQuestionsOutputSchema } from "@/lib/schemas";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { translations } from "@/lib/misc/translations";
 import { unwrap } from "@/lib/db/redis-result";
@@ -20,454 +20,135 @@ import { unwrap } from "@/lib/db/redis-result";
 // Fallback MCQ questions in case Gemini generation fails, categorized by industry
 const TECH_FALLBACK_QUESTIONS = [
   {
-    question: "What does HTML stand for?",
+    question: "What is the primary difference between process and thread?",
     options: [
-      "Hyper Text Markup Language",
-      "High Transfer Machine Language",
-      "Hyperlink Text Management Language",
-      "Home Tool Markup Language",
+      "Processes share memory, threads have isolated memory spaces",
+      "Processes have isolated memory spaces, threads share memory space of parent process",
+      "Threads run faster than processes on single-core CPUs only",
+      "Processes cannot execute concurrently, threads can"
     ],
-    correctAnswer: "Hyper Text Markup Language",
-    explanation: "HTML (Hyper Text Markup Language) is the standard markup language used to structure and display web pages.",
+    correctAnswer: "Processes have isolated memory spaces, threads share memory space of parent process",
+    explanation: "Processes are independent execution units with separate address spaces, whereas threads exist within a process and share memory and resources."
   },
   {
-    question: "Which programming language runs natively inside web browsers?",
+    question: "What does the SOLID acronym stand for in Object-Oriented Design?",
     options: [
-      "Java",
-      "Python",
-      "C++",
-      "JavaScript",
+      "Single responsibility, Open-closed, Liskov substitution, Interface segregation, Dependency inversion",
+      "Simple, Object-oriented, Logical, Integrated, Decoupled",
+      "Synchronous, Operational, Linear, Inherited, Deterministic",
+      "Stateful, Observability, Logging, Isolation, Durability"
     ],
-    correctAnswer: "JavaScript",
-    explanation: "JavaScript is a high-level, interpreted scripting language that conforms to the ECMAScript specification and runs natively inside all modern browsers.",
+    correctAnswer: "Single responsibility, Open-closed, Liskov substitution, Interface segregation, Dependency inversion",
+    explanation: "SOLID represents five key software design principles aimed at making software designs more understandable, flexible, and maintainable."
   },
   {
-    question: "What is React mainly used for in web development?",
+    question: "In relational databases, what is the purpose of an INDEX on a column?",
     options: [
-      "Database management",
-      "Frontend user interface development",
-      "Operating systems",
-      "Network routing and security",
+      "To encrypt table data stored on disk",
+      "To enforce foreign key constraints across tables",
+      "To speed up data retrieval operations at the cost of additional write time and storage space",
+      "To automatically deduplicate inserted rows"
     ],
-    correctAnswer: "Frontend user interface development",
-    explanation: "React is a popular open-source JavaScript library developed by Meta specifically for building component-based frontend user interfaces.",
+    correctAnswer: "To speed up data retrieval operations at the cost of additional write time and storage space",
+    explanation: "Indexes use B-trees or hash maps to allow the database engine to find rows matching a WHERE clause quickly without scanning the full table."
   },
   {
-    question: "Which of the following database models is NoSQL?",
+    question: "What is the main benefit of immutability in functional programming?",
     options: [
-      "PostgreSQL",
-      "MongoDB",
-      "MySQL",
-      "Oracle DB",
+      "It eliminates memory allocation entirely",
+      "It prevents unexpected side effects and makes state management predictable, especially in concurrent code",
+      "It automatically compiles JavaScript code to WebAssembly",
+      "It bypasses the garbage collector"
     ],
-    correctAnswer: "MongoDB",
-    explanation: "MongoDB is a leading document-oriented NoSQL database that stores data in JSON-like flexible documents.",
+    correctAnswer: "It prevents unexpected side effects and makes state management predictable, especially in concurrent code",
+    explanation: "Immutable data cannot be changed after creation, preventing multi-threaded race conditions and unintended mutations elsewhere in the application."
   },
   {
-    question: "What does CSS handle in modern web development?",
+    question: "What is the Time Complexity of searching for an element in a balanced Binary Search Tree (BST)?",
     options: [
-      "Server-side business logic",
-      "Database storage and caching",
-      "Styling, layout, and visual presentation",
-      "User authentication and sessions",
+      "O(1)",
+      "O(n)",
+      "O(log n)",
+      "O(n log n)"
     ],
-    correctAnswer: "Styling, layout, and visual presentation",
-    explanation: "CSS (Cascading Style Sheets) is a stylesheet language used to specify the layout, colors, fonts, and overall visual appearance of HTML documents.",
-  },
-  {
-    question: "Which hook is commonly used to manage state inside a React function component?",
-    options: [
-      "useEffect",
-      "useFetch",
-      "useState",
-      "useRouter",
-    ],
-    correctAnswer: "useState",
-    explanation: "The useState hook is a built-in React hook that allows functional components to have local state variables that persist across renders.",
-  },
-  {
-    question: "What is Node.js?",
-    options: [
-      "A frontend CSS styling framework",
-      "An open-source server runtime environment for JavaScript",
-      "A relational database system",
-      "A code compilation package manager",
-    ],
-    correctAnswer: "An open-source server runtime environment for JavaScript",
-    explanation: "Node.js is a cross-platform, open-source JavaScript runtime environment built on Chrome's V8 engine that allows developers to run JS code server-side.",
-  },
-  {
-    question: "Which technology company originally created and released Java?",
-    options: [
-      "Google",
-      "Sun Microsystems",
-      "Microsoft",
-      "Apple",
-    ],
-    correctAnswer: "Sun Microsystems",
-    explanation: "Java was originally developed and released by James Gosling and his team at Sun Microsystems in 1995 (later acquired by Oracle).",
-  },
-  {
-    question: "What does API stand for in software integration?",
-    options: [
-      "Application Programming Interface",
-      "Advanced Program Interaction",
-      "Applied Programming Internet",
-      "Application Process Integration",
-    ],
-    correctAnswer: "Application Programming Interface",
-    explanation: "An API (Application Programming Interface) is a set of defined rules and protocols that enables different software applications to communicate and exchange data.",
-  },
-  {
-    question: "Which keyword is used to declare a variable in older JavaScript scopes that is function-scoped?",
-    options: [
-      "define",
-      "string",
-      "var",
-      "integer",
-    ],
-    correctAnswer: "var",
-    explanation: "In JavaScript, 'var' is the original keyword used to declare variables. It is function-scoped rather than block-scoped like 'let' and 'const'.",
-  },
+    correctAnswer: "O(log n)",
+    explanation: "In a balanced BST, each comparison halves the remaining search space, yielding O(log n) time complexity."
+  }
 ];
 
 const HEALTHCARE_FALLBACK_QUESTIONS = [
   {
-    question: "What is the primary purpose of HIPAA?",
+    question: "What does HIPAA stand for in U.S. healthcare regulation?",
     options: [
-      "Regulating medical device manufacturing",
-      "Protecting patient health information privacy and security",
-      "Determining hospital funding allocation",
-      "Establishing medical licensing requirements",
+      "Health Insurance Portability and Accountability Act",
+      "Hospital Infrastructure Protection and Access Agency",
+      "Healthcare Improvement and Patient Advocacy Association",
+      "High-risk Insurance and Patient Assistance Act"
     ],
-    correctAnswer: "Protecting patient health information privacy and security",
-    explanation: "HIPAA (Health Insurance Portability and Accountability Act) sets national standards for protecting sensitive patient health information from being disclosed without the patient's consent or knowledge.",
+    correctAnswer: "Health Insurance Portability and Accountability Act",
+    explanation: "HIPAA establishes federal standards to protect sensitive patient health information from disclosure without patient consent."
   },
   {
-    question: "What does the acronym 'EHR' stand for in healthcare administration?",
+    question: "Which vital sign measurement indicates potential hypertensive crisis in an adult?",
     options: [
-      "Emergency Hospital Registry",
-      "Electronic Health Record",
-      "Essential Health Requirements",
-      "Extended Healthcare Registry",
+      "Systolic blood pressure over 180 mmHg and/or diastolic over 120 mmHg",
+      "Heart rate of 72 beats per minute",
+      "Oxygen saturation level of 98%",
+      "Body temperature of 37.0 degrees Celsius"
     ],
-    correctAnswer: "Electronic Health Record",
-    explanation: "An Electronic Health Record (EHR) is a digital version of a patient's paper chart, containing real-time, patient-centered records that make information available instantly and securely.",
-  },
-  {
-    question: "Which of the following is considered a primary care provider?",
-    options: [
-      "Cardiologist",
-      "Family Medicine Physician",
-      "Neurosurgeon",
-      "Orthopedic Surgeon",
-    ],
-    correctAnswer: "Family Medicine Physician",
-    explanation: "Family Medicine Physicians provide comprehensive, continuous primary healthcare for individuals and families across all ages, genders, and diseases.",
-  },
-  {
-    question: "What is triage in healthcare settings?",
-    options: [
-      "A three-step surgical procedure",
-      "The process of prioritizing patients based on the severity of their condition",
-      "A clinical research trial phase",
-      "A medical billing coding system",
-    ],
-    correctAnswer: "The process of prioritizing patients based on the severity of their condition",
-    explanation: "Triage is the prioritization of patient care based on clinical urgency to optimize resource allocation and ensure critical patients receive immediate care.",
-  },
-  {
-    question: "What does 'myocardial infarction' refer to?",
-    options: [
-      "A stroke",
-      "A heart attack",
-      "A kidney infection",
-      "A bone fracture",
-    ],
-    correctAnswer: "A heart attack",
-    explanation: "Myocardial infarction is the medical term for a heart attack, which occurs when blood flow to a part of the heart muscle is blocked, causing tissue damage.",
-  },
-  {
-    question: "Which professional is responsible for preparing and dispensing prescriptions?",
-    options: [
-      "Physician Assistant",
-      "Pharmacist",
-      "Registered Nurse",
-      "Physical Therapist",
-    ],
-    correctAnswer: "Pharmacist",
-    explanation: "Pharmacists are healthcare professionals who specialize in the right use, storage, preservation, and dispensing of medicines.",
-  },
-  {
-    question: "What is the standard term for a hospital-acquired infection?",
-    options: [
-      "Chronic infection",
-      "Nosocomial infection",
-      "Systemic infection",
-      "Localized infection",
-    ],
-    correctAnswer: "Nosocomial infection",
-    explanation: "Nosocomial infections (also called healthcare-associated infections) are those contracted by patients during their stay in a hospital or healthcare facility.",
-  },
-  {
-    question: "What is the main function of red blood cells?",
-    options: [
-      "Fighting infections",
-      "Carrying oxygen to body tissues",
-      "Clotting blood",
-      "Producing antibodies",
-    ],
-    correctAnswer: "Carrying oxygen to body tissues",
-    explanation: "Red blood cells contain hemoglobin, a protein that binds to oxygen in the lungs and transports it to tissues throughout the body.",
-  },
-  {
-    question: "What does the term 'benign' mean in medical pathology?",
-    options: [
-      "Spreading rapidly",
-      "Non-cancerous",
-      "Infectious",
-      "Painful",
-    ],
-    correctAnswer: "Non-cancerous",
-    explanation: "Benign refers to a condition, tumor, or growth that is not cancerous, does not invade nearby tissue, and does not spread to other parts of the body.",
-  },
-  {
-    question: "What is telehealth?",
-    options: [
-      "A telephone triage hotline",
-      "The remote delivery of healthcare services using telecommunications technology",
-      "A television program about healthy living",
-      "A database of patient medical records",
-    ],
-    correctAnswer: "The remote delivery of healthcare services using telecommunications technology",
-    explanation: "Telehealth uses digital information and communication technologies (computers, mobile devices) to access and manage healthcare services remotely.",
-  },
+    correctAnswer: "Systolic blood pressure over 180 mmHg and/or diastolic over 120 mmHg",
+    explanation: "A blood pressure reading exceeding 180/120 mmHg is classified as a hypertensive crisis requiring prompt medical evaluation."
+  }
 ];
 
 const FINANCE_FALLBACK_QUESTIONS = [
   {
-    question: "What does 'ROI' stand for in financial management?",
+    question: "What does the Sharpe Ratio measure in portfolio management?",
     options: [
-      "Rate of Inflation",
-      "Return on Investment",
-      "Risk of Insolvency",
-      "Revenue on Installments",
+      "The total dividend yield of a stock index",
+      "The risk-adjusted return of an investment relative to the risk-free rate",
+      "The percentage of debt used to finance company assets",
+      "The liquidity ratio of short-term liabilities"
     ],
-    correctAnswer: "Return on Investment",
-    explanation: "Return on Investment (ROI) measures the gain or loss generated on an investment relative to the amount of money invested.",
+    correctAnswer: "The risk-adjusted return of an investment relative to the risk-free rate",
+    explanation: "The Sharpe Ratio calculates excess return per unit of volatility (standard deviation), helping investors compare risk-adjusted performance."
   },
   {
-    question: "What is a bond in finance?",
+    question: "In corporate accounting, what is the fundamental Accounting Equation?",
     options: [
-      "A share of ownership in a corporation",
-      "A debt security where an investor lends money to an entity",
-      "A contract to buy foreign currency",
-      "A legally binding agreement between business partners",
+      "Assets = Liabilities + Equity",
+      "Revenue - Expenses = Liabilities",
+      "Assets = Net Income - Dividends",
+      "Equity = Cash Flow + Working Capital"
     ],
-    correctAnswer: "A debt security where an investor lends money to an entity",
-    explanation: "A bond is a fixed-income instrument that represents a loan made by an investor to a borrower (typically corporate or governmental) with fixed interest payments.",
-  },
-  {
-    question: "What is the main objective of diversifying a portfolio?",
-    options: [
-      "Maximizing short-term transaction fees",
-      "Reducing overall investment risk",
-      "Avoiding taxes on gains",
-      "Guarantying a fixed return rate",
-    ],
-    correctAnswer: "Reducing overall investment risk",
-    explanation: "Diversification spreads investments across various financial instruments, industries, and categories to minimize the impact of any single asset's poor performance.",
-  },
-  {
-    question: "What does the Federal Reserve regulate in the United States?",
-    options: [
-      "Corporate tax rates",
-      "Monetary policy and the banking system",
-      "International trade agreements",
-      "Federal government spending",
-    ],
-    correctAnswer: "Monetary policy and the banking system",
-    explanation: "The Federal Reserve is the central bank of the U.S., responsible for conducting monetary policy and regulating financial institutions to promote economic stability.",
-  },
-  {
-    question: "What is a bear market?",
-    options: [
-      "A market characterized by rising stock prices",
-      "A market characterized by falling stock prices",
-      "A market with low trading volume",
-      "A market for commodities and raw materials",
-    ],
-    correctAnswer: "A market characterized by falling stock prices",
-    explanation: "A bear market is a condition in which securities prices fall 20% or more from recent highs amid widespread pessimism and negative investor sentiment.",
-  },
-  {
-    question: "What does 'liquid asset' mean?",
-    options: [
-      "An asset stored in digital format",
-      "Cash or an asset that can be quickly converted to cash",
-      "An asset that changes in value daily",
-      "An investment in water utilities",
-    ],
-    correctAnswer: "Cash or an asset that can be quickly converted to cash",
-    explanation: "Liquid assets are cash or other assets (like stocks or short-term bonds) that can be easily and quickly converted into cash without significant loss of value.",
-  },
-  {
-    question: "What is inflation?",
-    options: [
-      "A decrease in the money supply",
-      "The rate at which the general level of prices for goods and services rises",
-      "A growth in corporate profit margins",
-      "The decrease in the physical size of currency notes",
-    ],
-    correctAnswer: "The rate at which the general level of prices for goods and services rises",
-    explanation: "Inflation is the decline of purchasing power of a given currency over time, reflected in the increase of prices of goods and services.",
-  },
-  {
-    question: "What is the P/E ratio of a stock?",
-    options: [
-      "Profit-to-Expense ratio",
-      "Price-to-Earnings ratio",
-      "Payment-to-Equity ratio",
-      "Principal-to-Estimate ratio",
-    ],
-    correctAnswer: "Price-to-Earnings ratio",
-    explanation: "The Price-to-Earnings (P/E) ratio is the ratio for valuing a company that measures its current share price relative to its per-share earnings.",
-  },
-  {
-    question: "What is the difference between revenue and net income?",
-    options: [
-      "Revenue includes taxes; net income does not",
-      "Revenue is total sales; net income is profit after all expenses",
-      "Revenue is cash flow; net income is account balances",
-      "There is no difference",
-    ],
-    correctAnswer: "Revenue is total sales; net income is profit after all expenses",
-    explanation: "Revenue represents the total money brought in by sales, whereas net income is the profit remaining after deducting all operating costs, taxes, and expenses.",
-  },
-  {
-    question: "What does 'amortization' mean?",
-    options: [
-      "Increasing the value of an asset",
-      "Paying off debt over time in regular installments",
-      "Calculating tax write-offs",
-      "Converting debt into equity shares",
-    ],
-    correctAnswer: "Paying off debt over time in regular installments",
-    explanation: "Amortization is the practice of spreading out a loan into a series of periodic payments, or writing off the value of an intangible asset over time.",
-  },
+    correctAnswer: "Assets = Liabilities + Equity",
+    explanation: "The balance sheet relies on Assets = Liabilities + Equity, balancing what a business owns against what it owes to creditors and owners."
+  }
 ];
 
 const BUSINESS_FALLBACK_QUESTIONS = [
   {
-    question: "What does a SWOT analysis evaluate?",
+    question: "In SWOT analysis, which two factors are considered internal to the organization?",
     options: [
-      "Sales, Wages, Operations, Taxes",
-      "Strengths, Weaknesses, Opportunities, Threats",
-      "Strategy, Workload, Organization, Timing",
-      "Success, Wealth, Optimization, Target",
+      "Strengths and Opportunities",
+      "Strengths and Weaknesses",
+      "Weaknesses and Threats",
+      "Opportunities and Threats"
     ],
-    correctAnswer: "Strengths, Weaknesses, Opportunities, Threats",
-    explanation: "A SWOT analysis is a strategic planning framework used to identify and analyze internal and external factors affecting a business's projects.",
+    correctAnswer: "Strengths and Weaknesses",
+    explanation: "Strengths and Weaknesses reside inside the organization, whereas Opportunities and Threats arise from the external environment."
   },
   {
-    question: "What is a 'deliverable' in project management?",
+    question: "What is Customer Acquisition Cost (CAC)?",
     options: [
-      "A vehicle used to transport goods",
-      "A tangible or intangible good or service produced as a result of a project",
-      "A team member assigned to client communication",
-      "A project milestone that has been missed",
+      "The total sales revenue generated per customer annually",
+      "The total cost of sales and marketing efforts needed to gain a new customer",
+      "The cost of producing a single physical product unit",
+      "The discount given to high-volume buyers"
     ],
-    correctAnswer: "A tangible or intangible good or service produced as a result of a project",
-    explanation: "Deliverables are the quantifiable goods or services that must be completed and delivered to a client or stakeholder upon a project's completion.",
-  },
-  {
-    question: "What does 'B2B' stand for in business operations?",
-    options: [
-      "Back-to-Back transactions",
-      "Business-to-Business commerce",
-      "Budget-to-Business planning",
-      "Buyer-to-Broker negotiation",
-    ],
-    correctAnswer: "Business-to-Business commerce",
-    explanation: "B2B (Business-to-Business) describes transactions or commerce conducted between one business and another, rather than between a business and individual consumers.",
-  },
-  {
-    question: "What is the primary focus of change management?",
-    options: [
-      "Updating software platforms in an organization",
-      "Helping individuals and teams transition through organizational change",
-      "Calculating currency exchange rates",
-      "Hiring new executive leadership",
-    ],
-    correctAnswer: "Helping individuals and teams transition through organizational change",
-    explanation: "Change management is a structured approach to transition individuals, teams, and organizations from a current state to a desired future state.",
-  },
-  {
-    question: "What does 'KPI' stand for in business analytics?",
-    options: [
-      "Key Profit Indicator",
-      "Key Performance Indicator",
-      "Key Process Integration",
-      "Knowledge Performance Index",
-    ],
-    correctAnswer: "Key Performance Indicator",
-    explanation: "A Key Performance Indicator (KPI) is a quantifiable measure used to evaluate the success of an organization or activity in meeting performance objectives.",
-  },
-  {
-    question: "What is scope creep in project management?",
-    options: [
-      "A team member who works slowly",
-      "Uncontrolled changes or continuous growth in a project's scope",
-      "A software tool used for tracking bugs",
-      "A decrease in project budget allocations",
-    ],
-    correctAnswer: "Uncontrolled changes or continuous growth in a project's scope",
-    explanation: "Scope creep refers to when a project's requirements expand beyond the original plan without corresponding adjustments in time, budget, or resources.",
-  },
-  {
-    question: "What is 'market segmentation'?",
-    options: [
-      "Dividing a market into distinct groups of buyers based on different needs or characteristics",
-      "Selling a business in parts",
-      "Comparing prices of different competitors",
-      "Registering a trademark in multiple regions",
-    ],
-    correctAnswer: "Dividing a market into distinct groups of buyers based on different needs or characteristics",
-    explanation: "Market segmentation involves dividing a broad target market into subsets of consumers who have common needs or priorities, then designing strategies to target them.",
-  },
-  {
-    question: "What is the main purpose of a non-disclosure agreement (NDA)?",
-    options: [
-      "Determining salary structures",
-      "Protecting proprietary or confidential information from being shared",
-      "Establishing partnership profit shares",
-      "Setting employee working hours",
-    ],
-    correctAnswer: "Protecting proprietary or confidential information from being shared",
-    explanation: "An NDA is a legal contract that prohibits parties from sharing confidential information or trade secrets disclosed to them with external entities.",
-  },
-  {
-    question: "What is 'customer acquisition cost' (CAC)?",
-    options: [
-      "The price a customer pays for a product",
-      "The total cost associated with convincing a customer to buy a product or service",
-      "The cost of manufacturing a custom item",
-      "The loss incurred from losing a client",
-    ],
-    correctAnswer: "The total cost associated with convincing a customer to buy a product or service",
-    explanation: "CAC measures the total sales and marketing cost required to acquire a single new customer over a specific period.",
-  },
-  {
-    question: "What does 'RFP' stand for in procurement?",
-    options: [
-      "Request for Pricing",
-      "Request for Proposal",
-      "Reason for Purchase",
-      "Record of Financial Performance",
-    ],
-    correctAnswer: "Request for Proposal",
-    explanation: "An RFP is a document that solicits proposals, often made through a bidding process, by an agency or company interested in procurement of services or assets.",
-  },
+    correctAnswer: "The total cost of sales and marketing efforts needed to gain a new customer",
+    explanation: "CAC evaluates unit economics by dividing total acquisition expenses by the number of new customers acquired during a given period."
+  }
 ];
 
 const FallbackQuizPool = {
@@ -483,13 +164,34 @@ const FallbackQuizPool = {
   nonprofit: BUSINESS_FALLBACK_QUESTIONS,
 };
 
-/**
- * Returns an array of question strings for the voice/video coach,
- * selected from the industry-specific fallback pool.
- * For non-English locales with a translated question, that translation is
- * prepended to the pool so localization is a layer on top rather than
- * replacing the industry-matched questions.
- */
+export function getFallbackQuestionsForIndustry(industry) {
+  const key = industry?.toLowerCase() || "tech";
+  const primaryPool = FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS;
+  if (primaryPool.length >= 10) {
+    return primaryPool.slice(0, 10);
+  }
+
+  const pool = [...primaryPool];
+  const poolsToSearch = [
+    TECH_FALLBACK_QUESTIONS,
+    HEALTHCARE_FALLBACK_QUESTIONS,
+    FINANCE_FALLBACK_QUESTIONS,
+    BUSINESS_FALLBACK_QUESTIONS,
+  ];
+
+  for (const extraPool of poolsToSearch) {
+    for (const q of extraPool) {
+      if (pool.length >= 10) break;
+      if (!pool.some((existing) => existing.question === q.question)) {
+        pool.push(q);
+      }
+    }
+    if (pool.length >= 10) break;
+  }
+
+  return pool.slice(0, 10);
+}
+
 export async function getCoachQuestions(locale = "en") {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -498,8 +200,8 @@ export async function getCoachQuestions(locale = "en") {
     where: { clerkUserId: userId },
     select: { industry: true },
   });
-  const key = user?.industry?.toLowerCase() || "tech";
-  const pool = (FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS).map((q) => q.question);
+  const fallbackQuestions = getFallbackQuestionsForIndustry(user?.industry);
+  const pool = fallbackQuestions.map((q) => q.question);
 
   if (locale !== "en" && translations[locale]?.interviewQuestion) {
     const localized = translations[locale].interviewQuestion;
@@ -513,9 +215,10 @@ export async function getCoachQuestions(locale = "en") {
  * Generates 10 unique MCQ questions based on user's industry, skills, and quiz category.
  */
 export async function generateQuiz(category = "Technical") {
-  let userId;
+  let userId = null;
   try {
-    userId = (await auth())?.userId;
+    const authResult = await auth();
+    userId = authResult?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const categoryValidation = validateInput(quizCategorySchema, { category });
@@ -601,7 +304,9 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
       'interview',
       async () => {
         const res = await generateGeminiContent(prompt);
-        return res.response.text();
+        return res?.response && typeof res.response.text === "function"
+          ? await res.response.text()
+          : res?.text ?? "";
       },
       24 // 24 hour TTL
     );
@@ -645,9 +350,10 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
  * Saves a quiz result and generates AI-powered feedback if mistakes were made.
  */
 export async function saveQuizResult(sessionIdOrQuestions, answers, category = "Technical") {
-  let userId;
+  let userId = null;
   try {
-    userId = (await auth())?.userId;
+    const authResult = await auth();
+    userId = authResult?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     if (!sessionIdOrQuestions) {
@@ -784,16 +490,14 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     return assessment;
   } catch (error) {
-    if (userId) await decrementRateLimit(userId, "quizFeedback");
+    const isRateLimitError = error.message?.includes("limit reached");
+    if (userId && !isRateLimitError) {
+      await decrementRateLimit(userId, "quizFeedback");
+    }
     return handleServerError(error, "interview");
   }
 }
 
-
-
-/**
- * Fetches all assessments for the signed-in user, newest first.
- */
 export async function getAssessments() {
   try {
     const { userId } = await auth();
@@ -834,92 +538,5 @@ export async function getAssessment(id) {
     });
   } catch (error) {
     return handleServerError(error, "interview");
-  }
-}
-
-/**
- * Evaluates a transcribed voice answer.
- */
-export async function evaluateVoiceAnswer(question, transcribedAnswer) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const voiceLimit = await checkRateLimit(userId, "voiceEvaluation");
-  if (!voiceLimit.allowed) {
-    return { success: false, error: `Voice evaluation limit reached. Resets in ${formatResetTime(voiceLimit.resetAt)}.` };
-  }
-
-  const prompt = buildSecurePrompt({
-  context: "You are an expert interview coach evaluating a spoken answer from a candidate.",
-  task: "Evaluate the transcribed answer based on confidence, filler words, and content quality.",
-  untrustedData: [
-    { label: "question",          value: question,          maxLength: 1000 },
-    { label: "transcribedAnswer", value: transcribedAnswer, maxLength: 3000 },
-  ],
-  outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
-{
-  "score": 85,
-  "fillerWordsCount": 3,
-  "confidence": "High",
-  "feedback": "Your answer was very structured, but you used 'um' a few times."
-}`,
-});
-  try {
-    const aiResult = await generateGeminiContent(prompt);
-    const validation = validateOutput(voiceFeedbackOutputSchema, aiResult.response.text());
-    if (!validation.success) {
-      console.error("Voice evaluation output validation failed:", validation.errors);
-      return { success: false, error: "AI returned an unexpected format." };
-    }
-    return { success: true, data: validation.data };
-  } catch (error) {
-    const result = handleServerError(error, "interview");
-    return { success: false, error: result.errors?._form?.[0] || "Something went wrong. Please try again." };
-  }
-}
-
-/**
- * Evaluates a transcribed video answer along with basic body language metrics.
- */
-export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) {
-  const { userId } = await auth();
-  if (!userId && process.env.SKIP_AUTH !== "true") throw new Error("Unauthorized");
-
-  if (userId) {
-    const videoLimit = await checkRateLimit(userId, "videoEvaluation");
-    if (!videoLimit.allowed) {
-      return { success: false, error: `Video evaluation limit reached. Resets in ${formatResetTime(videoLimit.resetAt)}.` };
-    }
-  }
-
-  const prompt = buildSecurePrompt({
-    context: "You are an expert interview coach evaluating a video interview response.",
-    task: "Evaluate the transcribed answer and the provided facial metrics (e.g., face detected percentage).",
-    untrustedData: [
-      { label: "question",           value: question,                    maxLength: 1000 },
-      { label: "transcribedAnswer",  value: transcribedAnswer,           maxLength: 3000 },
-      { label: "metrics",            value: JSON.stringify(metrics),     maxLength: 500  },
-    ],
-    outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
-{
-  "score": 85,
-  "fillerWordsCount": 3,
-  "confidence": "High",
-  "bodyLanguageFeedback": "You maintained great eye contact and presence.",
-  "verbalFeedback": "Your answer was very structured, but you used 'um' a few times."
-}`,
-  }); 
-
-  try {
-    const aiResult = await generateGeminiContent(prompt);
-    const validation = validateOutput(videoFeedbackOutputSchema, aiResult.response.text());
-    if (!validation.success) {
-      console.error("Video evaluation output validation failed:", validation.errors);
-      return { success: false, error: "AI returned an unexpected format." };
-    }
-    return { success: true, data: validation.data };
-  } catch (error) {
-    const result = handleServerError(error, "interview");
-    return { success: false, error: result.errors?._form?.[0] || "Something went wrong. Please try again." };
   }
 }
