@@ -324,31 +324,25 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
     return { sessionId, questions, isFallback: false };
   } catch (error) {
-    const isRateLimitError = error.message?.includes("limit reached");
-    if (userId && !isRateLimitError) {
-      await decrementRateLimit(userId, "quiz");
-    }
-    console.warn("Quiz generation error, falling back to default questions:", error);
-
-    try {
-      const user = await db.user.findUnique({
-        where: { clerkUserId: userId },
-        select: { industry: true },
-      });
-      const fallbackQuestions = getFallbackQuestionsForIndustry(user?.industry);
-      const sessionId = crypto.randomUUID();
-      const cacheStore = getCacheStore();
-      const cacheKey = generateCacheKey("quiz-session", userId, sessionId);
-      await cacheStore.set(cacheKey, fallbackQuestions, QUIZ_CACHE_TTL_MS);
-
-      return { sessionId, questions: fallbackQuestions, isFallback: true };
-    } catch (fallbackErr) {
-      console.error("Quiz fallback generation failed:", fallbackErr);
-      return {
-        success: false,
-        error: error.message || "Failed to generate quiz."
-      };
-    }
+    if (userId) await decrementRateLimit(userId, "quiz");
+    console.error("Quiz generation top-level error:", error);
+    // Return fallback questions instead of throwing or returning error object
+    const sessionId = crypto.randomUUID();
+    const defaultQuestions = [
+      {
+        question: "Tell me about yourself.",
+        options: ["A brief summary of my experience", "My entire life story", "Why I want this job", "My salary expectations"],
+        correctAnswer: "A brief summary of my experience",
+        explanation: "A good answer is concise and relevant to the position.",
+      },
+      {
+        question: "What are your greatest strengths?",
+        options: ["I have no weaknesses", "Only technical skills", "Relevant skills and how you've applied them", "Personal hobbies unrelated to work"],
+        correctAnswer: "Relevant skills and how you've applied them",
+        explanation: "Interviewers want to hear about skills that are relevant to the role.",
+      },
+    ];
+    return { sessionId, questions: defaultQuestions, isFallback: true };
   }
 }
 

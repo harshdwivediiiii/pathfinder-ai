@@ -77,7 +77,8 @@ import {
   PenLine,
   Split,
   History,
-  FolderKanban
+  FolderKanban,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/misc/utils";
@@ -97,6 +98,7 @@ const MENU_GROUPS = [
   {
     title: "Resumes & Branding",
     items: [
+      { href: "/evidence-locker", label: "Evidence Locker", icon: <Lock className="h-4 w-4 text-emerald-500" />, shortcut: "" },
       { href: "/resume-builder", label: "Resume Builder", icon: <FileText className="h-4 w-4 text-amber-500" />, shortcut: "Alt+2" },
       { href: "/resume-roast", label: "Resume Roast", icon: <Flame className="h-4 w-4 text-red-500" />, shortcut: "" },
       { href: "/resume-match", label: "Job Match Score", icon: <Target className="h-4 w-4 text-green-500" />, shortcut: "" },

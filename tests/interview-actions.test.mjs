@@ -14,7 +14,11 @@ const mocks = vi.hoisted(() => {
     assessmentFindFirst: vi.fn(),
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
     formatResetTime: vi.fn().mockReturnValue("1h"),
-    decrementRateLimit: vi.fn().mockResolvedValue(true),
+    decrementRateLimit: vi.fn(),
+    getCachedOrFetch: vi.fn(async (promptKey, feature, fetchFn) => {
+      // Call the fetchFn (which internally uses generateGeminiContent mock)
+      return fetchFn();
+    }),
   };
 });
 
@@ -25,16 +29,6 @@ vi.mock("@clerk/nextjs/server", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
-      findUnique: (...args) => {
-        const res1 = mocks.findUniqueUser(...args);
-        const res2 = mocks.userFindUnique(...args);
-        return res2 !== undefined ? res2 : res1;
-      },
-      findUnique: vi.fn((...args) => {
-        const res1 = mocks.userFindUnique(...args);
-        const res2 = mocks.findUniqueUser(...args);
-        return res1 !== undefined ? res1 : res2;
-      }),
       findUnique: async (args) => {
         const res1 = await mocks.userFindUnique(args);
         if (res1 !== undefined) return res1;
@@ -44,6 +38,10 @@ vi.mock("@/lib/db/prisma", () => ({
     assessment: {
       create: mocks.createAssessment,
       findFirst: mocks.assessmentFindFirst,
+    },
+    aiResponseCache: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
     },
     aiRateLimit: {
       findUnique: vi.fn().mockResolvedValue(null),
@@ -71,11 +69,19 @@ vi.mock("@/lib/cache", () => ({
     get: mocks.cacheGet,
     set: mocks.cacheSet,
     delete: mocks.cacheDelete,
-  }),
-  getCachedOrFetch: async (key, ns, fetcher) => fetcher(),
-}));
+  };
+  return {
+    ...actual,
+    cacheStore: mockCacheStore,
+    getCacheStore: () => mockCacheStore,
+  };
+});
 
-import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
+vi.mock("@/lib/ai/ai-cache", () => {
+  return {
+    getCachedOrFetch: mocks.getCachedOrFetch,
+  };
+});
 
 describe("interview actions", () => {
   beforeEach(() => {
