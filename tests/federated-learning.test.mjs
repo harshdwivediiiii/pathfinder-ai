@@ -1,27 +1,45 @@
 import { describe, it, expect } from 'vitest';
-import { initializeFederatedClients, performLocalTraining, aggregateGlobalModel } from '../app/(main)/federated-learning/_components/federated-algorithm.js';
+import { trainLocalModel, aggregateGlobalModel } from '../app/(main)/federated-learning/_components/federated-algorithm.js';
 
-describe('Federated Learning Algorithm', () => {
-  it('updates weights correctly through local training and global aggregation', () => {
-    // Initialize 3 clients
-    const clients = initializeFederatedClients(3);
-    expect(clients.length).toBe(3);
+describe('Federated Learning for Privacy-Preserving User Analytics', () => {
+  it('trains a local model yielding weights without exposing raw sensitive data', () => {
+    const rawTelemetry = {
+      userId: 'test_user_1',
+      struggleTimeMinutes: 60,
+      quizScore: 20,
+      hintsUsed: 10
+    };
     
-    // Store initial global model
-    const initialGlobal = aggregateGlobalModel(clients);
+    const localModel = trainLocalModel(rawTelemetry);
     
-    // Perform 10 epochs of local training
-    const trainedClients = performLocalTraining(clients, 10, 0.1);
+    // Ensure the output contains only mathematical weights and metadata
+    expect(localModel.clientId).toBe('test_user_1');
+    expect(localModel.modelWeights).toBeDefined();
+    expect(localModel.modelWeights.length).toBe(3);
     
-    // Check that clients updated their weights
-    expect(trainedClients[0].hasUpdate).toBe(true);
-    expect(trainedClients[0].weights[0]).not.toBe(clients[0].weights[0]);
+    // Ensure raw telemetry data is NOT present in the output
+    expect(localModel.struggleTimeMinutes).toBeUndefined();
+    expect(localModel.quizScore).toBeUndefined();
+  });
+  
+  it('aggregates multiple client weights accurately (FedAvg)', () => {
+    // 3 clients, 3 weights each
+    const clients = [
+      { modelWeights: [0.1, 0.5, 0.2] },
+      { modelWeights: [0.3, 0.5, 0.4] },
+      { modelWeights: [0.5, 0.5, 0.6] }
+    ];
     
-    // Aggregate new global model
-    const newGlobal = aggregateGlobalModel(trainedClients);
+    const globalWeights = aggregateGlobalModel(clients);
     
-    // Verify global model changed due to training
-    expect(newGlobal[0]).not.toBe(initialGlobal[0]);
-    expect(newGlobal[1]).not.toBe(initialGlobal[1]);
+    // Expected averages:
+    // W1: (0.1 + 0.3 + 0.5) / 3 = 0.3
+    // W2: (0.5 + 0.5 + 0.5) / 3 = 0.5
+    // W3: (0.2 + 0.4 + 0.6) / 3 = 0.4
+    
+    expect(globalWeights.length).toBe(3);
+    expect(globalWeights[0]).toBeCloseTo(0.3, 2);
+    expect(globalWeights[1]).toBeCloseTo(0.5, 2);
+    expect(globalWeights[2]).toBeCloseTo(0.4, 2);
   });
 });
