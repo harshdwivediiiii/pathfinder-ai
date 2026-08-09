@@ -1,6 +1,7 @@
 "use client";
 
 import { useCareerShortlist } from "@/hooks/use-career-shortlist";
+import { isValidMatchScore } from "@/lib/misc/explore-careers";
 import { motion } from "framer-motion";
 import { ArrowLeft, Layers, Check, Trophy, AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -31,8 +32,11 @@ export default function ComparePage() {
     );
   }
 
-  // Find max values to highlight
-  const highestMatch = Math.max(...shortlist.map(c => c.matchScore));
+  // Find max values to highlight (matchScore may be null/invalid for browse examples)
+  const numericMatches = shortlist
+    .map((c) => c.matchScore)
+    .filter(isValidMatchScore);
+  const highestMatch = numericMatches.length ? Math.max(...numericMatches) : null;
   const highestSalary = Math.max(...shortlist.map(c => c.salaryValue));
   const highestGrowth = Math.max(...shortlist.map(c => c.growthValue));
 
@@ -89,7 +93,13 @@ export default function ComparePage() {
                   Remove
                 </button>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${career.color}`}>
-                  <span className="text-xl font-bold">{career.matchScore}%</span>
+                  {isValidMatchScore(career.matchScore) ? (
+                    <span className="text-xl font-bold">{career.matchScore}%</span>
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase tracking-wide px-1 text-center leading-tight">
+                      Example
+                    </span>
+                  )}
                 </div>
                 <h2 className="text-xl font-bold mb-2">{career.title}</h2>
                 <p className="text-sm text-muted-foreground line-clamp-2">{career.description}</p>
@@ -102,10 +112,22 @@ export default function ComparePage() {
               label="Match Score" 
               renderValue={(c) => (
                 <div className="flex items-center gap-2">
-                  <span className={`text-2xl font-black ${c.matchScore === highestMatch ? 'text-primary' : 'text-foreground'}`}>
-                    {c.matchScore}%
-                  </span>
-                  {c.matchScore === highestMatch && <Badge className="bg-primary/10 text-primary border-primary/20"><Trophy className="h-3 w-3 mr-1" /> Best Match</Badge>}
+                  {isValidMatchScore(c.matchScore) ? (
+                    <>
+                      <span className={`text-2xl font-black ${c.matchScore === highestMatch ? 'text-primary' : 'text-foreground'}`}>
+                        {c.matchScore}%
+                      </span>
+                      {highestMatch !== null && c.matchScore === highestMatch && (
+                        <Badge className="bg-primary/10 text-primary border-primary/20">
+                          <Trophy className="h-3 w-3 mr-1" /> Best Match
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Browse example
+                    </span>
+                  )}
                 </div>
               )} 
             />

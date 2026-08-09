@@ -107,16 +107,36 @@ function ScoreRing({ score }) {
   );
 }
 
-function KeywordBadge({ word, type }) {
+function parseKeyword(kw) {
+  if (!kw) return { word: "", importance: null };
+  const match = kw.match(/^(.*?)\s*\((Critical|High|Medium|Low)\)$/i);
+  if (match) {
+    return { word: match[1].trim(), importance: match[2] };
+  }
+  return { word: kw, importance: null };
+}
+
+function KeywordBadge({ word: rawWord, type }) {
+  const { word, importance } = parseKeyword(rawWord);
+  
+  const importanceColor = {
+    Critical: "bg-red-500 text-white border-transparent",
+    High: "bg-orange-500 text-white border-transparent",
+    Medium: "bg-yellow-500 text-white border-transparent",
+    Low: "bg-blue-500 text-white border-transparent"
+  }[importance] || "bg-muted text-muted-foreground border-transparent";
+
   return type === "matched" ? (
-    <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30 hover:bg-green-500/25 gap-1">
+    <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30 hover:bg-green-500/25 gap-1 pr-1.5">
       <CheckCircle2 className="h-3 w-3" />
       {word}
+      {importance && <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider font-bold ${importanceColor}`}>{importance}</span>}
     </Badge>
   ) : (
-    <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 hover:bg-red-500/25 gap-1">
+    <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 hover:bg-red-500/25 gap-1 pr-1.5">
       <XCircle className="h-3 w-3" />
       {word}
+      {importance && <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider font-bold ${importanceColor}`}>{importance}</span>}
     </Badge>
   );
 }
@@ -150,7 +170,8 @@ function getHighlightedSegments(text, highlights, matchedKeywords) {
 
   // 2. Process matched keywords
   if (Array.isArray(matchedKeywords)) {
-    matchedKeywords.forEach((word, index) => {
+    matchedKeywords.forEach((rawWord, index) => {
+      const { word } = parseKeyword(rawWord);
       if (!word || word.length < 2) return;
       
       // Escape word for regex safety
@@ -360,7 +381,7 @@ async function downloadReport(result) {
       </h2>
 
       <p style="margin-bottom:20px;">
-        ${safeMatchedKeywords.join(", ")}
+        ${safeMatchedKeywords.map(kw => parseKeyword(kw).word).join(", ")}
       </p>
 
       <h2 style="font-size:18px; color:#dc2626; margin-bottom:8px;">
@@ -368,7 +389,10 @@ async function downloadReport(result) {
       </h2>
 
       <p style="margin-bottom:20px;">
-        ${safeMissingKeywords.join(", ")}
+        ${safeMissingKeywords.map(kw => {
+          const parsed = parseKeyword(kw);
+          return parsed.importance ? `${parsed.word} (${parsed.importance})` : parsed.word;
+        }).join(", ")}
       </p>
 
       <h2 style="font-size:18px; margin-bottom:12px;">

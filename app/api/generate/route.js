@@ -213,7 +213,11 @@ export async function POST(request) {
 
   const validation = chatPromptSchemaStr.safeParse(prompt);
   if (!validation.success) {
-    return buildSseErrorResponse(validation.error.errors[0].message, 400);
+    const errorMessage =
+      validation.error?.errors?.length > 0
+        ? validation.error.errors[0].message
+        : "Invalid prompt format";
+    return buildSseErrorResponse(errorMessage, 400);
   }
 
   const validatedPrompt = validation.data;
@@ -375,8 +379,25 @@ Rules:
   // could all observe no pending request and proceed to create independent generations.
   // This implementation uses atomic registration to prevent that race.
 
+  // Pre-check circuit breaker state to avoid returning Response from inside ReadableStream.start()
+  const cbState = geminiCircuitBreaker.getState();
+  if (cbState === "open" || cbState === "half-open") {
+    const degradedCache = await getCachedResponse(cacheUser, restrictedPrompt);
+    if (degradedCache) {
+      aiLogger.warn("Serving degraded cached response (pre-check)", { state: cbState });
+      setCircuitBreakerState("degraded");
+      return createCachedSseResponse({
+        text: degradedCache,
+        headers,
+        cacheStatus: "DEGRADED",
+        deduped: false,
+        debug: null,
+      });
+    }
+  }
+
   // Atomically get or create the pending request BEFORE any async work
-  const { promise: pendingPromise, isCreator, resolve: resolvePending, reject: rejectPending } = 
+  const { promise: pendingPromise, isCreator, resolve: resolvePending, reject: rejectPending } =
     getOrCreatePendingGenerationRequest(cacheUser, promptCheck.prompt);
 
   const encoder = new TextEncoder();
@@ -470,29 +491,11 @@ Rules:
               error: initialError?.message,
             });
             setCircuitBreakerState("degraded");
-            const degradedStream = new ReadableStream({
-              start(controller) {
-                controller.enqueue(
-                  encodeSseEvent(encoder, "delta", {
-                    text: degradedCache,
-                    cached: true,
-                    degraded: true,
-                  })
-                );
-                controller.enqueue(
-                  encodeSseEvent(encoder, "done", {
-                    finalText: degradedCache,
-                    hasContent: true,
-                    cached: true,
-                    degraded: true,
-                  })
-                );
-                controller.close();
-              },
-            });
-            return new Response(degradedStream, {
-              headers: buildSseHeaders(request),
-            });
+            safeEnqueue("delta", { text: degradedCache, cached: true, degraded: true });
+            safeEnqueue("done", { finalText: degradedCache, hasContent: true, cached: true, degraded: true });
+            safeClose();
+            resolvePending(degradedCache);
+            return;
           }
           throw initialError;
         }
