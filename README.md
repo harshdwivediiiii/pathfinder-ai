@@ -89,6 +89,7 @@
 - [Discord Community](#-discord-community)
 - [Contributing](#-contributing)
 - [Contributors](#-contributors)
+- [Community](#-community)
 - [License](#-license)
 
 ---
