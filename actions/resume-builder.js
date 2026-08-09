@@ -25,6 +25,10 @@ export async function generateResumeContent(jobDescription) {
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
+  if (!jobDescription || jobDescription.trim().length < 50) {
+    return { success: false, errors: { _form: ["Please provide a valid job description (at least 50 characters)."] } };
+  }
+
   const limit = await checkRateLimit(userId, "resumeBuilder");
   if (!limit.allowed) {
     return {
@@ -33,10 +37,6 @@ export async function generateResumeContent(jobDescription) {
         _form: [`Resume generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
       },
     };
-  }
-
-  if (!jobDescription || jobDescription.trim().length < 50) {
-    return { success: false, errors: { _form: ["Please provide a valid job description (at least 50 characters)."] } };
   }
   
   const user = await getResumeBuilderUser(userId);
