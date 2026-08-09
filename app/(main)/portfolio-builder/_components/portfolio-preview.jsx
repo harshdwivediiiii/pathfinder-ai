@@ -86,7 +86,7 @@ export default function PortfolioPreview({ data, theme, user }) {
                       <h3 className="text-xl font-bold flex items-center justify-between">
                         {proj.name}
                         {proj.link && (
-                          <a href={proj.link} target="_blank" rel="noreferrer" aria-label={`Visit project ${proj.name}`} className="opacity-70 hover:opacity-100 transition-opacity">
+                          <a href={proj.link} target="_blank" rel="noopener noreferrer" aria-label={`Visit project ${proj.name}`} className="opacity-70 hover:opacity-100 transition-opacity">
                             <ExternalLink className="h-5 w-5 text-green-400" />
                           </a>
                         )}
@@ -183,7 +183,7 @@ export default function PortfolioPreview({ data, theme, user }) {
                     <h3 className="text-xl font-medium text-zinc-800 flex items-center gap-2">
                       {proj.name}
                       {proj.link && (
-                        <a href={proj.link} target="_blank" rel="noreferrer" aria-label={`Visit project ${proj.name}`} className="text-zinc-400 hover:text-zinc-900 transition-colors">
+                        <a href={proj.link} target="_blank" rel="noopener noreferrer" aria-label={`Visit project ${proj.name}`} className="text-zinc-400 hover:text-zinc-900 transition-colors">
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       )}

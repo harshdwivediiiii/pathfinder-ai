@@ -6,24 +6,7 @@ import { revalidatePath } from "next/cache";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-
-function normalizePortfolioContent(content) {
-  if (!content) return content;
-  if (content.projects && Array.isArray(content.projects)) {
-    content.projects = content.projects.map(proj => {
-      let techStack = proj.techStack;
-      if (typeof techStack === 'string') {
-        techStack = techStack.split(',').map(s => s.trim()).filter(Boolean);
-      } else if (!Array.isArray(techStack)) {
-        techStack = [];
-      } else {
-        techStack = techStack.filter(Boolean);
-      }
-      return { ...proj, techStack };
-    });
-  }
-  return content;
-}
+import { normalizePortfolioContent } from "@/lib/misc/portfolio-content";
 
 // Helper to check user session and db record
 async function getAuthenticatedUser() {
