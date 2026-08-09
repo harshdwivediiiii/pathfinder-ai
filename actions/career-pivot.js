@@ -30,11 +30,22 @@ import { generateGeminiContent } from "@/lib/ai/gemini";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
 import { parseAiOutput } from "@/lib/ai/ai-output";
 import { getAuthenticatedUser } from "@/lib/auth/authenticated-history";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 /** Generate a career pivot strategy based on user goals. */
 export async function generatePivotStrategy(currentRole, targetRole) {
   const userId = await getAuthenticatedUserId(auth);
   if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "careerPivot");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Career pivot strategy limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -45,16 +56,17 @@ export async function generatePivotStrategy(currentRole, targetRole) {
   );
   }
 
-  const aiResult = await runAiGeneration(
-    createPromptConfig({
-      context: "You are an expert career transition coach.",
-      task: `Analyze a career pivot from '${currentRole}' to '${targetRole}'.
+  try {
+    const aiResult = await runAiGeneration(
+      createPromptConfig({
+        context: "You are an expert career transition coach.",
+        task: `Analyze a career pivot from '${currentRole}' to '${targetRole}'.
       Identify the hidden transferable skills the candidate already has, the major skill gaps they need to close, and a step-by-step roadmap to make the transition.`,
-      untrustedData: [
-        { label: "currentRole", value: currentRole, maxLength: 100 },
-        { label: "targetRole", value: targetRole, maxLength: 100 },
-      ],
-      outputRules: createJsonOutputRules(`Provide the output in the following JSON format ONLY:
+        untrustedData: [
+          { label: "currentRole", value: currentRole, maxLength: 100 },
+          { label: "targetRole", value: targetRole, maxLength: 100 },
+        ],
+        outputRules: createJsonOutputRules(`Provide the output in the following JSON format ONLY:
 {
   "transferableSkills": [
     "Skill 1 (and how it translates)",
@@ -70,19 +82,23 @@ export async function generatePivotStrategy(currentRole, targetRole) {
     { "step": "Phase 3: Networking & Application", "action": "How to position yourself" }
   ]
 }`),
-    })
-  );
-  const parsedData = parseAiResponse(aiResult);
+      })
+    );
+    const parsedData = parseAiResponse(aiResult);
 
-  const record = await createRecord(db.careerPivot, {
-  userId: user.id,
-  currentRole,
-  targetRole,
-  ...buildParsedResult("analysis", parsedData),
-});
+    const record = await createRecord(db.careerPivot, {
+      userId: user.id,
+      currentRole,
+      targetRole,
+      ...buildParsedResult("analysis", parsedData),
+    });
 
-  revalidatePath("/career-pivot");
-  return createSuccessResponse(record);
+    revalidatePath("/career-pivot");
+    return createSuccessResponse(record);
+  } catch (error) {
+    await decrementRateLimit(userId, "careerPivot");
+    return handleServerError(error, "career-pivot");
+  }
 }
 
 export async function getCareerPivots() {

@@ -9,12 +9,23 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { getHistoryUserContext } from "@/lib/history/history-auth";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 async function getPerformanceReviewUser(userId) {
   return getUserByClerkId(userId);
 }
 export async function generateSelfAssessment(achievements, challenges, goals) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "performanceReview");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Performance review limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await getPerformanceReviewUser(userId);
   if (!user) return createErrorResponse("User not found");
@@ -65,6 +76,7 @@ export async function generateSelfAssessment(achievements, challenges, goals) {
     revalidatePath("/performance-review");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "performanceReview");
     return handleServerError(error, "performance-review");
   }
 }

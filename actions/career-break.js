@@ -29,12 +29,23 @@ import { parseAiOutput } from "@/lib/ai/ai-output";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
 import { createOutputRules } from "@/lib/ai/output-rules";
 import { createHistoryResponse } from "@/lib/history/history-response";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 import { buildParsedResult } from "@/lib/ai/parsed-ai";
 /** Generate a career break plan based on user preferences. */
 export async function planCareerBreak(duration, reason, returnGoals) {
   const userId = await getAuthenticatedUserId(auth);
   if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "careerBreak");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Career break plan limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -89,6 +100,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
     revalidatePath("/career-break");
     return createHistoryResponse(record);
   } catch (error) {
+    await decrementRateLimit(userId, "careerBreak");
     return handleServerError(error, "career-break");
   }
 }
