@@ -22,21 +22,23 @@ export async function chatWithGemini(prompt) {
 
     const authResult = await auth();
     userId = authResult?.userId;
-    const headerList = await headers();
 
-    const subject = getRateLimitIdentifier({ headers: headerList }, userId);
-    const rateLimit = await enforceRateLimit({
-      endpoint: "action:chatWithGemini",
-      subject,
-      limitPerMinute: userId ? 20 : 5,
-      burstCapacity: userId ? 10 : 5,
-    });
+    if (!userId) {
+      const headerList = await headers();
+      const subject = getRateLimitIdentifier({ headers: headerList }, userId);
+      const rateLimit = await enforceRateLimit({
+        endpoint: "action:chatWithGemini",
+        subject,
+        limitPerMinute: 5,
+        burstCapacity: 5,
+      });
 
-    if (!rateLimit.allowed) {
-      return {
-        success: false,
-        errors: { _form: [`Rate limit exceeded. Try again in ${rateLimit.retryAfterSeconds}s.`] },
-      };
+      if (!rateLimit.allowed) {
+        return {
+          success: false,
+          errors: { _form: [`Rate limit exceeded. Try again in ${rateLimit.retryAfterSeconds}s.`] },
+        };
+      }
     }
 
     if (userId) {
