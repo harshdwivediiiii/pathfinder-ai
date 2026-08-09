@@ -1,4 +1,33 @@
 import { db } from "@/lib/db/prisma";
+import { verifyWebhook, WebhookVerificationError } from "@clerk/backend";
+
+export async function POST(request) {
+  // Verify svix signature to ensure the request is from Clerk
+  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("[clerk-webhook] CLERK_WEBHOOK_SECRET is not set");
+    return new Response(JSON.stringify({ error: "Webhook not configured" }), { status: 500 });
+  }
+
+  const rawBody = await request.text();
+
+  let payload;
+  try {
+    payload = verifyWebhook({
+      payload: rawBody,
+      headers: request.headers,
+      secret: webhookSecret,
+    });
+  } catch (err) {
+    if (err instanceof WebhookVerificationError) {
+      console.warn("[clerk-webhook] Invalid signature:", err.message);
+      return new Response(JSON.stringify({ error: "Invalid webhook signature" }), { status: 400 });
+    }
+    console.error("[clerk-webhook] Verification error:", err);
+    return new Response(JSON.stringify({ error: "Webhook verification failed" }), { status: 400 });
+  }
+
+  const { type, data } = payload;
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 
 /**
