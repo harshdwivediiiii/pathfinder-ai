@@ -399,6 +399,8 @@ Open [http://localhost:3000](http://localhost:3000). You're in.
 
 > **⚠️ Development Authentication Bypass:** For local development without Clerk setup, you can set `SKIP_AUTH=true` to bypass authentication. This is ONLY allowed on localhost in development mode and will throw an error in production or on non-localhost hosts. See the [Environment Variables](#-environment-variables) section for details.
 
+> **⚠️ E2E Testing Bypass:** The `E2E_TEST=true` variable drives the Playwright end-to-end test suite's auth bypass. It works only outside of production and only on localhost/`127.0.0.1`. Setting `E2E_TEST=true` on a deployed instance now throws an error instead of silently disabling authentication.
+
 </details>
 
 <details>
@@ -474,6 +476,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 # The application will throw an error if these conditions are not met.
 # Remove this variable or set to "false" for production deployments.
 SKIP_AUTH=false
+
+# E2E testing auth bypass (E2E tests only, development-only, localhost-only)
+E2E_TEST=false
 ```
 
 <details>
@@ -497,6 +502,7 @@ SKIP_AUTH=false
 | `RATE_LIMIT_STORE` | ⚪ | Rate limiter driver (`auto` or `redis`) |
 | `NEXT_PUBLIC_APP_URL` | ⚪ | Base URL used in production builds |
 | `SKIP_AUTH` | ⚪ | Development-only auth bypass (NEVER use in production) |
+| `E2E_TEST` | ⚪ | E2E test suite auth bypass (development/localhost only, NEVER use in production) |
 
 </details>
 
