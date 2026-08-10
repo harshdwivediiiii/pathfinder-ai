@@ -84,7 +84,9 @@ export default function Header() {
       .then((data) => {
         if (data?.clerkKeyless) setClerkKeyless(true);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn("Failed to fetch dev status:", err);
+      });
     return () => controller.abort();
   }, []);
 
