@@ -328,21 +328,8 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     console.error("Quiz generation top-level error:", error);
     // Return fallback questions instead of throwing or returning error object
     const sessionId = crypto.randomUUID();
-    const defaultQuestions = [
-      {
-        question: "Tell me about yourself.",
-        options: ["A brief summary of my experience", "My entire life story", "Why I want this job", "My salary expectations"],
-        correctAnswer: "A brief summary of my experience",
-        explanation: "A good answer is concise and relevant to the position.",
-      },
-      {
-        question: "What are your greatest strengths?",
-        options: ["I have no weaknesses", "Only technical skills", "Relevant skills and how you've applied them", "Personal hobbies unrelated to work"],
-        correctAnswer: "Relevant skills and how you've applied them",
-        explanation: "Interviewers want to hear about skills that are relevant to the role.",
-      },
-    ];
-    return { sessionId, questions: defaultQuestions, isFallback: true };
+    const fallbackQuestions = getFallbackQuestionsForIndustry(null);
+    return { sessionId, questions: fallbackQuestions, isFallback: true };
   }
 }
 
