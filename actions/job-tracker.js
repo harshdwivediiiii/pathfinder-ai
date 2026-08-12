@@ -1,5 +1,5 @@
 "use server";
-import { handleServerError } from "@/lib/errors/error-handler";
+// import { handleServerError } from "@/lib/errors/error-handler";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
 import { db } from "@/lib/db/prisma";
@@ -55,6 +55,8 @@ export async function createJobApplication(data) {
   if (!user) return createErrorResponse("User not found");
 
   try {
+    console.log("JOB DATA BEING SAVED:", validation.data);
+
     const job = await db.jobApplication.create({
       data: {
         userId: user.id,
@@ -67,7 +69,18 @@ export async function createJobApplication(data) {
     revalidatePath("/dashboard");
     return { success: true, data: job };
   } catch (error) {
-    return handleServerError(error, "job-tracker");
+    console.error("CREATE JOB APPLICATION ERROR:", error);
+
+    return {
+      success: false,
+      errors: {
+        _form: [
+          error instanceof Error
+            ? error.message
+            : "Unknown database error",
+        ],
+      },
+    };
   }
 }
 
