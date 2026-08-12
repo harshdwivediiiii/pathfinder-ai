@@ -10,7 +10,14 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { validateOutput } from "@/lib/ai/validate";
 import { onboardingPlanOutputSchema } from "@/lib/schemas/outputs";
-
+function createOnboardingValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
 export async function generateOnboardingPlan(company, role) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -21,11 +28,15 @@ export async function generateOnboardingPlan(company, role) {
   const trimmedCompany = company?.trim();
   const trimmedRole = role?.trim();
 
-  if (!trimmedCompany || trimmedCompany.length > 100) {
-    return { success: false, errors: { _form: ["Company name is required and must be under 100 characters."] } };
+  if (!companyName || companyName.length > 100) {
+    return createOnboardingValidationResponse(
+      "Company name is required and must be under 100 characters."
+    );
   }
-  if (!trimmedRole || trimmedRole.length > 100) {
-    return { success: false, errors: { _form: ["Job title is required and must be under 100 characters."] } };
+  if (!jobTitle || jobTitle.length > 100) {
+    return createOnboardingValidationResponse(
+      "Job title is required and must be under 100 characters."
+    );
   }
 
   const prompt = buildSecurePrompt({
