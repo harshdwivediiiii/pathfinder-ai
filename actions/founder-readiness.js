@@ -67,7 +67,7 @@ Respond ONLY with a valid JSON object in this exact format:
     });
 
     const schemaDescription = SCHEMA_DESCRIPTIONS.founderReadiness;
-    console.log("Starting founder readiness generation...");
+  
     const result = await generateWithStructuredOutput({
       prompt,
       schemaDescription,
@@ -78,14 +78,13 @@ Respond ONLY with a valid JSON object in this exact format:
       },
       validateFn: validateOutput,
     });
-    console.log("AI Result:", result);
+    
 
     if (!result.success) {
       console.error("Founder readiness output validation failed:", result.errors);
       throw new Error("AI returned an unexpected format.");
     }
 
-    console.log("Saving to database...");
     const readiness = await db.founderReadiness.create({
       data: {
         userId: user.id,
@@ -95,7 +94,7 @@ Respond ONLY with a valid JSON object in this exact format:
         readinessData: result.data,
       },
     });
-    console.log("Saved successfully.");
+    
 
     return readiness;
   } catch (error) {
