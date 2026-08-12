@@ -13,7 +13,9 @@ import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { db } from "@/lib/db/prisma";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-
+function revalidateToxicWorkplaceRoute() {
+  revalidatePath("/toxic-workplace");
+}
 const toxicEscapeSchema = z.object({
   toxicityScore: z.number().min(0).max(100),
   validationMessage: z.string(),
@@ -109,7 +111,7 @@ export async function generateEscapePlan(symptoms, role, timeline) {
       }
     });
 
-    revalidatePath("/toxic-workplace");
+    revalidateToxicWorkplaceRoute();
     return { success: true, data: { ...validation.data, id: record.id } };
   } catch (error) {
     await decrementRateLimit(userId, "toxicEscape");
