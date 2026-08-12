@@ -16,7 +16,9 @@ const evidenceSchema = z.object({
   description: z.string().max(2000, "Description is too long").optional().or(z.literal("")),
   tags: z.array(z.string()).max(10, "Maximum 10 tags allowed").optional(),
 });
-
+function revalidateEvidenceLocker() {
+  revalidatePath("/evidence-locker");
+}
 export async function getEvidenceItems() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };
@@ -54,7 +56,7 @@ export async function createEvidenceItem(data) {
         ...validation.data,
       },
     });
-    revalidatePath("/evidence-locker");
+    revalidateEvidenceLocker();
     return { success: true, data: item };
   } catch (error) {
     return handleServerError(error, "evidence");
@@ -78,7 +80,7 @@ export async function updateEvidenceItem(id, data) {
       where: { id, userId: user.id },
       data: validation.data,
     });
-    revalidatePath("/evidence-locker");
+    revalidateEvidenceLocker();
     return { success: true, data: item };
   } catch (error) {
     return handleServerError(error, "evidence");
@@ -96,7 +98,7 @@ export async function deleteEvidenceItem(id) {
     await db.evidenceItem.delete({
       where: { id, userId: user.id },
     });
-    revalidatePath("/evidence-locker");
+    revalidateEvidenceLocker();
     return { success: true };
   } catch (error) {
     return handleServerError(error, "evidence");
