@@ -6,7 +6,9 @@ import { revalidatePath } from "next/cache";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-
+function revalidatePortfolioBuilder() {
+  revalidatePath("/portfolio-builder");
+}
 function normalizePortfolioContent(content) {
   if (!content) return content;
   if (content.projects && Array.isArray(content.projects)) {
@@ -136,7 +138,7 @@ Rules:
       },
     });
 
-    revalidatePath("/portfolio-builder");
+    revalidatePortfolioBuilder();
     return { success: true, data: portfolio };
   } catch (err) {
     console.error("Portfolio Generation Error:", err);
@@ -188,7 +190,7 @@ export async function updatePortfolio(data) {
       },
     });
 
-    revalidatePath("/portfolio-builder");
+    revalidatePortfolioBuilder();
     revalidatePath(`/p/${portfolio.slug}`);
     return { success: true, data: portfolio };
   } catch (err) {
