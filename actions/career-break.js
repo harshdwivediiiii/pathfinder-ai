@@ -31,6 +31,12 @@ import { createOutputRules } from "@/lib/ai/output-rules";
 import { createHistoryResponse } from "@/lib/history/history-response";
 
 import { buildParsedResult } from "@/lib/ai/parsed-ai";
+
+
+const EMPTY_CAREER_BREAK_HISTORY = {
+  success: false,
+  data: [],
+};
 /** Generate a career break plan based on user preferences. */
 export async function planCareerBreak(duration, reason, returnGoals) {
   const userId = await getAuthenticatedUserId(auth);
@@ -96,7 +102,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
 
 export async function getCareerBreakPlans() {
   const user = await getAuthenticatedUser();
-  if (!user) return { success: false, data: [] };
+  if (!user) return EMPTY_CAREER_BREAK_HISTORY;
 
   const records = await getUserHistory(
     db.careerBreakPlan,
