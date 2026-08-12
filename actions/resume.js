@@ -12,7 +12,9 @@ import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
 import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
-
+function revalidateResumeRoute() {
+  revalidatePath("/resume");
+}
 export async function saveResume(rawContent) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Sign-in required to update resume files."] } };
@@ -37,7 +39,7 @@ export async function saveResume(rawContent) {
       },
     });
 
-    revalidatePath("/resume");
+    revalidateResumeRoute();
     return { success: true, data: resume };
   } catch (error) {
     return handleServerError(error, "resume");
