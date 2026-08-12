@@ -7,7 +7,14 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-
+function createRemoteWorkValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
 export async function generateRemotePitch(role, reasons, objections) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -16,7 +23,9 @@ export async function generateRemotePitch(role, reasons, objections) {
   if (!user) return createErrorResponse("User not found");
 
   if (!role || !reasons) {
-    return { success: false, errors: { _form: ["Role and reasons are required."] } };
+    return createRemoteWorkValidationResponse(
+  "Role and reasons are required."
+);
   }
 
   const prompt = buildSecurePrompt({
