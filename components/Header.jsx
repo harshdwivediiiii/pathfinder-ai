@@ -123,9 +123,19 @@ export default function Header() {
         alignItems: "center",
       }}
     >
-      <h1 style={{ fontSize: "28px", fontWeight: "bold" }}>
-        Pathfinder AI
-      </h1>
+      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
+        {mounted ? (
+          <img
+            src={logoSrc}
+            alt="PathFinder AI"
+            style={{ height: "36px", width: "auto" }}
+          />
+        ) : (
+          <span style={{ fontSize: "28px", fontWeight: "bold", color: "inherit" }}>
+            PathFinder AI
+          </span>
+        )}
+      </Link>
 
       <nav style={{ display: "flex", gap: "20px", alignItems: "center" }}>
         <Link href="/">Home</Link>
