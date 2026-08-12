@@ -8,6 +8,7 @@ import { cultureMatchSchema } from "@/lib/schemas/forms";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { getAiResponseText } from "@/lib/ai-response";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { safeFetch } from "@/lib/security/safe-fetch";
 
@@ -98,7 +99,7 @@ export async function generateCultureMatch(data) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.cultureMatch.create({
       data: {
