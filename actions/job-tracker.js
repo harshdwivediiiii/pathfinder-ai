@@ -10,7 +10,10 @@ import { extractJobApplicationFromEmail } from "@/lib/ai/gemini";
 import { validateInput } from "@/lib/ai/validate";
 import { jobApplicationSchema, jobApplicationUpdateStatusSchema } from "@/lib/schemas/forms";
 import { toCanonicalStatus, toDisplayStatus } from "@/lib/constants/job-application-status";
-
+function revalidateJobTrackerRoutes() {
+  revalidatePath("/job-tracker");
+  revalidatePath("/dashboard");
+}
 export async function getJobApplications() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };
@@ -63,8 +66,7 @@ export async function createJobApplication(data) {
       },
     });
 
-    revalidatePath("/job-tracker");
-    revalidatePath("/dashboard");
+    revalidateJobTrackerRoutes();
     return { success: true, data: job };
   } catch (error) {
     return handleServerError(error, "job-tracker");
@@ -98,8 +100,7 @@ export async function updateJobApplicationStatus(id, status) {
       return { success: false, errors: { _form: ["Job application not found"] } };
     }
 
-    revalidatePath("/job-tracker");
-    revalidatePath("/dashboard");
+    revalidateJobTrackerRoutes();
     return { success: true };
   } catch (error) {
     return handleServerError(error, "job-tracker");
@@ -134,8 +135,7 @@ export async function updateJobApplicationInterviewDate(id, interviewDate) {
       return { success: false, errors: { _form: ["Job application not found"] } };
     }
 
-    revalidatePath("/job-tracker");
-    revalidatePath("/dashboard");
+    revalidateJobTrackerRoutes();
     return { success: true };
   } catch (error) {
     return handleServerError(error, "job-tracker");
@@ -163,8 +163,7 @@ export async function deleteJobApplication(id) {
       return { success: false, errors: { _form: ["Job application not found"] } };
     }
 
-    revalidatePath("/job-tracker");
-    revalidatePath("/dashboard");
+    revalidateJobTrackerRoutes();
     return { success: true };
   } catch (error) {
     return handleServerError(error, "job-tracker");
@@ -195,8 +194,7 @@ export async function disassociateAtsAnalysis(id) {
       return { success: false, errors: { _form: ["Job application not found"] } };
     }
 
-    revalidatePath("/job-tracker");
-    revalidatePath("/dashboard");
+    revalidateJobTrackerRoutes();
     return { success: true };
   } catch (error) {
     return handleServerError(error, "job-tracker");
@@ -227,8 +225,7 @@ export async function disassociateCoverLetter(id) {
       return { success: false, errors: { _form: ["Job application not found"] } };
     }
 
-    revalidatePath("/job-tracker");
-    revalidatePath("/dashboard");
+    revalidateJobTrackerRoutes();
     return { success: true };
   } catch (error) {
     return handleServerError(error, "job-tracker");
@@ -394,8 +391,7 @@ export async function syncJobApplicationsFromEmail() {
       }
     }
 
-    revalidatePath("/job-tracker");
-    revalidatePath("/dashboard");
+    revalidateJobTrackerRoutes();
     return { success: true, message: `Synced! Added ${addedCount}, Updated ${updatedCount} applications.` };
   } catch (error) {
     return handleServerError(error, "job-tracker");
