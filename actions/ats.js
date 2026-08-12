@@ -119,7 +119,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     const outputValidation = validateOutput(atsAnalysisOutputSchema, result.response.text());
     if (!outputValidation.success) {
       console.error("ATS analysis output validation failed:", outputValidation.errors);
-      return { success: false, errors: { _form: ["AI returned an unexpected format. Please try again."] } };
+      return createErrorResponse("AI returned an unexpected format. Please try again.");
     }
     const parsedAnalysis = outputValidation.data;
 
