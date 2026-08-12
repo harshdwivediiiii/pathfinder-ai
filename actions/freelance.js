@@ -8,7 +8,9 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
-
+function revalidateFreelanceProposal() {
+  revalidatePath("/freelance-proposal");
+}
 export async function generateProposal(projectDetails, rate) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -46,7 +48,7 @@ export async function generateProposal(projectDetails, rate) {
       },
     });
 
-    revalidatePath("/freelance-proposal");
+    revalidateFreelanceProposal();
     return { success: true, data: record };
   } catch (error) {
     return handleServerError(error, "freelance");
