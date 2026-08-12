@@ -59,7 +59,10 @@ export async function startCoffeeChat(industry, targetRole) {
     return handleServerError(error, "coffee-chat");
   }
 }
-
+const EMPTY_HISTORY_RESPONSE = {
+  success: false,
+  data: [],
+};
 export async function sendCoffeeChatMessage(sessionId, userMessage) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -167,9 +170,10 @@ export async function generateCoffeeChatFeedback(sessionId) {
 
 export async function getCoffeeChatSessions() {
   const { userId } = await auth();
-  if (!userId) return { success: false, data: [] };
+  if (!userId) return EMPTY_HISTORY_RESPONSE;
+
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, data: [] };
+  if (!user) return EMPTY_HISTORY_RESPONSE;
   const records = await db.coffeeChatSession.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
