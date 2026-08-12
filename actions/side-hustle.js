@@ -7,7 +7,14 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
-
+function createSideHustleValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
 export async function generateSideHustles(skills, interests) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -16,7 +23,9 @@ export async function generateSideHustles(skills, interests) {
   if (!user) return createErrorResponse("User not found");
 
   if (!skills || !interests) {
-    return { success: false, errors: { _form: ["Both skills and interests are required."] } };
+    return createSideHustleValidationResponse(
+  "Both skills and interests are required."
+);
   }
 
   const prompt = buildSecurePrompt({
