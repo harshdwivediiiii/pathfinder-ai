@@ -60,7 +60,7 @@ export const markdownComponents = {
   ),
   p: ({ children }) => (
     <div className="mb-4 leading-relaxed text-muted-foreground last:mb-0">
-      <CitationRenderer text={React.Children.toArray(children).join("")} />
+      <CitationRenderer text={String(children)} />
     </div>
   ),
   ul: ({ children }) => (
