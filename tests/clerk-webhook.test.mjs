@@ -239,6 +239,10 @@ describe("POST /api/webhooks/clerk", () => {
 
     expect(res.status).toBe(400);
     expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+/* Legacy duplicate suite accidentally concatenated during an upstream merge.
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { POST } from "../app/api/webhooks/clerk/route.js";
 
@@ -808,3 +812,4 @@ describe("Clerk Webhook Endpoint Security", () => {
     });
   });
 });
+*/
