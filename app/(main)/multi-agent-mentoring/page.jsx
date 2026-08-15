@@ -184,7 +184,7 @@ export default function MultiAgentMentoringPage() {
                     <CardContent className="p-4 max-h-[150px] overflow-y-auto space-y-1 opacity-80">
                         {results.logs.map((log, i) => (
                             <div key={i} className={log.includes('Proposed') ? 'text-amber-400' : log.includes('Rejected') ? 'text-rose-400' : 'text-slate-500'}>
-                                > {log}
+                                {">"} {log}
                             </div>
                         ))}
                     </CardContent>
