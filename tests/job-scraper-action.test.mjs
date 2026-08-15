@@ -34,8 +34,6 @@ vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   decrementRateLimit: mocks.decrementRateLimit,
   formatResetTime: mocks.formatResetTime,
-  checkRateLimit: () => Promise.resolve({ allowed: true }),
-  decrementRateLimit: () => Promise.resolve(),
 }));
 
 import { parseJobUrl } from "../actions/job-scraper.js";

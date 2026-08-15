@@ -1,4 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  generateQuiz,
+  getAssessment,
+  saveQuizResult,
+} from "../actions/interview.js";
 
 const mocks = vi.hoisted(() => {
   const findUniqueUserMock = vi.fn();
@@ -69,13 +74,8 @@ vi.mock("@/lib/cache", () => ({
     get: mocks.cacheGet,
     set: mocks.cacheSet,
     delete: mocks.cacheDelete,
-  };
-  return {
-    ...actual,
-    cacheStore: mockCacheStore,
-    getCacheStore: () => mockCacheStore,
-  };
-});
+  }),
+}));
 
 vi.mock("@/lib/ai/ai-cache", () => {
   return {
@@ -240,14 +240,6 @@ describe("interview actions", () => {
 
   describe("getAssessment", () => {
     it("returns null if user is not authenticated", async () => {
-    mocks.auth.mockResolvedValue({ userId: null });
-    const result = await getAssessment("assessment-1");
-    expect(result).toBeNull();
-    expect(mocks.userFindUnique).not.toHaveBeenCalled();
-  });
-
-  describe("getAssessment", () => {
-    it("returns null if user is not authenticated", async () => {
       mocks.auth.mockResolvedValue({ userId: null });
       const result = await getAssessment("assessment-1");
       expect(result).toBeNull();
@@ -283,5 +275,4 @@ describe("interview actions", () => {
     });
 
   });
-});
 });

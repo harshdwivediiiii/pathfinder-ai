@@ -216,6 +216,7 @@ export async function getCoachQuestions(locale = "en") {
  */
 export async function generateQuiz(category = "Technical") {
   let userId = null;
+  let quotaConsumed = false;
   try {
     const authResult = await auth();
     userId = authResult?.userId;
@@ -233,6 +234,7 @@ export async function generateQuiz(category = "Technical") {
         },
       };
     }
+    quotaConsumed = true;
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
@@ -329,7 +331,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
     return { sessionId, questions, isFallback: false };
   } catch (error) {
-    if (userId) await decrementRateLimit(userId, "quiz");
+    if (userId && quotaConsumed) await decrementRateLimit(userId, "quiz");
     console.error("Quiz generation top-level error:", error);
     // Return fallback questions instead of throwing or returning error object
     const sessionId = crypto.randomUUID();
