@@ -164,7 +164,7 @@ const FallbackQuizPool = {
   nonprofit: BUSINESS_FALLBACK_QUESTIONS,
 };
 
-export function getFallbackQuestionsForIndustry(industry) {
+function getFallbackQuestionsForIndustry(industry) {
   const key = industry?.toLowerCase() || "tech";
   const primaryPool = FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS;
   if (primaryPool.length >= 10) {
