@@ -39,10 +39,13 @@ describe("Evidence Locker URL validation", () => {
     mocks.userFindUnique.mockResolvedValue({ id: "user-1" });
   });
 
-  it("rejects javascript URL schemes before persistence", async () => {
+  it.each([
+    "javascript:alert(document.domain)",
+    "data:text/html,<script>alert(1)</script>",
+  ])("rejects unsafe URL schemes before persistence: %s", async (url) => {
     const result = await createEvidenceItem({
       title: "Unsafe link",
-      url: "javascript:alert(document.domain)",
+      url,
       category: "PROJECT",
       description: "",
       tags: [],
