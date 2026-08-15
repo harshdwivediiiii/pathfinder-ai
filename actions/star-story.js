@@ -90,11 +90,6 @@ export async function generateStarStory(rawExperience) {
     };
   }
 
-  const validationError = validateRawExperience(rawExperience);
-  if (validationError) {
-    return { success: false, errors: { _form: [validationError] } };
-  }
-
   // Build the prompt
   const prompt = buildSecurePrompt({
     context: "You are an expert career coach helping a candidate prepare for behavioral interviews.",
