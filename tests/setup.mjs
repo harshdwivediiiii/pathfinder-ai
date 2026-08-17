@@ -33,6 +33,14 @@ vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
 }));
 
+// Mock @sentry/nextjs to prevent import errors in test environment
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+  withScope: vi.fn((fn) => fn({ setTag: vi.fn(), setUser: vi.fn() })),
+  init: vi.fn(),
+}));
+
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
