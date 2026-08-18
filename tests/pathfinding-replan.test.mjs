@@ -46,6 +46,18 @@ function makeDynamicGraph() {
   };
 }
 
+function pathCost(graph, path) {
+  let cost = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const from = path[i];
+    const to = path[i + 1];
+    const edge = (graph.getNeighbors(from) ?? []).find((n) => n.node === to);
+    if (edge == null) return Infinity;
+    cost += edge.weight;
+  }
+  return cost;
+}
+
 describe("DynamicRePlanner", () => {
   it("replans an agent affected by a batch edge-blocked change", async () => {
     const replanner = new DynamicRePlanner(simpleGraph);
@@ -89,6 +101,7 @@ describe("DynamicRePlanner", () => {
     expect(agent.currentPath.length).toBeGreaterThan(0);
   });
 
+  it("computes warm-start cost without double counting the replaced segment", async () => {
   it("persists warm-start replan to agent state and cache", async () => {
     const graph = makeDynamicGraph();
     const replanner = new DynamicRePlanner(graph);
@@ -102,6 +115,8 @@ describe("DynamicRePlanner", () => {
     };
     replanner.setAgents([agent]);
 
+    const cold = await replanner.replanAgent(agent, []);
+    expect(cold.cost).toBe(3);
     await replanner.replanAgent(agent, []);
     expect(agent.currentPath).toEqual(["A", "B", "C", "D"]);
     expect(agent.status).toBe("replanned");
@@ -112,6 +127,7 @@ describe("DynamicRePlanner", () => {
       { type: "edge-blocked", from: "B", to: "C" },
     ]);
 
+    expect(result.cost).toBe(pathCost(graph, result.path));
     expect(result.path).not.toEqual(["A", "B", "C", "D"]);
     expect(agent.currentPath).toEqual(result.path);
     expect(agent.status).toBe("replanned");
