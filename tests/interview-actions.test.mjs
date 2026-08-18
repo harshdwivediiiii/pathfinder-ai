@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
 
 const mocks = vi.hoisted(() => {
   const findUniqueUserMock = vi.fn();
@@ -16,6 +15,10 @@ const mocks = vi.hoisted(() => {
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
     formatResetTime: vi.fn().mockReturnValue("1h"),
     decrementRateLimit: vi.fn(),
+    getCachedOrFetch: vi.fn(async (promptKey, feature, fetchFn) => {
+      // Call the fetchFn (which internally uses generateGeminiContent mock)
+      return fetchFn();
+    }),
   };
 });
 
@@ -26,16 +29,6 @@ vi.mock("@clerk/nextjs/server", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
-      findUnique: (...args) => {
-        const res1 = mocks.findUniqueUser(...args);
-        const res2 = mocks.userFindUnique(...args);
-        return res2 !== undefined ? res2 : res1;
-      },
-      findUnique: vi.fn((...args) => {
-        const res1 = mocks.userFindUnique(...args);
-        const res2 = mocks.findUniqueUser(...args);
-        return res1 !== undefined ? res1 : res2;
-      }),
       findUnique: async (args) => {
         const res1 = await mocks.userFindUnique(args);
         if (res1 !== undefined) return res1;
@@ -45,6 +38,10 @@ vi.mock("@/lib/db/prisma", () => ({
     assessment: {
       create: mocks.createAssessment,
       findFirst: mocks.assessmentFindFirst,
+    },
+    aiResponseCache: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
     },
     aiRateLimit: {
       findUnique: vi.fn().mockResolvedValue(null),
@@ -56,18 +53,19 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
-  formatResetTime: mocks.formatResetTime,
   decrementRateLimit: mocks.decrementRateLimit,
+  formatResetTime: mocks.formatResetTime,
 }));
 
 vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/cache", async () => {
-  const actual = await vi.importActual("@/lib/cache");
-  const mockCacheStore = {
+vi.mock("@/lib/cache", () => ({
+  cachedGenerateGeminiContent: mocks.generateGeminiContent,
+  QUIZ_CACHE_TTL_MS: 3600000,
+  generateCacheKey: (...args) => args.join(":"),
+  getCacheStore: () => ({
     get: mocks.cacheGet,
     set: mocks.cacheSet,
     delete: mocks.cacheDelete,
@@ -79,14 +77,11 @@ vi.mock("@/lib/cache", async () => {
   };
 });
 
-vi.mock("@/lib/security/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
-  formatResetTime: mocks.formatResetTime,
-  decrementRateLimit: mocks.decrementRateLimit,
-}));
-
-
+vi.mock("@/lib/ai/ai-cache", () => {
+  return {
+    getCachedOrFetch: mocks.getCachedOrFetch,
+  };
+});
 
 describe("interview actions", () => {
   beforeEach(() => {
@@ -151,6 +146,15 @@ describe("interview actions", () => {
       expect(result).toHaveProperty("sessionId");
       expect(result).toHaveProperty("questions");
       expect(result.isFallback).toBe(true);
+      expect(mocks.decrementRateLimit).toHaveBeenCalledWith("clerk-user-1", "quiz");
+    });
+
+    it("does not refund rate limit when checkRateLimit denies the request", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: Date.now() });
+
+      await generateQuiz("Technical");
+      expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
     });
   });
 

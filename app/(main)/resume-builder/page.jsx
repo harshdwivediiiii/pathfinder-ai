@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/security/input-limits";
 
 import LinkedinImportButton from "@/components/linkedin-import-button";
 
@@ -132,8 +133,20 @@ export default function ResumeBuilderPage() {
                     className="min-h-[300px] rounded-xl resize-none bg-background focus-visible:ring-primary text-sm"
                     value={jobDescription}
                     onChange={(e) => setJobDescription(e.target.value)}
+                    maxLength={JOB_DESCRIPTION_MAX_LENGTH}
                     required
                   />
+                  <div className="flex justify-end">
+                    <span
+                      className={`text-xs font-medium ${
+                        jobDescription.length > JOB_DESCRIPTION_MAX_LENGTH * 0.9
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {jobDescription.length} / {JOB_DESCRIPTION_MAX_LENGTH}
+                    </span>
+                  </div>
                 </div>
 
                 <Button

@@ -1,0 +1,51 @@
+
+> Pathfinder - AI@0.1.0 dev
+> next dev
+
+ ⚠ Invalid next.config.mjs options detected: 
+ ⚠     Unrecognized key(s) in object: 'lightningcss' at "experimental"
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.100:3000
+   - Experiments (use with caution):
+     ✓ lightningcss
+     · clientTraceMetadata
+
+ ✓ Starting...
+[@sentry/nextjs] Could not find `onRequestError` hook in instrumentation file. This indicates outdated configuration of the Sentry SDK. Use `Sentry.captureRequestError` to instrument the `onRequestError` hook: https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#errors-from-nested-react-server-components
+[@sentry/nextjs] DEPRECATION WARNING: It is recommended renaming your `sentry.client.config.js` file, or moving its content to `instrumentation-client.ts`. When using Turbopack `sentry.client.config.js` will no longer work. Read more about the `instrumentation-client.ts` file: https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
+ ○ Compiling /instrumentation ...
+ ✓ Compiled /instrumentation in 1267ms (1155 modules)
+ ✓ Ready in 3.7s
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (127kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (218kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (139kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 554ms (1012 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 3.9s (5397 modules)
+ ⨯ Error: @clerk/react: useAuth can only be used within the <ClerkProvider /> component. Learn more: https://clerk.com/docs/components/clerk-provider
+    at useAssertWrappedByClerkProvider (../../src/react/contexts.tsx:111:7)
+    at Footer (components/Footer.jsx:66:33)
+  109 |   if (!ctx) {
+  110 |     if (typeof displayNameOrFn === 'function') {
+> 111 |       displayNameOrFn();
+      |       ^
+  112 |       return;
+  113 |     }
+  114 | {
+  digest: '3253720049'
+}
+ GET / 200 in 4714ms
+ ✓ Compiled in 782ms (5397 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 724ms (5388 modules)
+ GET / 404 in 1149ms
+ GET / 200 in 173ms
+ ✓ Compiled in 1244ms (5398 modules)
+ ✓ Compiled in 836ms (5398 modules)
+ GET / 200 in 522ms
+ ✓ Compiled in 700ms (1532 modules)
+ ✓ Compiled in 137ms (1532 modules)

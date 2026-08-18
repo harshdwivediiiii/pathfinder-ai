@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -77,7 +77,8 @@ import {
   PenLine,
   Split,
   History,
-  FolderKanban
+  FolderKanban,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/misc/utils";
@@ -97,6 +98,7 @@ const MENU_GROUPS = [
   {
     title: "Resumes & Branding",
     items: [
+      { href: "/evidence-locker", label: "Evidence Locker", icon: <Lock className="h-4 w-4 text-emerald-500" />, shortcut: "" },
       { href: "/resume-builder", label: "Resume Builder", icon: <FileText className="h-4 w-4 text-amber-500" />, shortcut: "Alt+2" },
       { href: "/resume-roast", label: "Resume Roast", icon: <Flame className="h-4 w-4 text-red-500" />, shortcut: "" },
       { href: "/resume-match", label: "Job Match Score", icon: <Target className="h-4 w-4 text-green-500" />, shortcut: "" },
@@ -188,7 +190,26 @@ export default function AppSidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
 
+  const openTriggerRef = useRef(null);
+  const drawerRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const previousIsOpenRef = useRef(isOpen);
+
   useScrollLock(isMobile && isOpen);
+
+  useEffect(() => {
+    if (isMobile) {
+      if (isOpen && !previousIsOpenRef.current) {
+        const timer = setTimeout(() => {
+          (closeButtonRef.current || drawerRef.current)?.focus();
+        }, 50);
+        return () => clearTimeout(timer);
+      } else if (!isOpen && previousIsOpenRef.current) {
+        openTriggerRef.current?.focus();
+      }
+    }
+    previousIsOpenRef.current = isOpen;
+  }, [isOpen, isMobile]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -230,18 +251,36 @@ export default function AppSidebar() {
             </motion.div>
           )}
 
-          {!isMobile && (
+          {!isMobile ? (
             <button 
               onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+              aria-expanded={isOpen}
+              aria-controls="app-sidebar"
               className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden lg:block"
             >
               {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          ) : (
+            <button
+              ref={closeButtonRef}
+              onClick={() => setIsOpen(false)}
+              aria-label="Close navigation menu"
+              aria-expanded={isOpen}
+              aria-controls="app-sidebar"
+              className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground lg:hidden"
+            >
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
 
       {/* Navigation Groups */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-8 custom-scrollbar">
+      <nav 
+        id="app-sidebar" 
+        aria-label="Primary navigation" 
+        className="flex-1 overflow-y-auto px-4 pb-8 space-y-8 custom-scrollbar"
+      >
         {MENU_GROUPS.map((group, idx) => (
           <div key={idx} className="space-y-3">
             {group.title && (isOpen || isMobile) && (
@@ -265,6 +304,7 @@ export default function AppSidebar() {
                     href={link.href} 
                     onClick={() => isMobile && setIsOpen(false)}
                     title={!isOpen && !isMobile ? link.label : undefined}
+                    aria-current={isActive ? "page" : undefined}
                   >
                     <div className={cn(
                       "flex items-center rounded-2xl transition-all duration-300 relative group",
@@ -326,7 +366,7 @@ export default function AppSidebar() {
             </div>
           </div>
         ))}
-      </div>
+      </nav>
 
       {/* User Section */}
       <div className="p-4 border-t border-sidebar-border bg-sidebar/50 backdrop-blur-md">
@@ -367,9 +407,13 @@ export default function AppSidebar() {
     <>
       {isMobile && !isOpen && (
         <Button
+          ref={openTriggerRef}
           variant="outline"
           size="icon"
           onClick={() => setIsOpen(true)}
+          aria-label="Open navigation menu"
+          aria-expanded={false}
+          aria-controls="app-sidebar"
           className="fixed bottom-6 left-6 z-[70] rounded-2xl h-14 w-14 shadow-2xl bg-primary text-primary-foreground border-none hover:scale-110 transition-all"
         >
           <Menu className="h-6 w-6" />
@@ -389,6 +433,10 @@ export default function AppSidebar() {
       </AnimatePresence>
 
       <motion.div
+        ref={drawerRef}
+        tabIndex={isMobile && isOpen ? -1 : undefined}
+        aria-hidden={isMobile && !isOpen ? true : undefined}
+        inert={isMobile && !isOpen ? "" : undefined}
         initial={false}
         animate={{ 
           width: isMobile ? (isOpen ? "85vw" : 0) : (isOpen ? 280 : 100), 
