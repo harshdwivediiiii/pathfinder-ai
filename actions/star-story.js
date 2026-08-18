@@ -40,6 +40,8 @@ function validateRawExperience(text) {
   }
 
   return null;
+}
+
 function isMeaningfulExperience(input) {
   if (!input || typeof input !== "string") return false;
 
