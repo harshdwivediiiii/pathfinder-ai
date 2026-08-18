@@ -102,6 +102,7 @@ describe("DynamicRePlanner", () => {
   });
 
   it("computes warm-start cost without double counting the replaced segment", async () => {
+  it("persists warm-start replan to agent state and cache", async () => {
     const graph = makeDynamicGraph();
     const replanner = new DynamicRePlanner(graph);
     const agent = {
@@ -116,6 +117,10 @@ describe("DynamicRePlanner", () => {
 
     const cold = await replanner.replanAgent(agent, []);
     expect(cold.cost).toBe(3);
+    await replanner.replanAgent(agent, []);
+    expect(agent.currentPath).toEqual(["A", "B", "C", "D"]);
+    expect(agent.status).toBe("replanned");
+    expect(replanner.warmStartCache.get("agent-1").path).toEqual(["A", "B", "C", "D"]);
 
     graph.block("B", "C");
     const result = await replanner.replanAgent(agent, [
@@ -123,6 +128,10 @@ describe("DynamicRePlanner", () => {
     ]);
 
     expect(result.cost).toBe(pathCost(graph, result.path));
+    expect(result.path).not.toEqual(["A", "B", "C", "D"]);
+    expect(agent.currentPath).toEqual(result.path);
+    expect(agent.status).toBe("replanned");
+    expect(replanner.warmStartCache.get("agent-1")).toBe(result);
   });
 });
 

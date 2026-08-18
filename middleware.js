@@ -135,10 +135,7 @@ export default function middleware(req, event) {
       return addSecureHeaders(NextResponse.next());
     }
 
-    // If validation failed with an error, throw it to fail fast
-    if (validation.error) {
-      throw validation.error;
-    }
+    // Not allowed (e.g. production) -> fall through to normal Clerk auth.
   }
 
   return clerkHandler(req, event);

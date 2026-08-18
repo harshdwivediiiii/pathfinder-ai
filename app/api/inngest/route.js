@@ -12,7 +12,7 @@ async function getHandler(request) {
       getWeeklyRoadmapAdaptationCron,
       getProcessRoadmapAdaptation,
     },
-    { cleanupRateLimits },
+    { getCleanupRateLimits },
     { serve },
   ] = await Promise.all([
     import("@/lib/inngest/client"),
@@ -26,10 +26,11 @@ async function getHandler(request) {
   const reminderFn = await getSendInterviewReminders();
   const roadmapCron = await getWeeklyRoadmapAdaptationCron();
   const roadmapWorker = await getProcessRoadmapAdaptation();
+  const cleanupFn = await getCleanupRateLimits();
   return serve({
     client,
     signingKey: process.env.INNGEST_SIGNING_KEY,
-    functions: [cronFn, workerFn, reminderFn, roadmapCron, roadmapWorker, cleanupRateLimits],
+    functions: [cronFn, workerFn, reminderFn, roadmapCron, roadmapWorker, cleanupFn],
   });
 }
 
