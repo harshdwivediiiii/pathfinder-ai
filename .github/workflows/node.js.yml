@@ -19,6 +19,21 @@ jobs:
         node-version: [22.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
@@ -32,24 +47,44 @@ jobs:
         DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
         SHADOW_DATABASE_URL: ${{ secrets.CI_SHADOW_DATABASE_URL }}
       run: |
+        # The drift check is unconditional: missing secrets fail the build
+        # instead of silently skipping, so schema edits without a matching
+        # migration can never merge.
         if [ -z "$SHADOW_DATABASE_URL" ]; then
-          echo "SHADOW_DATABASE_URL is not set. Skipping migration check."
-        else
-          # Fail if schema.prisma differs from migrations on disk
-          npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+          echo "::error::SHADOW_DATABASE_URL is not set. Configure the CI_SHADOW_DATABASE_URL repository secret so the Prisma migration drift check always runs."
+          exit 1
         fi
+        # Fail if schema.prisma differs from migrations on disk
+        npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
     - name: Generate Prisma client
       run: npx prisma generate
+    - name: Set up test database
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
+      run: |
+        echo "Installing postgresql-client for diagnostics..."
+        sudo apt-get update && sudo apt-get install -y postgresql-client
+        echo "Waiting for postgres service (20s for full startup)..."
+        sleep 20
+        echo "Testing postgres connection with psql..."
+        PGPASSWORD=test psql -h localhost -U test -d test -c "SELECT version();"
+        echo "psql connection: SUCCESS"
+        echo "Running prisma db push..."
+        npx prisma db push --skip-generate --accept-data-loss
+        echo "Prisma db push: SUCCESS"
     - run: npx playwright install --with-deps chromium
     - name: Run tests
       run: npm run test:unit
       env:
         NODE_ENV: test
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
     - run: npm run build --if-present
       env:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
         CLERK_SECRET_KEY: sk_test_dummy
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
     - run: npm run test:e2e
       env:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA
         CLERK_SECRET_KEY: sk_test_dummy
+        DATABASE_URL: postgresql://test:test@localhost:5432/test

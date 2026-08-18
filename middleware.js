@@ -1,7 +1,7 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getAuthDecision } from "./lib/auth/routes";
-import { validateDevBypass, validateVideoCoachBypass } from "./lib/auth/dev-bypass";
+import { validateDevBypass, validateE2EBypass, validateVideoCoachBypass } from "./lib/auth/dev-bypass";
 
 function addSecureHeaders(response) {
   const csp = [
@@ -75,9 +75,28 @@ export default function middleware(req, event) {
    */
   const skipAuthEnabled = process.env.SKIP_AUTH === "true";
   const isE2ETest = process.env.E2E_TEST === "true";
-  
-  if (isE2ETest) {
+
+  /**
+   * E2E Test Authentication Bypass
+   *
+   * The Playwright end-to-end suite bypasses Clerk authentication when
+   * E2E_TEST is set to "true". This bypass is validated with the same safety
+   * checks used for SKIP_AUTH: it is never allowed in production and only
+   * works on localhost/127.0.0.1. Unsafe configurations throw instead of
+   * silently disabling authentication.
+   */
+  const e2eValidation = validateE2EBypass({
+    hostname: req.nextUrl.hostname,
+    e2eTestEnabled: isE2ETest,
+  });
+
+  if (e2eValidation.allowed) {
     return addSecureHeaders(NextResponse.next());
+  }
+
+  // If validation failed with an error, throw it to fail fast
+  if (e2eValidation.error) {
+    throw e2eValidation.error;
   }
   
   if (skipAuthEnabled) {

@@ -59,7 +59,7 @@ export async function getIndustryInsights() {
     where: { clerkUserId: userId },
     include: { industryInsight: true },
   });
-  if (!user) return createLookupResponse(null);;
+  if (!user) return createLookupResponse(null);
 
   if (!user.industry) {
     return null;

@@ -1,66 +1,80 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
+import {
+  getShortlistOwnerId,
+  readShortlistForOwner,
+  writeShortlistPayload,
+} from "@/lib/misc/career-shortlist";
+
+const STORAGE_KEY = "career-shortlist";
 
 export function useCareerShortlist() {
+  const { userId, isLoaded: isAuthLoaded } = useAuth();
   const [shortlist, setShortlist] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const ownerId = getShortlistOwnerId(userId);
 
-  // Load from localStorage on mount
   useEffect(() => {
+    if (!isAuthLoaded) {
+      return;
+    }
+
     try {
-      const stored = localStorage.getItem("career-shortlist");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.every(c => c && typeof c === 'object' && c.id && c.title)) {
-          setShortlist(parsed);
-        } else {
-          setShortlist([]);
-          localStorage.removeItem("career-shortlist");
-        }
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const items = readShortlistForOwner(stored, ownerId);
+      setShortlist(items);
+
+      if (stored && items.length === 0) {
+        localStorage.removeItem(STORAGE_KEY);
+      } else if (items.length > 0) {
+        localStorage.setItem(STORAGE_KEY, writeShortlistPayload(ownerId, items));
       }
     } catch (e) {
       console.error("Failed to load shortlist", e);
+      setShortlist([]);
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [isAuthLoaded, ownerId]);
 
-  // Listen for storage events to sync across tabs
   useEffect(() => {
     const handleStorage = (e) => {
-      if (e.key === "career-shortlist") {
-        try {
-          if (e.newValue) {
-            const parsed = JSON.parse(e.newValue);
-            if (Array.isArray(parsed) && parsed.every(c => c && typeof c === 'object' && c.id && c.title)) {
-              setShortlist(parsed);
-            } else {
-              setShortlist([]);
-            }
-          } else {
-            setShortlist([]);
-          }
-        } catch (error) {
-          console.error("Error syncing shortlist across tabs", error);
+      if (e.key !== STORAGE_KEY) {
+        return;
+      }
+
+      try {
+        if (e.newValue) {
+          setShortlist(readShortlistForOwner(e.newValue, ownerId));
+        } else {
           setShortlist([]);
         }
+      } catch (error) {
+        console.error("Error syncing shortlist across tabs", error);
+        setShortlist([]);
       }
     };
+
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  }, [ownerId]);
 
   const saveToStorage = (newShortlist) => {
     setShortlist(newShortlist);
     try {
-      localStorage.setItem("career-shortlist", JSON.stringify(newShortlist));
-      // Dispatch a custom event so other components in the same tab can update
+      const payload = writeShortlistPayload(ownerId, newShortlist);
+      if (newShortlist.length === 0) {
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        localStorage.setItem(STORAGE_KEY, payload);
+      }
       window.dispatchEvent(
         new StorageEvent("storage", {
-          key: "career-shortlist",
-          newValue: JSON.stringify(newShortlist),
+          key: STORAGE_KEY,
+          newValue: newShortlist.length === 0 ? null : payload,
         })
       );
     } catch (e) {
@@ -98,6 +112,6 @@ export function useCareerShortlist() {
     toggleShortlist,
     clearShortlist,
     isShortlisted,
-    isLoaded,
+    isLoaded: isLoaded && isAuthLoaded,
   };
 }
