@@ -28,6 +28,24 @@ const simpleGraph = {
   },
 };
 
+function makeDynamicGraph() {
+  const adjacency = {
+    A: [{ node: "B", weight: 1 }, { node: "C", weight: 5 }],
+    B: [{ node: "A", weight: 1 }, { node: "C", weight: 1 }, { node: "D", weight: 3 }],
+    C: [{ node: "A", weight: 5 }, { node: "B", weight: 1 }, { node: "D", weight: 1 }],
+    D: [{ node: "B", weight: 3 }, { node: "C", weight: 1 }],
+  };
+
+  return {
+    type: "dynamic",
+    block(from, to) {
+      adjacency[from] = adjacency[from].filter((edge) => edge.node !== to);
+      adjacency[to] = adjacency[to].filter((edge) => edge.node !== from);
+    },
+    getNeighbors: (node) => adjacency[node] ?? [],
+  };
+}
+
 describe("DynamicRePlanner", () => {
   it("replans an agent affected by a batch edge-blocked change", async () => {
     const replanner = new DynamicRePlanner(simpleGraph);
@@ -69,6 +87,35 @@ describe("DynamicRePlanner", () => {
 
     expect(result.agentsReplanned).toBe(1);
     expect(agent.currentPath.length).toBeGreaterThan(0);
+  });
+
+  it("persists warm-start replan to agent state and cache", async () => {
+    const graph = makeDynamicGraph();
+    const replanner = new DynamicRePlanner(graph);
+    const agent = {
+      id: "agent-1",
+      start: "A",
+      goal: "D",
+      constraints: {},
+      currentPath: [],
+      status: "active",
+    };
+    replanner.setAgents([agent]);
+
+    await replanner.replanAgent(agent, []);
+    expect(agent.currentPath).toEqual(["A", "B", "C", "D"]);
+    expect(agent.status).toBe("replanned");
+    expect(replanner.warmStartCache.get("agent-1").path).toEqual(["A", "B", "C", "D"]);
+
+    graph.block("B", "C");
+    const result = await replanner.replanAgent(agent, [
+      { type: "edge-blocked", from: "B", to: "C" },
+    ]);
+
+    expect(result.path).not.toEqual(["A", "B", "C", "D"]);
+    expect(agent.currentPath).toEqual(result.path);
+    expect(agent.status).toBe("replanned");
+    expect(replanner.warmStartCache.get("agent-1")).toBe(result);
   });
 });
 
