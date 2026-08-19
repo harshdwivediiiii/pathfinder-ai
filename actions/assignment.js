@@ -23,6 +23,8 @@ import { USER_NOT_FOUND_RESPONSE } from "@/lib/errors/user-not-found";
 
 /** Grade an assignment submission against a rubric or prompt. */
 export async function gradeAssignment(promptText, solutionText) {
+  const user = await getAuthenticatedHistoryUser();
+  if (!user) return USER_NOT_FOUND_RESPONSE;
   const init = await initializeAuthenticatedAction();
   if ("success" in init) return init;
 
@@ -80,6 +82,9 @@ export async function getAssignmentGrades() {
   if (!user) return { success: false, data: [] };
 
   const records = await getHistoryRecords(
+    db.assignmentGrade,
+    user.id
+  );
   db.assignmentGrade,
   user.id
 );

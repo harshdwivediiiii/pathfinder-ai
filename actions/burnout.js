@@ -5,6 +5,15 @@ import { ACTION_CONTEXT } from "@/lib/action-helpers/action-context";
 import { db } from "@/lib/db/prisma";
 import { finalizeAiPersistence } from "@/lib/ai/ai-persistence";
 import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
+import { getHistoryRecords } from "@/lib/history-query";
+import { buildUserLookup } from "@/lib/user-query";
+import { buildHistoryResponse } from "@/lib/history-loader";
+import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
+import { generateGeminiContent } from "@/lib/gemini";
+import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
+import { CREATED_AT_DESC } from "@/lib/sort-config";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history-response";
 import { getHistoryRecords } from "@/lib/history/history-query";
 import { buildUserLookup } from "@/lib/db/user-query";
 import { buildHistoryResponse } from "@/lib/history/history-loader";
@@ -87,6 +96,9 @@ export async function getBurnoutAssessments() {
   if (!user) return { success: false, data: [] };
 
   const records = await getHistoryRecords(
+    db.burnoutAssessment,
+    user.id
+  );
   db.burnoutAssessment,
   user.id
 );
