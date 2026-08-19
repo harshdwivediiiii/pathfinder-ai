@@ -7,7 +7,9 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { validateInput } from "@/lib/ai/validate";
 import { userSettingsSchema, accessibilitySettingsSchema } from "@/lib/schemas/forms";
-
+function revalidateSettingsRoute() {
+  revalidatePath("/settings");
+}
 function normalizeSettings(settings) {
   if (!settings) return { 
     notifications: true, 
@@ -101,7 +103,7 @@ export async function updateUserSettings(data) {
       update: settingsData,
     });
 
-    revalidatePath("/settings");
+    revalidateSettingsRoute();
     return { success: true, settings: normalizeSettings(settings) };
   } catch (error) {
     return handleServerError(error, "settings");
@@ -135,7 +137,7 @@ export async function updateAccessibilitySettings(data) {
       update: settingsData,
     });
 
-    revalidatePath("/settings");
+    revalidateSettingsRoute();
     return { success: true, settings: normalizeSettings(settings) };
   } catch (error) {
     return handleServerError(error, "settings");
