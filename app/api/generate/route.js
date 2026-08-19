@@ -32,7 +32,7 @@ import { getCircuitBreaker } from "@/lib/cache/circuit-breaker";
 import { createLogger } from "@/lib/observability/logger";
 import { incrementCacheHit, incrementCacheMiss, recordAiGenerationDuration, setCircuitBreakerState, recordError } from "@/lib/observability/metrics";
 import { validateInput, validateId } from "@/lib/ai/validate";
-import { chatPromptSchema } from "@/lib/schemas/forms";
+import { chatPromptSchema as chatPromptInputSchema } from "@/lib/schemas/forms";
 import { getEnv } from "@/lib/security/env";
 
 const SSE_BASE_HEADERS = {
@@ -46,6 +46,7 @@ const geminiCircuitBreaker = getCircuitBreaker("gemini-stream", {
   failureThreshold: Number.parseInt(process.env.CIRCUIT_FAILURE_THRESHOLD ?? "5", 10),
   resetTimeoutMs: Number.parseInt(process.env.CIRCUIT_RESET_TIMEOUT_MS ?? "30000", 10),
   rollingWindowMs: Number.parseInt(process.env.CIRCUIT_ROLLING_WINDOW_MS ?? "60000", 10),
+  successThreshold: Number.parseInt(process.env.CIRCUIT_SUCCESS_THRESHOLD ?? "3", 10),
 });
 
 const aiLogger = createLogger("generate-route");
@@ -193,7 +194,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    const promptValidation = validateInput(chatPromptSchema, { prompt: body.prompt });
+    const promptValidation = validateInput(chatPromptInputSchema, { prompt: body.prompt });
     if (!promptValidation.success) {
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid prompt", promptValidation.errors);
     }
@@ -213,7 +214,11 @@ export async function POST(request) {
 
   const validation = chatPromptSchemaStr.safeParse(prompt);
   if (!validation.success) {
-    return buildSseErrorResponse(validation.error.errors[0].message, 400);
+    const errorMessage =
+      validation.error?.errors?.length > 0
+        ? validation.error.errors[0].message
+        : "Invalid prompt format";
+    return buildSseErrorResponse(errorMessage, 400);
   }
 
   const validatedPrompt = validation.data;
@@ -375,9 +380,26 @@ Rules:
   // could all observe no pending request and proceed to create independent generations.
   // This implementation uses atomic registration to prevent that race.
 
+  // Pre-check circuit breaker state to avoid returning Response from inside ReadableStream.start()
+  const cbState = geminiCircuitBreaker.getState();
+  if (cbState === "open" || cbState === "half-open") {
+    const degradedCache = await getCachedResponse(cacheUser, restrictedPrompt);
+    if (degradedCache) {
+      aiLogger.warn("Serving degraded cached response (pre-check)", { state: cbState });
+      setCircuitBreakerState("degraded");
+      return createCachedSseResponse({
+        text: degradedCache,
+        headers,
+        cacheStatus: "DEGRADED",
+        deduped: false,
+        debug: null,
+      });
+    }
+  }
+
   // Atomically get or create the pending request BEFORE any async work
-  const { promise: pendingPromise, isCreator, resolve: resolvePending, reject: rejectPending } = 
-    getOrCreatePendingGenerationRequest(cacheUser, promptCheck.prompt);
+  const { promise: pendingPromise, isCreator, resolve: resolvePending, reject: rejectPending } =
+    getOrCreatePendingGenerationRequest(cacheUser, restrictedPrompt);
 
   const encoder = new TextEncoder();
   const abortController = new AbortController();
@@ -470,29 +492,11 @@ Rules:
               error: initialError?.message,
             });
             setCircuitBreakerState("degraded");
-            const degradedStream = new ReadableStream({
-              start(controller) {
-                controller.enqueue(
-                  encodeSseEvent(encoder, "delta", {
-                    text: degradedCache,
-                    cached: true,
-                    degraded: true,
-                  })
-                );
-                controller.enqueue(
-                  encodeSseEvent(encoder, "done", {
-                    finalText: degradedCache,
-                    hasContent: true,
-                    cached: true,
-                    degraded: true,
-                  })
-                );
-                controller.close();
-              },
-            });
-            return new Response(degradedStream, {
-              headers: buildSseHeaders(request),
-            });
+            safeEnqueue("delta", { text: degradedCache, cached: true, degraded: true });
+            safeEnqueue("done", { finalText: degradedCache, hasContent: true, cached: true, degraded: true });
+            safeClose();
+            resolvePending(degradedCache);
+            return;
           }
           throw initialError;
         }
@@ -591,7 +595,7 @@ Rules:
         rejectPending(error);
       } finally {
         // Always clean up the pending request
-        deletePendingGenerationRequest(cacheUser, promptCheck.prompt);
+        deletePendingGenerationRequest(cacheUser, restrictedPrompt);
       }
     },
     cancel(reason) {

@@ -4,6 +4,14 @@ import { compareAlgorithms, coordinateAgents, dynamicReplan } from "@/actions/pa
 
 export async function POST(request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { path } = body;
 

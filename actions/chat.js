@@ -24,21 +24,9 @@ export async function chatWithGemini(prompt) {
     userId = authResult?.userId;
     const headerList = await headers();
 
-    const subject = getRateLimitIdentifier({ headers: headerList }, userId);
-    const rateLimit = await enforceRateLimit({
-      endpoint: "action:chatWithGemini",
-      subject,
-      limitPerMinute: userId ? 20 : 5,
-      burstCapacity: userId ? 10 : 5,
-    });
-
-    if (!rateLimit.allowed) {
-      return {
-        success: false,
-        errors: { _form: [`Rate limit exceeded. Try again in ${rateLimit.retryAfterSeconds}s.`] },
-      };
-    }
-
+    // Single enforcement per request: authenticated users are limited by the
+    // per-user hourly AiRateLimit bucket, anonymous users by the per-IP minute
+    // token bucket. Running both would double-consume quotas (regression of #1683).
     if (userId) {
       const limit = await checkRateLimit(userId, "chat");
       if (!limit.allowed) {
@@ -47,6 +35,21 @@ export async function chatWithGemini(prompt) {
           errors: {
             _form: [`Chat limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
           },
+        };
+      }
+    } else {
+      const subject = getRateLimitIdentifier({ headers: headerList }, userId);
+      const rateLimit = await enforceRateLimit({
+        endpoint: "action:chatWithGemini",
+        subject,
+        limitPerMinute: 5,
+        burstCapacity: 5,
+      });
+
+      if (!rateLimit.allowed) {
+        return {
+          success: false,
+          errors: { _form: [`Rate limit exceeded. Try again in ${rateLimit.retryAfterSeconds}s.`] },
         };
       }
     }
@@ -68,8 +71,8 @@ export async function chatWithGemini(prompt) {
       const { response } = await generateGeminiContent(securePrompt);
       return { success: true, data: response.text() };
     } catch (err) {
-    return handleServerError(err, "chat");
-  }
+      return handleServerError(err, "chat");
+    }
   } catch (error) {
     if (userId) await decrementRateLimit(userId, "chat");
     return handleServerError(error, "chat");

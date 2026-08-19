@@ -10,10 +10,21 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { validateOutput } from "@/lib/ai/validate";
 import { onboardingPlanOutputSchema } from "@/lib/schemas/outputs";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateOnboardingPlan(company, role) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "onboarding");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Onboarding plan limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -73,6 +84,7 @@ export async function generateOnboardingPlan(company, role) {
     revalidatePath("/onboarding-plan");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "onboarding");
     return handleServerError(error, "onboarding");
   }
 }

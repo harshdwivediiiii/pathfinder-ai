@@ -32,6 +32,11 @@ export async function analyzeATS(rawParams) {
       return { success: false, errors: { _form: ["Sign-in required to scan applications."] } };
     }
 
+    const validation = validateInput(atsAnalysisSchema, rawParams);
+    if (!validation.success) {
+      return { success: false, errors: validation.errors };
+    }
+
     const limit = await checkRateLimit(userId, "ats");
     if (!limit.allowed) {
       return {
@@ -40,11 +45,6 @@ export async function analyzeATS(rawParams) {
           _form: [`ATS analysis limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
         },
       };
-    }
-
-    const validation = validateInput(atsAnalysisSchema, rawParams);
-    if (!validation.success) {
-      return { success: false, errors: validation.errors };
     }
 
     const { resumeContent, jobDescription, jobTitle, companyName } = validation.data;
@@ -68,8 +68,8 @@ export async function analyzeATS(rawParams) {
       outputRules: `Provide your analysis in the following JSON format ONLY - no extra text, no markdown fences:
 {
   "atsScore": <number between 0 and 100>,
-  "matchedKeywords": [<array of keywords found in both>],
-  "missingKeywords": [<array of key missing keywords>],
+  "matchedKeywords": [<array of keywords found in both, formatted as "Keyword (Importance)", e.g. "React (High)", where Importance is Critical, High, Medium, or Low>],
+  "missingKeywords": [<array of key missing keywords, formatted as "Keyword (Importance)", e.g. "AWS (Critical)", where Importance is Critical, High, Medium, or Low>],
   "suggestions": [
     { "category": "Keywords", "tip": "Add missing technical terms from the job description" }
   ],

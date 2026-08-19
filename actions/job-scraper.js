@@ -8,17 +8,22 @@ import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { parseAIJson } from "@/lib/ai/validate";
 
 import { safeFetch } from "@/lib/security/safe-fetch";
-import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function parseJobUrl(url) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
   const limit = await checkRateLimit(userId, "jobScraper");
-  if (!limit.allowed) {
+  if (limit && !limit.allowed) {
+    const resetAt = limit?.resetAt ? new Date(limit.resetAt) : new Date();
     return {
       success: false,
-      errors: { _form: [`Job scraping limit reached. Resets in ${formatResetTime(limit.resetAt)}.`] },
+      errors: {
+        _form: [
+          `Job scraping limit reached. Resets in ${formatResetTime(resetAt)}.`,
+        ],
+      },
     };
   }
 
@@ -31,10 +36,12 @@ export async function parseJobUrl(url) {
     });
 
     if (!response.success) {
+      await decrementRateLimit(userId, "jobScraper");
       return response;
     }
 
     if (response.status !== 200) {
+      await decrementRateLimit(userId, "jobScraper");
       return {
         success: false,
         errors: { _form: [`Fetch failed with status ${response.status}`] },
@@ -80,13 +87,28 @@ export async function parseJobUrl(url) {
     });
 
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+
+    let rawText = "";
+    if (typeof aiResult === "string") {
+      rawText = aiResult;
+    } else if (aiResult?.response && typeof aiResult.response.text === "function") {
+      rawText = await aiResult.response.text();
+    } else if (aiResult?.text) {
+      rawText = aiResult.text;
+    }
+
+    if (!rawText || !rawText.trim()) {
+      throw new Error("Failed to extract readable text from AI response.");
+    }
+
+    const parsedData = parseAIJson(rawText);
 
     return {
       success: true,
       data: parsedData,
     };
   } catch (error) {
+    await decrementRateLimit(userId, "jobScraper");
     return handleServerError(error, "job-scraper");
   }
 }

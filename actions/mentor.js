@@ -7,11 +7,23 @@ import { getAuthenticatedUser } from "@/lib/auth/auth-user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { getAiResponseText } from "@/lib/ai/ai-response";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateMentorPlan(goals, targetIndustry) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "mentor");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Mentor plan limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await getAuthenticatedUser(userId);
   if (!user) return createErrorResponse("User not found");
@@ -46,7 +58,7 @@ export async function generateMentorPlan(goals, targetIndustry) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.mentorOutreach.create({
       data: {
@@ -60,6 +72,7 @@ export async function generateMentorPlan(goals, targetIndustry) {
     revalidatePath("/mentor-matcher");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "mentor");
     return handleServerError(error, "mentor");
   }
 }

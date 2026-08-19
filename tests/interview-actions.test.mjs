@@ -1,21 +1,30 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
+import {
+  generateQuiz,
+  getAssessment,
+  saveQuizResult,
+} from "../actions/interview.js";
 
 const mocks = vi.hoisted(() => {
   const findUniqueUserMock = vi.fn();
   return {
     auth: vi.fn(),
     findUniqueUser: findUniqueUserMock,
+    userFindUnique: findUniqueUserMock,
     createAssessment: vi.fn(),
+    assessmentFindFirst: vi.fn(),
     generateGeminiContent: vi.fn(),
     cacheGet: vi.fn(),
     cacheSet: vi.fn(),
     cacheDelete: vi.fn(),
-    userFindUnique: findUniqueUserMock,
-    assessmentFindFirst: vi.fn(),
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
     formatResetTime: vi.fn().mockReturnValue("1h"),
     decrementRateLimit: vi.fn(),
+    getCachedOrFetch: vi.fn(async (_promptKey, _feature, fetchFn) => fetchFn()),
+    handleServerError: vi.fn((error) => ({
+      success: false,
+      errors: { _form: [error.message] },
+    })),
   };
 });
 
@@ -26,25 +35,19 @@ vi.mock("@clerk/nextjs/server", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
-      findUnique: (...args) => {
-        const res1 = mocks.findUniqueUser(...args);
-        const res2 = mocks.userFindUnique(...args);
-        return res2 !== undefined ? res2 : res1;
-      },
-      findUnique: vi.fn((...args) => {
-        const res1 = mocks.userFindUnique(...args);
-        const res2 = mocks.findUniqueUser(...args);
-        return res1 !== undefined ? res1 : res2;
-      }),
       findUnique: async (args) => {
-        const res1 = await mocks.userFindUnique(args);
-        if (res1 !== undefined) return res1;
+        const res = await mocks.userFindUnique(args);
+        if (res !== undefined) return res;
         return mocks.findUniqueUser(args);
       },
     },
     assessment: {
       create: mocks.createAssessment,
       findFirst: mocks.assessmentFindFirst,
+    },
+    aiResponseCache: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
     },
     aiRateLimit: {
       findUnique: vi.fn().mockResolvedValue(null),
@@ -56,43 +59,39 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
-  formatResetTime: mocks.formatResetTime,
   decrementRateLimit: mocks.decrementRateLimit,
+  formatResetTime: mocks.formatResetTime,
 }));
 
 vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/cache", async () => {
-  const actual = await vi.importActual("@/lib/cache");
-  const mockCacheStore = {
+vi.mock("@/lib/cache", () => ({
+  cachedGenerateGeminiContent: mocks.generateGeminiContent,
+  QUIZ_CACHE_TTL_MS: 3600000,
+  generateCacheKey: (...args) => args.join(":"),
+  getCacheStore: () => ({
     get: mocks.cacheGet,
     set: mocks.cacheSet,
     delete: mocks.cacheDelete,
-  };
-  return {
-    ...actual,
-    cacheStore: mockCacheStore,
-    getCacheStore: () => mockCacheStore,
-  };
-});
-
-vi.mock("@/lib/security/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  decrementRateLimit: vi.fn(),
-  formatResetTime: mocks.formatResetTime,
-  decrementRateLimit: mocks.decrementRateLimit,
+  }),
 }));
 
+vi.mock("@/lib/ai/ai-cache", () => ({
+  getCachedOrFetch: mocks.getCachedOrFetch,
+}));
 
+vi.mock("@/lib/errors/error-handler", () => ({
+  handleServerError: mocks.handleServerError,
+}));
+
+import { generateQuiz, saveQuizResult, getAssessment } from "../actions/interview.js";
 
 describe("interview actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
-    mocks.formatResetTime.mockReturnValue("1h");
     mocks.formatResetTime.mockReturnValue("10m");
   });
 
@@ -128,7 +127,6 @@ describe("interview actions", () => {
       expect(result.questions).toHaveLength(1);
       expect(result.questions[0].question).toBe("What is 2+2?");
 
-      // Verify that questions were cached
       expect(mocks.cacheSet).toHaveBeenCalledTimes(1);
       const cacheKey = mocks.cacheSet.mock.calls[0][0];
       expect(cacheKey).toContain("quiz-session");
@@ -147,10 +145,21 @@ describe("interview actions", () => {
 
       const result = await generateQuiz("Technical");
 
-      // When AI fails, it successfully returns fallback questions
       expect(result).toHaveProperty("sessionId");
       expect(result).toHaveProperty("questions");
       expect(result.isFallback).toBe(true);
+      expect(mocks.decrementRateLimit).toHaveBeenCalledWith("clerk-user-1", "quiz");
+    });
+
+    it("returns the reset message and does not refund the rate limit when denied", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date(Date.now() + 3600000) });
+
+      const result = await generateQuiz("Technical");
+
+      expect(result.success).toBe(false);
+      expect(result.errors._form[0]).toContain("limit reached");
+      expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
     });
   });
 
@@ -177,27 +186,22 @@ describe("interview actions", () => {
         },
       ];
 
-      // Mock cacheGet to return structured result with questions
-      mocks.cacheGet.mockResolvedValue({ 
-        status: "success", 
-        value: cachedQuestions, 
-        isSuccess: true, 
-        isMiss: false, 
-        isError: false 
+      mocks.cacheGet.mockResolvedValue({
+        status: "success",
+        value: cachedQuestions,
+        isSuccess: true,
+        isMiss: false,
+        isError: false,
       });
       mocks.createAssessment.mockImplementation(({ data }) => Promise.resolve({ id: "assessment-1", ...data }));
 
-      // User got 1 correct and 1 wrong
       const answers = ["4", "Framework"];
-
       const sessionId = "12345678-1234-1234-1234-1234567890ab";
       const result = await saveQuizResult(sessionId, answers, "Technical");
 
-      // Verify session was retrieved and deleted
       expect(mocks.cacheGet).toHaveBeenCalledTimes(1);
       expect(mocks.cacheDelete).toHaveBeenCalledTimes(1);
 
-      // Score should be 50%
       expect(result.quizScore).toBe(50);
       expect(result.userId).toBe("user-1");
       expect(result.category).toBe("Technical");
@@ -215,13 +219,12 @@ describe("interview actions", () => {
         industry: "technology",
       });
 
-      // Mock cacheGet to return structured miss result
-      mocks.cacheGet.mockResolvedValue({ 
-        status: "miss", 
-        value: null, 
-        isSuccess: false, 
-        isMiss: true, 
-        isError: false 
+      mocks.cacheGet.mockResolvedValue({
+        status: "miss",
+        value: null,
+        isSuccess: false,
+        isMiss: true,
+        isError: false,
       });
 
       const sessionId = "12345678-1234-1234-1234-1234567890ac";
@@ -232,14 +235,26 @@ describe("interview actions", () => {
       expect(mocks.cacheDelete).not.toHaveBeenCalled();
       expect(mocks.createAssessment).not.toHaveBeenCalled();
     });
-  });
 
-  describe("getAssessment", () => {
-    it("returns null if user is not authenticated", async () => {
-    mocks.auth.mockResolvedValue({ userId: null });
-    const result = await getAssessment("assessment-1");
-    expect(result).toBeNull();
-    expect(mocks.userFindUnique).not.toHaveBeenCalled();
+    it("returns the reset message and does not refund the feedback limit when denied", async () => {
+      mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
+      mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date(Date.now() + 3600000) });
+
+      const questions = [
+        {
+          question: "What is 2+2?",
+          options: ["3", "4", "5", "6"],
+          correctAnswer: "4",
+          explanation: "Basic math",
+        },
+      ];
+      const result = await saveQuizResult(questions, ["4"], "Technical");
+
+      expect(result.success).toBe(false);
+      expect(result.errors._form[0]).toContain("limit reached");
+      expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
+      expect(mocks.createAssessment).not.toHaveBeenCalled();
+    });
   });
 
   describe("getAssessment", () => {
@@ -274,10 +289,7 @@ describe("interview actions", () => {
           userId: "user-1",
         },
       });
-      // userFindUnique is called to get the user (may be called multiple times due to mock setup)
       expect(mocks.userFindUnique).toHaveBeenCalled();
     });
-
   });
-});
 });

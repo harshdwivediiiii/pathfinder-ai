@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { validateOutput } from "@/lib/ai/validate";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getIndustryInsightRefreshTime } from "@/lib/misc/industry-insights";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { z } from "zod";
@@ -28,6 +29,10 @@ export async function importLinkedInProfile(extractedText) {
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
+  if (!extractedText || extractedText.trim().length < 100) {
+    return { success: false, errors: { _form: ["Please provide valid extracted text from a LinkedIn PDF (at least 100 characters)."] } };
+  }
+
   const limit = await checkRateLimit(userId, "resumeBuilder");
   if (!limit.allowed) {
     return {
@@ -38,10 +43,6 @@ export async function importLinkedInProfile(extractedText) {
     };
   }
 
-  if (!extractedText || extractedText.trim().length < 100) {
-    return { success: false, errors: { _form: ["Please provide valid extracted text from a LinkedIn PDF (at least 100 characters)."] } };
-  }
-  
   const user = await getUserByClerkId(userId);
   if (!validateAuthenticatedUser(user)) {
     return createErrorResponse("User not found");
@@ -108,16 +109,44 @@ export async function importLinkedInProfile(extractedText) {
     
     const { bio, currentRole, industry, experience, skills, resumeContent } = validation.data;
 
-    // Update the User profile
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        bio: bio || user.bio,
-        currentRole: currentRole || user.currentRole,
-        industry: industry || user.industry,
-        experience: experience || user.experience,
-        skills: skills && skills.length > 0 ? skills : user.skills,
+    // User.industry is a foreign key to IndustryInsight.industry, so the row
+    // must exist before the industry can be persisted. Fall back to the user's
+    // existing industry when the AI output omits one.
+    const resolvedIndustry = industry || user.industry;
+
+    // Claim/upsert the IndustryInsight row and persist the profile in a single
+    // transaction, mirroring the onboarding path in actions/user.js. Without
+    // this, importing a LinkedIn profile for an industry with no IndustryInsight
+    // row fails with Prisma error P2003.
+    await db.$transaction(async (tx) => {
+      if (resolvedIndustry) {
+        await tx.industryInsight.upsert({
+          where: { industry: resolvedIndustry },
+          update: {},
+          create: {
+            industry: resolvedIndustry,
+            salaryRanges: [],
+            growthRate: 0,
+            demandLevel: "Medium",
+            topSkills: [],
+            marketOutlook: "AI insights generation failed. This profile will be updated automatically in the future.",
+            keyTrends: [],
+            recommendedSkills: [],
+            nextUpdate: getIndustryInsightRefreshTime(),
+          },
+        });
       }
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          bio: bio || user.bio,
+          currentRole: currentRole || user.currentRole,
+          ...(resolvedIndustry ? { industry: resolvedIndustry } : {}),
+          experience: experience || user.experience,
+          skills: skills && skills.length > 0 ? skills : user.skills,
+        }
+      });
     });
 
     // Create or update the base Resume
