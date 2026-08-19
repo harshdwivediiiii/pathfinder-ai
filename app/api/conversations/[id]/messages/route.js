@@ -58,12 +58,12 @@ export async function POST(request, context) {
       );
     }
 
-    const { role, content } = validation.data;
+    const { content } = validation.data;
 
     const message = await db.message.create({
       data: {
         conversationId: idValidation.data,
-        role,
+        role: "user",
         content,
       },
     });

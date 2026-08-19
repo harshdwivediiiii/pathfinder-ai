@@ -15,9 +15,21 @@ function createSideHustleValidationResponse(message) {
     },
   };
 }
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+
 export async function generateSideHustles(skills, interests) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "sideHustle");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Side hustle ideas limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -80,6 +92,7 @@ export async function generateSideHustles(skills, interests) {
     revalidatePath("/side-hustle");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "sideHustle");
     return handleServerError(error, "side-hustle");
   }
 }
