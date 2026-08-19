@@ -18,6 +18,13 @@ const createAgentRunSchema = z.object({
   userPrompt: z.string().trim().min(1).max(10000),
   status: z.nativeEnum(AgentRunStatus).default(AgentRunStatus.Running),
 });
+import { validateInput } from "@/lib/ai/validate";
+import { agentRunCreateSchema, agentRunUpdateSchema, agentRunListSchema } from "@/lib/schemas/forms";
+
+function firstValidationError(result) {
+  const errors = Object.values(result.errors || {}).flat();
+  return errors[0] || "Invalid input.";
+}
 
 export async function getAgentRuns({ limit = 50, cursor } = {}) {
   try {
@@ -26,6 +33,10 @@ export async function getAgentRuns({ limit = 50, cursor } = {}) {
 
     const validation = agentRunsQuerySchema.safeParse({ limit, cursor: cursor || undefined });
     if (!validation.success) throw new Error("Invalid pagination parameters");
+    const validated = validateInput(agentRunListSchema, { limit, cursor });
+    if (!validated.success) {
+      return { error: firstValidationError(validated) };
+    }
 
     const query = {
       where: {
@@ -41,6 +52,11 @@ export async function getAgentRuns({ limit = 50, cursor } = {}) {
 
     if (validation.data.cursor) {
       query.cursor = { id: validation.data.cursor };
+      take: validated.data.limit,
+    };
+
+    if (validated.data.cursor) {
+      query.cursor = { id: validated.data.cursor };
       query.skip = 1;
     }
 
@@ -94,6 +110,10 @@ export async function createAgentRun(data) {
 
     const validation = createAgentRunSchema.safeParse(data);
     if (!validation.success) throw new Error("Invalid agent run payload");
+    const validated = validateInput(agentRunCreateSchema, data);
+    if (!validated.success) {
+      return { error: firstValidationError(validated) };
+    }
 
     const run = await db.agentRun.create({
       data: {
@@ -101,6 +121,9 @@ export async function createAgentRun(data) {
         agentName: validation.data.agentName,
         userPrompt: validation.data.userPrompt,
         status: validation.data.status,
+        agentName: validated.data.agentName,
+        userPrompt: validated.data.userPrompt,
+        status: validated.data.status || AgentRunStatus.Running,
         startedAt: new Date(),
       },
     });
@@ -125,13 +148,18 @@ export async function updateAgentRun(id, data) {
     });
     if (!user) throw new Error("User not found");
 
+    const validated = validateInput(agentRunUpdateSchema, data);
+    if (!validated.success) {
+      return { error: firstValidationError(validated) };
+    }
+
     const updateData = {
-      status: data.status,
-      output: data.output,
-      errorMessage: data.errorMessage,
+      status: validated.data.status,
+      output: validated.data.output,
+      errorMessage: validated.data.errorMessage,
     };
-    if (data.status !== undefined) {
-      updateData.completedAt = data.status !== AgentRunStatus.Running ? new Date() : null;
+    if (validated.data.status !== undefined) {
+      updateData.completedAt = validated.data.status !== AgentRunStatus.Running ? new Date() : null;
     }
 
     const result = await db.agentRun.updateMany({

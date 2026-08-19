@@ -43,7 +43,8 @@ export async function generateCoverLetter(data) {
 
     const limit = await checkRateLimit(userId, "coverLetter");
     if (!limit.allowed) {
-      throw new Error(`Cover letter limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      const message = `Cover letter limit reached. Resets in ${formatResetTime(limit.resetAt)}.`;
+      return { success: false, error: message, errors: { _form: [message] } };
     }
 
     const validation = validateInput(coverLetterInputSchema, data);

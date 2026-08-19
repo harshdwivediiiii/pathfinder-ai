@@ -19,12 +19,13 @@ export default async function InterviewDashboardPage() {
     return <div>Please log in to view this page.</div>;
   }
 
-  const sessions = await prisma.mockInterviewSession.findMany({
+  const assessments = await prisma.assessment.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
+    take: 10,
   });
 
-  if (!sessions || sessions.length === 0) {
+  if (!assessments || assessments.length === 0) {
     return (
       <div className="container py-12 flex flex-col items-center justify-center space-y-6 text-center h-full min-h-[50vh]">
         <div className="bg-primary/10 p-6 rounded-full">
@@ -41,7 +42,19 @@ export default async function InterviewDashboardPage() {
     );
   }
 
-  // Pre-calculate insights directly if not too many
+  // Map assessments to the shape expected by charts and insights
+  const sessions = assessments.map((a) => {
+    const overallScore = a.quizScore;
+    return {
+      createdAt: a.createdAt,
+      overallScore,
+      technicalScore: overallScore,
+      communicationScore: overallScore,
+      grammarScore: overallScore,
+      feedback: a.improvementTip || "No specific feedback provided.",
+    };
+  });
+
   const insights = await getInterviewInsights(user.id);
 
   const averageScore = Math.round(
