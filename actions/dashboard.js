@@ -12,6 +12,7 @@ import {
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { parseAIJson } from "@/lib/ai/validate";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function getDashboardStats() {
   const { userId } = await auth();
@@ -67,6 +68,10 @@ export async function getIndustryInsights() {
 
   try {
     if (isIndustryInsightStale(user.industryInsight)) {
+      const limit = await checkRateLimit(userId, "industryInsights");
+      if (!limit.allowed) {
+        return null;
+      }
       const insights = await generateAIInsights(user.industry, user);
       const nextUpdate = getIndustryInsightRefreshTime();
 
@@ -152,9 +157,15 @@ export async function getWeeklySummaryStats() {
         });
         
         try {
+          const limit = await checkRateLimit(userId, "weeklyRecs");
+          if (!limit.allowed) {
+            return ["Keep up the great work!", "Focus on networking and applying to new roles."];
+          }
+
           const aiResult = await generateGeminiContent(prompt);
           return parseAIJson(aiResult.response.text());
         } catch (e) {
+          await decrementRateLimit(userId, "weeklyRecs");
           console.error("Failed to generate weekly recs:", e);
           return ["Keep up the great work!", "Focus on networking and applying to new roles."];
         }

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 function normalizePortfolioContent(content) {
   if (!content) return content;
@@ -39,6 +40,16 @@ async function getAuthenticatedUser() {
 export async function generatePortfolio(slug) {
   const { user, error } = await getAuthenticatedUser();
   if (error) return { success: false, errors: { _form: [error] } };
+
+  const limit = await checkRateLimit(user.clerkUserId, "portfolioBuilder");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Portfolio generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   // Fetch base resume
   const resume = await db.resume.findUnique({
@@ -103,6 +114,7 @@ Rules:
       parsedContent = JSON.parse(cleaned);
       parsedContent = normalizePortfolioContent(parsedContent);
     } catch (e) {
+      await decrementRateLimit(user.clerkUserId, "portfolioBuilder");
       console.error("Failed to parse Gemini output as JSON", e, rawText);
       return { success: false, errors: { _form: ["Failed to generate valid portfolio structure. Please try again."] } };
     }
@@ -139,6 +151,7 @@ Rules:
     revalidatePath("/portfolio-builder");
     return { success: true, data: portfolio };
   } catch (err) {
+    await decrementRateLimit(user.clerkUserId, "portfolioBuilder");
     console.error("Portfolio Generation Error:", err);
     return { success: false, errors: { _form: ["Failed to generate portfolio. Please try again later."] } };
   }
