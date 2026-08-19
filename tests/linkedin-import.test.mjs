@@ -214,4 +214,14 @@ describe("importLinkedInProfile", () => {
       })
     );
   });
+
+  it("does not consume the rate limit when the extracted text is too short", async () => {
+    const result = await importLinkedInProfile("too short");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toBeDefined();
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+    expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
+    expect(mocks.generateGeminiContent).not.toHaveBeenCalled();
+  });
 });
