@@ -342,6 +342,14 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
         explanation: "Interviewers want to hear about skills that are relevant to the role.",
       },
     ];
+
+    // Persist the fallback session so saveQuizResult can later load the questions.
+    if (userId) {
+      const cacheStore = getCacheStore();
+      const cacheKey = generateCacheKey("quiz-session", userId, sessionId);
+      await cacheStore.set(cacheKey, defaultQuestions, QUIZ_CACHE_TTL_MS);
+    }
+
     return { sessionId, questions: defaultQuestions, isFallback: true };
   }
 }
