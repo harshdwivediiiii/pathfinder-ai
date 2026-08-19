@@ -4,11 +4,23 @@ import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { AgentRunStatus } from "@prisma/client";
+import { validateInput } from "@/lib/ai/validate";
+import { agentRunCreateSchema, agentRunUpdateSchema, agentRunListSchema } from "@/lib/schemas/forms";
+
+function firstValidationError(result) {
+  const errors = Object.values(result.errors || {}).flat();
+  return errors[0] || "Invalid input.";
+}
 
 export async function getAgentRuns({ limit = 50, cursor } = {}) {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
+
+    const validated = validateInput(agentRunListSchema, { limit, cursor });
+    if (!validated.success) {
+      return { error: firstValidationError(validated) };
+    }
 
     const query = {
       where: {
@@ -19,11 +31,11 @@ export async function getAgentRuns({ limit = 50, cursor } = {}) {
       orderBy: {
         startedAt: "desc",
       },
-      take: limit,
+      take: validated.data.limit,
     };
 
-    if (cursor) {
-      query.cursor = { id: cursor };
+    if (validated.data.cursor) {
+      query.cursor = { id: validated.data.cursor };
       query.skip = 1;
     }
 
@@ -75,12 +87,17 @@ export async function createAgentRun(data) {
 
     if (!user) throw new Error("User not found");
 
+    const validated = validateInput(agentRunCreateSchema, data);
+    if (!validated.success) {
+      return { error: firstValidationError(validated) };
+    }
+
     const run = await db.agentRun.create({
       data: {
         userId: user.id,
-        agentName: data.agentName,
-        userPrompt: data.userPrompt,
-        status: data.status || AgentRunStatus.Running,
+        agentName: validated.data.agentName,
+        userPrompt: validated.data.userPrompt,
+        status: validated.data.status || AgentRunStatus.Running,
         startedAt: new Date(),
       },
     });
@@ -105,13 +122,18 @@ export async function updateAgentRun(id, data) {
     });
     if (!user) throw new Error("User not found");
 
+    const validated = validateInput(agentRunUpdateSchema, data);
+    if (!validated.success) {
+      return { error: firstValidationError(validated) };
+    }
+
     const updateData = {
-      status: data.status,
-      output: data.output,
-      errorMessage: data.errorMessage,
+      status: validated.data.status,
+      output: validated.data.output,
+      errorMessage: validated.data.errorMessage,
     };
-    if (data.status !== undefined) {
-      updateData.completedAt = data.status !== AgentRunStatus.Running ? new Date() : null;
+    if (validated.data.status !== undefined) {
+      updateData.completedAt = validated.data.status !== AgentRunStatus.Running ? new Date() : null;
     }
 
     const result = await db.agentRun.updateMany({
