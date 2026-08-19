@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,10 @@ import { Trash2, Plus, Save } from "lucide-react";
 export default function PortfolioContentEditor({ portfolio, onUpdate }) {
   const [content, setContent] = useState(portfolio?.content || {});
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setContent(portfolio?.content || {});
+  }, [portfolio?.content]);
 
   const handleSave = async () => {
     setSaving(true);

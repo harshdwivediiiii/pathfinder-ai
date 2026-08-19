@@ -73,8 +73,6 @@ export async function planCareerBreak(duration, reason, returnGoals) {
 
     outputRules: createOutputRules(
   createJsonOutputRules(`{
-
-{
   "handoffPlan": ["Action 1 for leaving gracefully", "Action 2"],
   "stayingRelevant": ["Tip 1 for during the break", "Tip 2"],
   "resumeExplanation": "A strong, unapologetic 1-2 sentence explanation to put on their resume.",
@@ -85,7 +83,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
 );
 
   try {
-    const aiResult = await runAiGeneration(prompt);
+    const aiResult = await runAiGeneration(prompt, { userId });
     const parsedData = parseAiResponse(aiResult);
     
 

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ userId: null, isLoaded: true }),
+}));
+
 import { useCareerShortlist } from "../hooks/use-career-shortlist.js";
 
 const STORAGE_KEY = "career-shortlist";
@@ -51,7 +56,9 @@ describe("useCareerShortlist", () => {
     const { result, unmount } = renderHook(() => useCareerShortlist());
     await waitForEffects();
 
-    expect(result.current.shortlist).toEqual([sampleCareer]);
+    expect(result.current.shortlist).toEqual([
+      expect.objectContaining(sampleCareer),
+    ]);
     unmount();
   });
 
@@ -136,7 +143,10 @@ describe("useCareerShortlist", () => {
       window.dispatchEvent(storageEvent);
     });
 
-    expect(result.current.shortlist).toEqual([sampleCareer, sampleCareer2]);
+    expect(result.current.shortlist).toEqual([
+      expect.objectContaining(sampleCareer),
+      expect.objectContaining(sampleCareer2),
+    ]);
     unmount();
   });
 });

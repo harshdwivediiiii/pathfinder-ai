@@ -46,6 +46,7 @@ const geminiCircuitBreaker = getCircuitBreaker("gemini-stream", {
   failureThreshold: Number.parseInt(process.env.CIRCUIT_FAILURE_THRESHOLD ?? "5", 10),
   resetTimeoutMs: Number.parseInt(process.env.CIRCUIT_RESET_TIMEOUT_MS ?? "30000", 10),
   rollingWindowMs: Number.parseInt(process.env.CIRCUIT_ROLLING_WINDOW_MS ?? "60000", 10),
+  successThreshold: Number.parseInt(process.env.CIRCUIT_SUCCESS_THRESHOLD ?? "3", 10),
 });
 
 const aiLogger = createLogger("generate-route");
@@ -398,7 +399,7 @@ Rules:
 
   // Atomically get or create the pending request BEFORE any async work
   const { promise: pendingPromise, isCreator, resolve: resolvePending, reject: rejectPending } =
-    getOrCreatePendingGenerationRequest(cacheUser, promptCheck.prompt);
+    getOrCreatePendingGenerationRequest(cacheUser, restrictedPrompt);
 
   const encoder = new TextEncoder();
   const abortController = new AbortController();
@@ -594,7 +595,7 @@ Rules:
         rejectPending(error);
       } finally {
         // Always clean up the pending request
-        deletePendingGenerationRequest(cacheUser, promptCheck.prompt);
+        deletePendingGenerationRequest(cacheUser, restrictedPrompt);
       }
     },
     cancel(reason) {

@@ -85,6 +85,10 @@ export async function generatePivotStrategy(currentRole, targetRole) {
       })
     );
     const parsedData = parseAiResponse(aiResult);
+    }),
+    { userId }
+  );
+  const parsedData = parseAiResponse(aiResult);
 
     const record = await createRecord(db.careerPivot, {
       userId: user.id,
