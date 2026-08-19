@@ -4,6 +4,7 @@ import { getAiResponseText } from "@/lib/ai-response";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { buildUserLookup } from "@/lib/db/user-query";
 import { db } from "@/lib/db/prisma";
+import { getAiResponseText } from "@/lib/ai-response";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";

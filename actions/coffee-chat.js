@@ -4,6 +4,7 @@ import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { getAiResponseText } from "@/lib/ai-response";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
@@ -100,7 +101,7 @@ export async function sendCoffeeChatMessage(sessionId, userMessage) {
   });
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
     updatedHistory.push({ role: "assistant", content: parsedData.reply });
     const record = await db.coffeeChatSession.update({
       where: { id: sessionId },
@@ -152,7 +153,7 @@ export async function generateCoffeeChatFeedback(sessionId) {
   });
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
     const record = await db.coffeeChatSession.update({
       where: { id: sessionId },
       data: { feedback: parsedData },
