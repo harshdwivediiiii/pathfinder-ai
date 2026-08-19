@@ -31,6 +31,16 @@ export async function POST(request) {
     const base64Data = image.split(",")[1];
     const mimeType = image.split(",")[0].match(/:(.*?);/)[1];
 
+    if (!base64Data || !mimeType) {
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid image format.");
+    }
+
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+    const decodedSize = Buffer.from(base64Data, "base64").length;
+    if (decodedSize > MAX_IMAGE_SIZE) {
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "Image size exceeds the 5MB limit.");
+    }
+
     const promptText = `
 You are an expert navigation assistant that uses visual landmarks to give intuitive directions to pedestrians.
 You are given an image of a street view or junction, and a standard navigation instruction.

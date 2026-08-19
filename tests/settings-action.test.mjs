@@ -62,6 +62,12 @@ describe("Settings Actions", () => {
     const data = {
       notifications: false,
       emailAlerts: true,
+      largeButtonsMode: true,
+      highContrastMode: false,
+      speechSpeed: 1.2,
+      preferredLanguage: "en",
+      preferredVoiceLanguage: "hi",
+      oneTapCameraMode: false,
     };
 
     const result = await updateUserSettings(data);

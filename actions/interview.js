@@ -13,6 +13,7 @@ import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { getCachedOrFetch } from "@/lib/ai/ai-cache";
 import { quizCategorySchema, quizResultSaveSchema, quizResultSaveSessionSchema } from "@/lib/schemas/forms";
 import { interviewQuestionsOutputSchema } from "@/lib/schemas";
+import { voiceFeedbackOutputSchema, videoFeedbackOutputSchema } from "@/lib/schemas/interview";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { translations } from "@/lib/misc/translations";
 import { unwrap } from "@/lib/db/redis-result";
@@ -164,7 +165,7 @@ const FallbackQuizPool = {
   nonprofit: BUSINESS_FALLBACK_QUESTIONS,
 };
 
-export function getFallbackQuestionsForIndustry(industry) {
+function getFallbackQuestionsForIndustry(industry) {
   const key = industry?.toLowerCase() || "tech";
   const primaryPool = FallbackQuizPool[key] || TECH_FALLBACK_QUESTIONS;
   if (primaryPool.length >= 10) {
@@ -216,6 +217,7 @@ export async function getCoachQuestions(locale = "en") {
  */
 export async function generateQuiz(category = "Technical") {
   let userId = null;
+  let quotaConsumed = false;
   try {
     const authResult = await auth();
     userId = authResult?.userId;
@@ -226,8 +228,14 @@ export async function generateQuiz(category = "Technical") {
 
     const quizLimit = await checkRateLimit(userId, "quiz");
     if (!quizLimit.allowed) {
-      throw new Error(`Quiz generation limit reached. Resets in ${formatResetTime(quizLimit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Quiz generation limit reached. Resets in ${formatResetTime(quizLimit.resetAt)}.`],
+        },
+      };
     }
+    quotaConsumed = true;
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
@@ -324,7 +332,7 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
 
     return { sessionId, questions, isFallback: false };
   } catch (error) {
-    if (userId) await decrementRateLimit(userId, "quiz");
+    if (userId && quotaConsumed) await decrementRateLimit(userId, "quiz");
     console.error("Quiz generation top-level error:", error);
     // Return fallback questions instead of throwing or returning error object
     const sessionId = crypto.randomUUID();
@@ -342,6 +350,14 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
         explanation: "Interviewers want to hear about skills that are relevant to the role.",
       },
     ];
+
+    // Persist the fallback session so saveQuizResult can later load the questions.
+    if (userId) {
+      const cacheStore = getCacheStore();
+      const cacheKey = generateCacheKey("quiz-session", userId, sessionId);
+      await cacheStore.set(cacheKey, defaultQuestions, QUIZ_CACHE_TTL_MS);
+    }
+
     return { sessionId, questions: defaultQuestions, isFallback: true };
   }
 }
@@ -395,7 +411,12 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     const feedbackLimit = await checkRateLimit(userId, "quizFeedback");
     if (!feedbackLimit.allowed) {
-      throw new Error(`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({
@@ -536,6 +557,91 @@ export async function getAssessment(id) {
         userId: user.id,
       },
     });
+  } catch (error) {
+    handleServerError(error, "interview");
+    return null;
+  }
+}
+
+/**
+ * Evaluates a transcribed voice answer using the AI coach.
+ */
+export async function evaluateVoiceAnswer(question, transcribedAnswer) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const voiceLimit = await checkRateLimit(userId, "voiceEvaluation");
+    if (!voiceLimit.allowed) {
+      return { success: false, error: `Voice evaluation limit reached. Resets in ${formatResetTime(voiceLimit.resetAt)}.` };
+    }
+
+    const prompt = buildSecurePrompt({
+      context: "You are an expert interview coach evaluating a spoken answer from a candidate.",
+      task: "Evaluate the transcribed answer based on confidence, filler words, and content quality.",
+      untrustedData: [
+        { label: "question", value: question, maxLength: 1000 },
+        { label: "transcribedAnswer", value: transcribedAnswer, maxLength: 3000 },
+      ],
+      outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+{
+  "score": 85,
+  "fillerWordsCount": 3,
+  "confidence": "High",
+  "feedback": "Your answer was very structured, but you used 'um' a few times."
+}`,
+    });
+
+    const aiResult = await generateGeminiContent(prompt);
+    const validation = validateOutput(voiceFeedbackOutputSchema, aiResult.response.text());
+    if (!validation.success) {
+      console.error("Voice evaluation output validation failed:", validation.errors);
+      return { success: false, error: "AI returned an unexpected format." };
+    }
+    return { success: true, data: validation.data };
+  } catch (error) {
+    return handleServerError(error, "interview");
+  }
+}
+
+/**
+ * Evaluates a transcribed video answer along with basic body language metrics.
+ */
+export async function evaluateVideoAnswer(question, transcribedAnswer, metrics) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const videoLimit = await checkRateLimit(userId, "videoEvaluation");
+    if (!videoLimit.allowed) {
+      return { success: false, error: `Video evaluation limit reached. Resets in ${formatResetTime(videoLimit.resetAt)}.` };
+    }
+
+    const prompt = buildSecurePrompt({
+      context: "You are an expert interview coach evaluating a video interview response.",
+      task: "Evaluate the transcribed answer and the provided facial metrics (e.g., face detected percentage).",
+      untrustedData: [
+        { label: "question", value: question, maxLength: 1000 },
+        { label: "transcribedAnswer", value: transcribedAnswer, maxLength: 3000 },
+        { label: "metrics", value: JSON.stringify(metrics), maxLength: 500 },
+      ],
+      outputRules: `Provide feedback in JSON format ONLY. Do not output any markdown code fences or extra text:
+{
+  "score": 85,
+  "fillerWordsCount": 3,
+  "confidence": "High",
+  "bodyLanguageFeedback": "You maintained great eye contact and presence.",
+  "verbalFeedback": "Your answer was very structured, but you used 'um' a few times."
+}`,
+    });
+
+    const aiResult = await generateGeminiContent(prompt);
+    const validation = validateOutput(videoFeedbackOutputSchema, aiResult.response.text());
+    if (!validation.success) {
+      console.error("Video evaluation output validation failed:", validation.errors);
+      return { success: false, error: "AI returned an unexpected format." };
+    }
+    return { success: true, data: validation.data };
   } catch (error) {
     return handleServerError(error, "interview");
   }

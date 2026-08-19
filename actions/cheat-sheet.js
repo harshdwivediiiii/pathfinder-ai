@@ -13,10 +13,21 @@ import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { buildUserLookup } from "@/lib/db/user-query";
 import { buildHistoryResponse } from "@/lib/history/history-loader";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateCheatSheet(company, role) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "cheatSheet");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Cheat sheet generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique(
   buildUserLookup(userId)
@@ -68,6 +79,7 @@ export async function generateCheatSheet(company, role) {
     revalidatePath("/interview/cheat-sheet");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "cheatSheet");
     return handleServerError(error, "cheat-sheet");
   }
 }
