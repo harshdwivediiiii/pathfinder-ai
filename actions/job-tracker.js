@@ -55,6 +55,24 @@ export async function createJobApplication(data) {
   if (!user) return createErrorResponse("User not found");
 
   try {
+    const { atsAnalysisId, coverLetterId } = validation.data;
+
+    if (atsAnalysisId) {
+      const atsAnalysis = await db.atsAnalysis.findFirst({
+        where: { id: atsAnalysisId, userId: user.id },
+        select: { id: true },
+      });
+      if (!atsAnalysis) return createErrorResponse("ATS analysis not found or does not belong to you");
+    }
+
+    if (coverLetterId) {
+      const coverLetter = await db.coverLetter.findFirst({
+        where: { id: coverLetterId, userId: user.id },
+        select: { id: true },
+      });
+      if (!coverLetter) return createErrorResponse("Cover letter not found or does not belong to you");
+    }
+
     const job = await db.jobApplication.create({
       data: {
         userId: user.id,
