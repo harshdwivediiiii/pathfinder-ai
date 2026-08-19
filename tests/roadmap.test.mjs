@@ -321,7 +321,9 @@ describe("generateCareerRoadmap", () => {
     const result = await generateCareerRoadmap();
 
     expect(result.success).toBe(false);
-    expect(result.errors).toHaveProperty("_form");
+    expect(result.errors._form[0]).toContain("limit reached");
+    // A denial must not be refunded, otherwise the limit is never enforced.
+    expect(actionMocks.decrementRateLimit).not.toHaveBeenCalled();
   });
 
   it("returns error when AI generation fails", async () => {

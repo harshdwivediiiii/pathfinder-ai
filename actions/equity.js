@@ -12,10 +12,21 @@ import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { invokeAiGeneration } from "@/lib/ai/ai-generator";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildHistoryResponse } from "@/lib/history/history-loader";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function decodeEquityOffer(offerDetails) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "equity");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Equity analysis limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -66,6 +77,7 @@ export async function decodeEquityOffer(offerDetails) {
     revalidatePath("/equity-decoder");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "equity");
     return handleServerError(error, "equity");
   }
 }

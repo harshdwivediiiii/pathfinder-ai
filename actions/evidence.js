@@ -8,6 +8,11 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { z } from "zod";
+const UNAUTHORIZED_RESPONSE = {
+  success: false,
+  errors: { _form: ["Unauthorized"] },
+};
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 const evidenceSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title is too long"),
@@ -16,7 +21,9 @@ const evidenceSchema = z.object({
   description: z.string().max(2000, "Description is too long").optional().or(z.literal("")),
   tags: z.array(z.string()).max(10, "Maximum 10 tags allowed").optional(),
 });
-
+function revalidateEvidenceLocker() {
+  revalidatePath("/evidence-locker");
+}
 export async function getEvidenceItems() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };
@@ -37,7 +44,7 @@ export async function getEvidenceItems() {
 
 export async function createEvidenceItem(data) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -54,7 +61,7 @@ export async function createEvidenceItem(data) {
         ...validation.data,
       },
     });
-    revalidatePath("/evidence-locker");
+    revalidateEvidenceLocker();
     return { success: true, data: item };
   } catch (error) {
     return handleServerError(error, "evidence");
@@ -63,7 +70,7 @@ export async function createEvidenceItem(data) {
 
 export async function updateEvidenceItem(id, data) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -74,10 +81,12 @@ export async function updateEvidenceItem(id, data) {
   }
 
   try {
-    const item = await db.evidenceItem.update({
+    await db.evidenceItem.updateMany({
       where: { id, userId: user.id },
       data: validation.data,
     });
+    revalidateEvidenceLocker();
+    const item = await db.evidenceItem.findUnique({ where: { id } });
     revalidatePath("/evidence-locker");
     return { success: true, data: item };
   } catch (error) {
@@ -87,16 +96,16 @@ export async function updateEvidenceItem(id, data) {
 
 export async function deleteEvidenceItem(id) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
   try {
-    await db.evidenceItem.delete({
+    await db.evidenceItem.deleteMany({
       where: { id, userId: user.id },
     });
-    revalidatePath("/evidence-locker");
+    revalidateEvidenceLocker();
     return { success: true };
   } catch (error) {
     return handleServerError(error, "evidence");
@@ -105,10 +114,20 @@ export async function deleteEvidenceItem(id) {
 
 export async function suggestEvidenceForText(text, evidenceItems) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   if (!evidenceItems || evidenceItems.length === 0) {
     return { success: true, data: [] };
+  }
+
+  const limit = await checkRateLimit(userId, "evidence");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Evidence suggestion limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
   }
 
   const prompt = buildSecurePrompt({
@@ -131,6 +150,7 @@ export async function suggestEvidenceForText(text, evidenceItems) {
     const parsedData = parseAIJson(aiResult.response.text());
     return { success: true, data: parsedData.suggestions || [] };
   } catch (error) {
+    await decrementRateLimit(userId, "evidence");
     return handleServerError(error, "evidence");
   }
 }

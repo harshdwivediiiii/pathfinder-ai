@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 
 export async function saveBookmark({ question, options, answer, category }) {
