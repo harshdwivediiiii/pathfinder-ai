@@ -32,8 +32,8 @@ export default function StatsCards({ assessments }) {
   const getImprovementStreak = () => {
     if (!assessments?.length || assessments.length < 2) return 0;
     let streak = 0;
-    for (let i = assessments.length - 1; i > 0; i--) {
-      if (assessments[i].quizScore > assessments[i - 1].quizScore) {
+    for (let i = 0; i < assessments.length - 1; i++) {
+      if (assessments[i].quizScore > assessments[i + 1].quizScore) {
         streak++;
       } else {
         break;
