@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
+function revalidatePortfolioBuilder() {
+  revalidatePath("/portfolio-builder");
+}
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 function normalizePortfolioContent(content) {
@@ -148,7 +151,7 @@ Rules:
       },
     });
 
-    revalidatePath("/portfolio-builder");
+    revalidatePortfolioBuilder();
     return { success: true, data: portfolio };
   } catch (err) {
     await decrementRateLimit(user.clerkUserId, "portfolioBuilder");
@@ -201,7 +204,7 @@ export async function updatePortfolio(data) {
       },
     });
 
-    revalidatePath("/portfolio-builder");
+    revalidatePortfolioBuilder();
     revalidatePath(`/p/${portfolio.slug}`);
     return { success: true, data: portfolio };
   } catch (err) {
