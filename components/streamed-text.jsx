@@ -10,6 +10,11 @@ import CitationRenderer from "@/components/chat/citation-renderer";
 import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/misc/utils";
 
+const extractText = (children) =>
+  React.Children.toArray(children)
+    .map((child) => (typeof child === "string" ? child : extractText(child.props?.children)))
+    .join("");
+
 const CodeBlock = ({ children }) => {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef(null);
@@ -21,7 +26,9 @@ const CodeBlock = ({ children }) => {
   }, []);
 
   const onCopy = () => {
-    navigator.clipboard.writeText(children).catch(() => {});
+    navigator.clipboard.writeText(children).catch((err) => {
+      console.warn("Failed to copy text to clipboard:", err);
+    });
     setCopied(true);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => setCopied(false), 2000);
@@ -60,7 +67,7 @@ export const markdownComponents = {
   ),
   p: ({ children }) => (
     <div className="mb-4 leading-relaxed text-muted-foreground last:mb-0">
-      <CitationRenderer text={React.Children.toArray(children).join("")} />
+      <CitationRenderer text={extractText(children)} />
     </div>
   ),
   ul: ({ children }) => (
