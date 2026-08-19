@@ -28,6 +28,15 @@ function buildRequest(body) {
 }
 
 describe("POST /api/pathfind", () => {
+  it("returns 401 for unauthenticated requests", async () => {
+    mocks.auth.mockResolvedValue({ userId: null });
+
+    const res = await POST(buildRequest({ path: "compare", graph: {}, start: "A", goal: "D" }));
+
+    expect(res.status).toBe(401);
+    expect(mocks.compareAlgorithms).not.toHaveBeenCalled();
+  });
+
   it("dispatches compare and returns 200", async () => {
     mocks.auth.mockResolvedValue({ userId: "clerk-user-1" });
     mocks.compareAlgorithms.mockResolvedValue({ success: true, data: {} });
