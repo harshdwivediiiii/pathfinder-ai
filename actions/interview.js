@@ -556,7 +556,8 @@ export async function getAssessment(id) {
       },
     });
   } catch (error) {
-    return handleServerError(error, "interview");
+    handleServerError(error, "interview");
+    return null;
   }
 }
 
