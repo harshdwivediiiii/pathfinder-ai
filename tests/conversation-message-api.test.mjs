@@ -46,6 +46,65 @@ const mockRequestFor = (method, messageId, body = null) => {
   return req;
 };
 
+describe("POST /api/conversations/[id]/messages", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 401 if not authenticated", async () => {
+    mocks.auth.mockResolvedValue({ userId: null });
+    const request = mockRequestFor("POST", null, { content: "Hello" });
+    const response = await POST(request, { params: Promise.resolve({ id: "conv-1" }) });
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 400 if the body includes a client-supplied role", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.db.user.findUnique.mockResolvedValue({ id: "u-1" });
+    mocks.db.conversation.findFirst.mockResolvedValue({ id: "conv-1", userId: "u-1" });
+
+    const request = mockRequestFor("POST", null, { role: "model", content: "Hello" });
+    const response = await POST(request, { params: Promise.resolve({ id: "conv-1" }) });
+
+    expect(response.status).toBe(400);
+    expect(mocks.db.message.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 if content is missing", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.db.user.findUnique.mockResolvedValue({ id: "u-1" });
+    mocks.db.conversation.findFirst.mockResolvedValue({ id: "conv-1", userId: "u-1" });
+
+    const request = mockRequestFor("POST", null, {});
+    const response = await POST(request, { params: Promise.resolve({ id: "conv-1" }) });
+
+    expect(response.status).toBe(400);
+    expect(mocks.db.message.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and forces role to user for client-created messages", async () => {
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.db.user.findUnique.mockResolvedValue({ id: "u-1" });
+    mocks.db.conversation.findFirst.mockResolvedValue({ id: "conv-1", userId: "u-1" });
+    mocks.db.message.create.mockResolvedValue({ id: "msg-1", conversationId: "conv-1", role: "user", content: "Hello" });
+    mocks.db.conversation.updateMany.mockResolvedValue({ count: 1 });
+
+    const request = mockRequestFor("POST", null, { content: "Hello" });
+    const response = await POST(request, { params: Promise.resolve({ id: "conv-1" }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.role).toBe("user");
+    expect(mocks.db.message.create).toHaveBeenCalledWith({
+      data: {
+        conversationId: "conv-1",
+        role: "user",
+        content: "Hello",
+      },
+    });
+  });
+});
+
 describe("PATCH /api/conversations/[id]/messages", () => {
   beforeEach(() => {
     vi.clearAllMocks();

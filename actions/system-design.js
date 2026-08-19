@@ -11,6 +11,7 @@ const SUPPORTED_IMAGE_TYPES = {
   "image/jpeg": "image/jpeg",
   "image/jpg": "image/jpeg",
 };
+import { getAiResponseText } from "@/lib/ai/ai-response";
 
 export async function analyzeSystemDesign(base64Image) {
   try {
@@ -66,6 +67,15 @@ Return ONLY a valid JSON object matching this schema:
 }
 `;
 
+    // Extract the base64 payload and detect the actual image mime type.
+    // The client encodes the whiteboard diagram as an SVG data URL
+    // (data:image/svg+xml;base64,...) as well as png/jpeg/jpg.
+    const dataUrlMatch = base64Image.match(
+      /^data:image\/(png|jpeg|jpg|svg\+xml);base64,?([A-Za-z0-9+/=]+)$/i
+    );
+    const base64Data = dataUrlMatch ? dataUrlMatch[2] : base64Image;
+    const mimeType = dataUrlMatch ? `image/${dataUrlMatch[1]}` : "image/png";
+
     const request = {
       contents: [
         {
@@ -88,8 +98,7 @@ Return ONLY a valid JSON object matching this schema:
       generationConfig: { responseMimeType: "application/json" }
     });
 
-    const textOutput = aiResult.response?.text?.() ?? aiResult.response?.text ?? "";
-    const parsedData = parseAIJson(textOutput);
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     return {
       success: true,

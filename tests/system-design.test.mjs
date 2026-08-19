@@ -92,4 +92,29 @@ describe("analyzeSystemDesign", () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe("AI service unavailable");
   });
+
+  it("strips the data:image/svg+xml prefix and sends mimeType image/svg+xml", async () => {
+    auth.mockResolvedValue({ userId: "user-1" });
+
+    generateGeminiContent.mockResolvedValue({
+      response: {
+        text: () => JSON.stringify({
+          summary: "summary",
+          bottlenecks: [],
+          suggestions: [],
+          overallFeedback: "feedback",
+        }),
+      },
+    });
+
+    const svgData = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==";
+    const result = await analyzeSystemDesign(`data:image/svg+xml;base64,${svgData}`);
+
+    expect(result.success).toBe(true);
+
+    const [request] = generateGeminiContent.mock.calls[0];
+    const inlineData = request.contents[0].parts.find((part) => part.inlineData).inlineData;
+    expect(inlineData.data).toBe(svgData);
+    expect(inlineData.mimeType).toBe("image/svg+xml");
+  });
 });

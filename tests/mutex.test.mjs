@@ -107,6 +107,25 @@ describe('BucketMutex', () => {
   });
 
   describe('Timeout behavior', () => {
+    it('should parse and reject a denied waiter with a timeout (regression for corrupted mutex)', async () => {
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      // Hold the lock so the waiter is denied until its timeout fires
+      const holdLock = mutex.withLock('regression-key', async () => {
+        await delay(150);
+      });
+
+      const deniedWaiter = mutex.withLock(
+        'regression-key',
+        async () => 'should-not-run',
+        { timeoutMs: 50 }
+      );
+
+      await expect(deniedWaiter).rejects.toThrow(MutexTimeoutError);
+      await holdLock;
+      expect(mutex.getLockCount()).toBe(0);
+    });
+
     it('should timeout when lock cannot be acquired', async () => {
       const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 

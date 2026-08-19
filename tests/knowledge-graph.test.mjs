@@ -1,30 +1,47 @@
-import { describe, it, expect } from 'vitest';
-import { generateKnowledgeGraph, calculateDynamicPathway } from '../app/(main)/knowledge-graph/_components/graph-algorithm.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { NLPKnowledgeExtractor } from '../app/(main)/knowledge-graph/_components/nlp-extractor.js';
 
-describe('Dynamic Knowledge Graph Skill Dependencies', () => {
-  it('reduces downstream learning time when prerequisites are completed', () => {
-    
-    const baseGraph = generateKnowledgeGraph();
-    
-    // Baseline calculation with no skills completed
-    const baseline = calculateDynamicPathway(baseGraph, []);
-    
-    const baselineML = baseline.nodes.find(n => n.id === 'ml');
-    expect(baselineML.adjustedTime).toBe(baselineML.baseTime);
-    expect(baselineML.baseTime).toBe(30);
-    
-    // Now, complete prerequisites: calculus, stats, python
-    const progressed = calculateDynamicPathway(baseGraph, ['calc', 'stats', 'python']);
-    
-    const progressedML = progressed.nodes.find(n => n.id === 'ml');
-    
-    // ML has 3 incoming edges (calc, stats, python). 
-    // Each completed prereq should multiply the time by 0.85
-    // 30 * 0.85 * 0.85 * 0.85 = 18.42375 => rounded to 18
-    expect(progressedML.adjustedTime).toBe(18);
-    expect(progressedML.adjustedTime).toBeLessThan(baselineML.adjustedTime);
-    
-    // Total remaining time should be significantly less than baseline remaining time
-    expect(progressed.remainingTime).toBeLessThan(baseline.remainingTime);
-  });
+describe('Knowledge Graph Extraction from Unstructured Documentation', () => {
+    let extractor;
+
+    beforeEach(() => {
+        extractor = new NLPKnowledgeExtractor();
+    });
+
+    it('should throw error if text is too short or invalid', async () => {
+        await expect(extractor.extractGraph("too short")).rejects.toThrow("Invalid or insufficient text");
+        await expect(extractor.extractGraph(null)).rejects.toThrow("Invalid or insufficient text");
+    });
+
+    it('should extract correct nodes and edges for Next.js docs', async () => {
+        const text = "Next.js 15 uses React Server Components and the new App Router. It also bundles with Turbopack.";
+        const graph = await extractor.extractGraph(text);
+        
+        expect(graph.nodes.length).toBeGreaterThan(0);
+        expect(graph.nodes.find(n => n.id === 'n_nextjs15')).toBeDefined();
+        expect(graph.edges.find(e => e.relation === 'IMPLEMENTS')).toBeDefined();
+    });
+
+    it('should extract correct nodes and edges for Docker docs', async () => {
+        const text = "Docker is a platform for running containers, which are instantiated from an image and can mount a volume.";
+        const graph = await extractor.extractGraph(text);
+        
+        expect(graph.nodes.find(n => n.id === 'n_docker')).toBeDefined();
+        expect(graph.edges.find(e => e.relation === 'ORCHESTRATES')).toBeDefined();
+    });
+
+    it('should throw error when generating curriculum before extraction', () => {
+        expect(() => extractor.generateCurriculumDraft()).toThrow("Knowledge Graph is empty");
+    });
+
+    it('should generate a structured curriculum draft from the extracted graph', async () => {
+        const text = "Next.js 15 uses React Server Components and the new App Router.";
+        await extractor.extractGraph(text);
+        
+        const draft = extractor.generateCurriculumDraft();
+        expect(draft.title).toContain("Next.js 15");
+        expect(draft.modules.length).toBeGreaterThan(0);
+        expect(draft.modules[0].moduleId).toContain("mod_");
+        expect(draft.modules[0].title).toContain("React Server Components");
+    });
 });

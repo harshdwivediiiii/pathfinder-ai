@@ -21,7 +21,12 @@ export async function generateExecutivePresence(formData) {
 
     const limit = await checkRateLimit(userId, "executive_presence");
     if (!limit.allowed) {
-      throw new Error(`Executive presence generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Executive presence generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({
