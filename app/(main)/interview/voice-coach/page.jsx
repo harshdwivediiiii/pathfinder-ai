@@ -84,18 +84,24 @@ export default function VoiceCoachPage() {
         return;
       }
       setEvaluating(true);
-      const res = await evaluateVoiceAnswer(question, transcript);
-      if (res.success) {
-        setEvaluation(res.data);
-        
-        // Use Speech Synthesis to read the feedback
-        if (ttsSupported) {
-          speak(res.data.feedback);
+      try {
+        const res = await evaluateVoiceAnswer(question, transcript);
+        if (res.success) {
+          setEvaluation(res.data);
+
+          // Use Speech Synthesis to read the feedback
+          if (ttsSupported) {
+            speak(res.data.feedback);
+          }
+        } else {
+          toast.error(res.error);
         }
-      } else {
-        toast.error(res.error);
+      } catch (error) {
+        console.error("Voice evaluation failed:", error);
+        toast.error(error.message || "Failed to evaluate answer.");
+      } finally {
+        setEvaluating(false);
       }
-      setEvaluating(false);
     }, 500);
   };
 

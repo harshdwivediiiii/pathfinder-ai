@@ -6,6 +6,7 @@ import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { getAiResponseText } from "@/lib/ai/ai-response";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
@@ -46,7 +47,7 @@ export async function generateEmailReply(originalEmail, goal) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const replyContent = aiResult.response.text().trim();
+    const replyContent = getAiResponseText(aiResult).trim();
 
     const record = await db.recruiterEmail.create({
       data: {

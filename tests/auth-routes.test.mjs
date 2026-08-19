@@ -30,11 +30,14 @@ describe("Auth Route Matchers", () => {
       expect(isPublicRoute(createMockRequest("/api/dev/status"))).toBe(true);
       expect(isPublicRoute(createMockRequest("/api/inngest"))).toBe(true);
       expect(isPublicRoute(createMockRequest("/api/inngest/"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/health"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/health/ready"))).toBe(true);
     });
 
     it("does not match non-public routes", () => {
       expect(isPublicRoute(createMockRequest("/dashboard"))).toBe(false);
       expect(isPublicRoute(createMockRequest("/api/user"))).toBe(false);
+      expect(isPublicRoute(createMockRequest("/api/health/metrics"))).toBe(false);
     });
   });
 
@@ -78,6 +81,12 @@ describe("Auth Route Matchers", () => {
       expect(isProtectedApiRoute(createMockRequest("/api/dev/status"))).toBe(false);
       expect(isProtectedApiRoute(createMockRequest("/api/inngest"))).toBe(false);
       expect(isProtectedApiRoute(createMockRequest("/api/inngest/"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/health"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/health/ready"))).toBe(false);
+    });
+
+    it("matches protected health metrics route", () => {
+      expect(isProtectedApiRoute(createMockRequest("/api/health/metrics"))).toBe(true);
     });
 
     it("does not match non-api routes", () => {
@@ -103,6 +112,22 @@ describe("getAuthDecision", () => {
     const req2 = createMockRequest("/api/dev/status");
     const res2 = await getAuthDecision(req2, authed);
     expect(res2).toEqual({ action: "public" });
+  });
+
+  it("returns public action for health probe routes", async () => {
+    const req1 = createMockRequest("/api/health");
+    const res1 = await getAuthDecision(req1, unauthed);
+    expect(res1).toEqual({ action: "public" });
+
+    const req2 = createMockRequest("/api/health/ready");
+    const res2 = await getAuthDecision(req2, unauthed);
+    expect(res2).toEqual({ action: "public" });
+  });
+
+  it("returns deny action for unauthenticated users accessing the metrics route", async () => {
+    const req = createMockRequest("/api/health/metrics");
+    const res = await getAuthDecision(req, unauthed);
+    expect(res).toEqual({ action: "deny", status: 401 });
   });
 
   it("returns redirect action for unauthenticated users accessing app routes", async () => {
@@ -185,40 +210,48 @@ describe("getAuthDecision", () => {
       expect(res.action).toBe("next");
     });
 
-    it("throws error for video-coach route in production", async () => {
+    it("redirects unauthenticated video-coach request in production to sign-in", async () => {
       process.env.NODE_ENV = "production";
       const req = createMockRequest("/interview/video-coach", "localhost");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "NOT allowed in production"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
 
-    it("throws error for video-coach route in non-development mode", async () => {
+    it("allows authenticated video-coach request in production", async () => {
+      process.env.NODE_ENV = "production";
+      const req = createMockRequest("/interview/video-coach", "localhost");
+
+      const res = await getAuthDecision(req, authed);
+      expect(res).toEqual({ action: "next" });
+    });
+
+    it("redirects unauthenticated video-coach request in non-development mode to sign-in", async () => {
       process.env.NODE_ENV = "staging";
       const req = createMockRequest("/interview/video-coach", "localhost");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "only allowed in development mode"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
 
-    it("throws error for video-coach route on non-localhost in development", async () => {
+    it("redirects unauthenticated video-coach request on non-localhost in development to sign-in", async () => {
       process.env.NODE_ENV = "development";
       const req = createMockRequest("/interview/video-coach", "example.com");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "only allowed on localhost"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
 
-    it("throws error for video-coach route on deployed environment", async () => {
+    it("redirects unauthenticated video-coach request on deployed environment to sign-in", async () => {
       process.env.NODE_ENV = "development";
       const req = createMockRequest("/interview/video-coach", "myapp.vercel.app");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "only allowed on localhost"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
   });
 });
