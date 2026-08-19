@@ -72,6 +72,7 @@ Respond ONLY with a valid JSON object in this exact format:
     });
 
     const schemaDescription = SCHEMA_DESCRIPTIONS.founderReadiness;
+  
     console.info("Starting founder readiness generation...");
     const result = await generateWithStructuredOutput({
       prompt,
@@ -83,6 +84,7 @@ Respond ONLY with a valid JSON object in this exact format:
       },
       validateFn: validateOutput,
     });
+    
     console.info("AI Result:", result);
 
     if (!result.success) {
@@ -100,6 +102,7 @@ Respond ONLY with a valid JSON object in this exact format:
         readinessData: result.data,
       },
     });
+    
     console.info("Saved successfully.");
 
     return readiness;
