@@ -8,6 +8,10 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { z } from "zod";
+const UNAUTHORIZED_RESPONSE = {
+  success: false,
+  errors: { _form: ["Unauthorized"] },
+};
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 const evidenceSchema = z.object({
@@ -38,7 +42,7 @@ export async function getEvidenceItems() {
 
 export async function createEvidenceItem(data) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -64,7 +68,7 @@ export async function createEvidenceItem(data) {
 
 export async function updateEvidenceItem(id, data) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -89,7 +93,7 @@ export async function updateEvidenceItem(id, data) {
 
 export async function deleteEvidenceItem(id) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -107,7 +111,7 @@ export async function deleteEvidenceItem(id) {
 
 export async function suggestEvidenceForText(text, evidenceItems) {
   const { userId } = await auth();
-  if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+  if (!userId) return UNAUTHORIZED_RESPONSE;
 
   if (!evidenceItems || evidenceItems.length === 0) {
     return { success: true, data: [] };
