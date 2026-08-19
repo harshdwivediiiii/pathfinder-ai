@@ -69,7 +69,7 @@ export default function QuizResult({
               </div>
               <div className="text-sm text-muted-foreground">
                 <p>Your answer: {q.userAnswer}</p>
-                {!q.isCorrect && <p>Correct answer: {q.correctAnswer}</p>}
+                {q.isCorrect ? null : <p>Correct answer: {q.correctAnswer}</p>}
               </div>
               <div className="text-sm bg-muted p-2 rounded">
                 <p className="font-medium">Explanation:</p>
