@@ -20,7 +20,12 @@ export async function generateFounderReadiness(formData) {
 
     const limit = await checkRateLimit(userId, "founder_readiness");
     if (!limit.allowed) {
-      throw new Error(`Founder readiness generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Founder readiness generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({

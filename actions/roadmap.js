@@ -61,7 +61,12 @@ export async function generateCareerRoadmap() {
 
     const limit = await checkRateLimit(userId, "roadmap");
     if (!limit.allowed) {
-      throw new Error(`Roadmap generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Roadmap generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({

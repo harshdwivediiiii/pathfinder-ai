@@ -227,7 +227,12 @@ export async function generateQuiz(category = "Technical") {
 
     const quizLimit = await checkRateLimit(userId, "quiz");
     if (!quizLimit.allowed) {
-      throw new Error(`Quiz generation limit reached. Resets in ${formatResetTime(quizLimit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Quiz generation limit reached. Resets in ${formatResetTime(quizLimit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({
@@ -404,7 +409,12 @@ export async function saveQuizResult(sessionIdOrQuestions, answers, category = "
 
     const feedbackLimit = await checkRateLimit(userId, "quizFeedback");
     if (!feedbackLimit.allowed) {
-      throw new Error(`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Quiz feedback limit reached. Resets in ${formatResetTime(feedbackLimit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({
