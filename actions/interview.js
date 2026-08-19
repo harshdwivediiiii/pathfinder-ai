@@ -336,6 +336,8 @@ Return ONLY a valid JSON object matching this schema. Do not output any markdown
     console.error("Quiz generation top-level error:", error);
     // Return fallback questions instead of throwing or returning error object
     const sessionId = crypto.randomUUID();
+    const fallbackQuestions = getFallbackQuestionsForIndustry(null);
+    return { sessionId, questions: fallbackQuestions, isFallback: true };
     const defaultQuestions = [
       {
         question: "Tell me about yourself.",
