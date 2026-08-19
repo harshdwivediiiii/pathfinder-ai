@@ -22,14 +22,14 @@ export async function getDashboardStats() {
     include: {
       resume: true,
       coverLetter: true,
-      mockInterviewSessions: true,
+      assessments: true,
     },
   });
 
   return {
     totalResumes: user?.resume ? 1 : 0,
     totalCoverLetters: user?.coverLetter?.length || 0,
-    totalInterviews: user?.mockInterviewSessions?.length || 0,
+    totalInterviews: user?.assessments?.length || 0,
   };
 }
 

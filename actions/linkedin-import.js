@@ -29,6 +29,10 @@ export async function importLinkedInProfile(extractedText) {
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
+  if (!extractedText || extractedText.trim().length < 100) {
+    return { success: false, errors: { _form: ["Please provide valid extracted text from a LinkedIn PDF (at least 100 characters)."] } };
+  }
+
   const limit = await checkRateLimit(userId, "resumeBuilder");
   if (!limit.allowed) {
     return {
@@ -39,10 +43,6 @@ export async function importLinkedInProfile(extractedText) {
     };
   }
 
-  if (!extractedText || extractedText.trim().length < 100) {
-    return { success: false, errors: { _form: ["Please provide valid extracted text from a LinkedIn PDF (at least 100 characters)."] } };
-  }
-  
   const user = await getUserByClerkId(userId);
   if (!validateAuthenticatedUser(user)) {
     return createErrorResponse("User not found");

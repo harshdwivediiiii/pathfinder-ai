@@ -7,6 +7,7 @@ import { getAuthenticatedUser } from "@/lib/auth/auth-user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { getAiResponseText } from "@/lib/ai/ai-response";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 
 export async function generateMentorPlan(goals, targetIndustry) {
@@ -46,7 +47,7 @@ export async function generateMentorPlan(goals, targetIndustry) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.mentorOutreach.create({
       data: {
