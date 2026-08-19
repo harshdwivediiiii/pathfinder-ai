@@ -352,28 +352,36 @@ export async function syncJobApplicationsFromEmail() {
 
       const { companyName, jobTitle, status, interviewDate } = parsedData;
 
-      // Find existing by company (basic deduplication)
-      const existing = await db.jobApplication.findFirst({
-        where: {
-          userId: user.id,
-          companyName: { contains: companyName, mode: "insensitive" }
-        },
-        orderBy: { updatedAt: 'desc' }
-      });
+      // Normalize the extracted status to its canonical value before comparing/writing
+      const canonicalStatus = toCanonicalStatus(status || "Applied");
 
       const parsedDate = interviewDate ? new Date(interviewDate) : null;
       const validDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
 
+      // Deduplicate on company AND role so distinct roles at the same company stay separate
+      const existing = await db.jobApplication.findFirst({
+        where: {
+          userId: user.id,
+          companyName: { contains: companyName, mode: "insensitive" },
+          ...(jobTitle
+            ? { jobTitle: { equals: jobTitle, mode: "insensitive" } }
+            : {}),
+        },
+        orderBy: { updatedAt: 'desc' }
+      });
+
       if (existing) {
         // Update if status changed or new interview date
-        const isNewStatus = existing.status !== status && status !== "Applied"; // Don't downgrade
+        const isNewStatus = existing.status !== canonicalStatus && canonicalStatus !== "Applied"; // Don't downgrade
         const isNewDate = validDate && (!existing.interviewDate || existing.interviewDate.getTime() !== validDate.getTime());
-        
-        if (isNewStatus || isNewDate) {
+        const isNewTitle = jobTitle && existing.jobTitle !== jobTitle;
+
+        if (isNewStatus || isNewDate || isNewTitle) {
           await db.jobApplication.update({
             where: { id: existing.id },
             data: {
-              ...(isNewStatus ? { status } : {}),
+              ...(isNewStatus ? { status: canonicalStatus } : {}),
+              ...(isNewTitle ? { jobTitle } : {}),
               ...(isNewDate ? { interviewDate: validDate } : {})
             }
           });
@@ -385,7 +393,7 @@ export async function syncJobApplicationsFromEmail() {
             userId: user.id,
             companyName,
             jobTitle: jobTitle || "Unknown Role",
-            status: status || "Applied",
+            status: canonicalStatus,
             interviewDate: validDate,
             notes: `Auto-synced from email: ${email.subject}`
           }
