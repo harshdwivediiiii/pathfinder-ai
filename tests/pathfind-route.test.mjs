@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn(() => ({ userId: "test-user" })),
   auth: mocks.auth,
 }));
 

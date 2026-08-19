@@ -11,6 +11,18 @@ import { validateInput } from "@/lib/ai/validate";
 import { jobApplicationSchema, jobApplicationUpdateStatusSchema } from "@/lib/schemas/forms";
 import { toCanonicalStatus, toDisplayStatus } from "@/lib/constants/job-application-status";
 
+async function runSerializableJobApplicationSync(operation) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await db.$transaction(operation, { isolationLevel: "Serializable" });
+    } catch (error) {
+      if (error?.code !== "P2034" || attempt === 2) {
+        throw error;
+      }
+    }
+  }
+}
+
 export async function getJobApplications() {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };
@@ -369,6 +381,35 @@ export async function syncJobApplicationsFromEmail() {
       if (!parsedData || !parsedData.companyName) continue;
 
       const { companyName, jobTitle, status, interviewDate } = parsedData;
+      const normalizedJobTitle = jobTitle || "Unknown Role";
+      const hasKnownJobTitle = Boolean(jobTitle);
+      const canonicalStatus = toCanonicalStatus(status || "Applied");
+
+      const parsedDate = interviewDate ? new Date(interviewDate) : null;
+      const validDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
+
+      const syncResult = await runSerializableJobApplicationSync(async (tx) => {
+        const exactMatch = await tx.jobApplication.findFirst({
+          where: {
+            userId: user.id,
+            companyName: { equals: companyName, mode: "insensitive" },
+            jobTitle: { equals: normalizedJobTitle, mode: "insensitive" },
+          },
+          orderBy: { updatedAt: "desc" },
+        });
+
+        let existing = exactMatch;
+        let shouldRecoverTitle = false;
+
+        if (!existing && hasKnownJobTitle) {
+          const fallbackMatches = await tx.jobApplication.findMany({
+            where: {
+              userId: user.id,
+              companyName: { equals: companyName, mode: "insensitive" },
+              jobTitle: { equals: "Unknown Role", mode: "insensitive" },
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 2,
 
       // Normalize the extracted status to its canonical value before comparing/writing
       const canonicalStatus = toCanonicalStatus(status || "Applied");
@@ -403,20 +444,50 @@ export async function syncJobApplicationsFromEmail() {
               ...(isNewDate ? { interviewDate: validDate } : {})
             }
           });
-          updatedCount++;
+
+          if (fallbackMatches.length === 1) {
+            existing = fallbackMatches[0];
+            shouldRecoverTitle = true;
+          }
         }
-      } else {
-        await db.jobApplication.create({
+
+        if (existing) {
+          const isNewStatus = existing.status !== canonicalStatus && canonicalStatus !== "Applied"; // Don't downgrade
+          const isNewDate = validDate && (!existing.interviewDate || existing.interviewDate.getTime() !== validDate.getTime());
+
+          if (isNewStatus || isNewDate || shouldRecoverTitle) {
+            await tx.jobApplication.update({
+              where: { id: existing.id },
+              data: {
+                ...(shouldRecoverTitle ? { jobTitle: normalizedJobTitle } : {}),
+                ...(isNewStatus ? { status: canonicalStatus } : {}),
+                ...(isNewDate ? { interviewDate: validDate } : {}),
+              },
+            });
+            return "updated";
+          }
+
+          return "unchanged";
+        }
+
+        await tx.jobApplication.create({
           data: {
             userId: user.id,
             companyName,
+            jobTitle: normalizedJobTitle,
             jobTitle: jobTitle || "Unknown Role",
             status: canonicalStatus,
             interviewDate: validDate,
             notes: `Auto-synced from email: ${email.subject}`
           }
         });
+        return "added";
+      });
+
+      if (syncResult === "added") {
         addedCount++;
+      } else if (syncResult === "updated") {
+        updatedCount++;
       }
     }
 

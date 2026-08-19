@@ -1,7 +1,24 @@
+import { db } from "@/lib/db/prisma";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { db } from "@/lib/db/prisma";
 import { ERROR_CODES, respondError } from "@/lib/api/error-handler";
 
+function getWebhookSigningSecret() {
+  return process.env.CLERK_WEBHOOK_SECRET || process.env.CLERK_WEBHOOK_SIGNING_SECRET;
+}
+
+function jsonError(message, status) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function POST(request) {
+  const signingSecret = getWebhookSigningSecret();
+  if (!signingSecret) {
+    console.error("[clerk-webhook] No webhook signing secret configured");
+    return jsonError("Webhook signing secret is not configured", 500);
 /**
  * Clerk webhook endpoint.
  *
@@ -31,37 +48,42 @@ export async function POST(request) {
     );
   }
 
-  // 2. Verify the request signature BEFORE parsing/trusting the body.
-  //    `verifyWebhook` consumes the raw body and throws if the signature is
-  //    invalid, missing, or replayed.
   let event;
   try {
-    event = await verifyWebhook(request, {
-      signingSecret: WEBHOOK_SIGNING_SECRET,
-    });
-  } catch (err) {
+    event = await verifyWebhook(request, { signingSecret });
+  } catch (error) {
     console.error(
       "[clerk-webhook] Webhook signature verification failed:",
-      err?.message ?? err
+      error?.message ?? error
     );
+    return jsonError("Unauthorized", 401);
     return respondError(ERROR_CODES.UNAUTHORIZED);
   }
 
   const { type, data } = event;
-
   if (!type || !data) {
+    return jsonError("Invalid webhook payload", 400);
     return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid webhook payload");
   }
 
   if (type === "user.created" || type === "user.updated") {
     const { id, email_addresses, first_name, last_name, image_url } = data;
-
     if (!id) {
+      return jsonError("Missing user id", 400);
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Missing user id");
     }
 
     const email = email_addresses?.[0]?.email_address;
     if (!email) {
+      return jsonError("User has no email address", 400);
+    }
+
+    const name = `${first_name ?? ""} ${last_name ?? ""}`.trim() || "User";
+    try {
+      await db.user.upsert({
+        where: { clerkUserId: id },
+        create: { clerkUserId: id, email, name, imageUrl: image_url ?? "" },
+        update: { email, name, imageUrl: image_url ?? "" },
       return respondError(
         ERROR_CODES.VALIDATION_ERROR,
         "User has no email address"

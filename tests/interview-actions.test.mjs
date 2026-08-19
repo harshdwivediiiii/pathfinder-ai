@@ -1,4 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  generateQuiz,
+  getAssessment,
+  saveQuizResult,
+} from "../actions/interview.js";
 
 const mocks = vi.hoisted(() => {
   const findUniqueUserMock = vi.fn();
