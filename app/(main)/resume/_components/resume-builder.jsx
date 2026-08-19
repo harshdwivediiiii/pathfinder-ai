@@ -185,6 +185,13 @@ await saveResumeFn(formattedContent);
     }
   };
 
+  const handleSave = () => {
+    const formattedContent = (previewContent || "")
+      .replace(/\n\s*\n/g, "\n\n")
+      .trim();
+    saveResumeFn(formattedContent);
+  };
+
   return (
     <div data-color-mode="light" className="space-y-4">
       <div className="flex flex-col md:flex-row justify-between items-center gap-2">
@@ -194,7 +201,7 @@ await saveResumeFn(formattedContent);
         <div className="space-x-2">
           <Button
             variant="destructive"
-            onClick={handleSubmit(onSubmit)}
+            onClick={handleSave}
             disabled={isSaving}
           >
             {isSaving ? (

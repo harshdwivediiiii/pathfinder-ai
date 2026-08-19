@@ -4,9 +4,11 @@ export const onboardingSchema = z.object({
   industry: z.string({
     required_error: "Please select an industry",
   }),
-  subIndustry: z.string({
-    required_error: "Please select a specialization",
-  }),
+  subIndustry: z
+    .string({
+      required_error: "Please select a specialization",
+    })
+    .min(1, "Please select a specialization"),
   currentRole: z.string().optional(),
   targetRole: z.string({
     required_error: "Please share your target role",
@@ -15,6 +17,8 @@ export const onboardingSchema = z.object({
   bio: z.string().max(500).optional(),
   experience: z
     .string()
+    .min(1, "Experience is required")
+    .refine((val) => !Number.isNaN(parseInt(val, 10)), "Experience must be a valid number")
     .transform((val) => parseInt(val, 10))
     .pipe(
       z
@@ -22,18 +26,20 @@ export const onboardingSchema = z.object({
         .min(0, "Experience must be at least 0 years")
         .max(50, "Experience cannot exceed 50 years")
     ),
-  skills: z.string().transform((val) =>
-    val
-      ? Array.from(
-          new Set(
-            val
-              .split(",")
-              .map((skill) => skill.trim())
-              .filter(Boolean)
-          )
+  skills: z
+    .string()
+    .min(1, "Skills are required")
+    .transform((val) =>
+      Array.from(
+        new Set(
+          val
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean)
         )
-      : undefined
-  ),
+      )
+    )
+    .refine((skills) => skills.length > 0, "Skills are required"),
 });
 
 export const contactSchema = z.object({

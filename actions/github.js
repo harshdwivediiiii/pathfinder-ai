@@ -21,11 +21,10 @@ export async function searchOpenSourceIssues({ languages = [], labels = ["good f
     }
 
     if (searchLabels.length > 0) {
-      // GitHub Search API only supports searching by one label properly when combined with OR,
-      // so we just pick the primary one or search them as text if needed.
-      // But we can do: label:"good first issue"
-      const labelQuery = searchLabels.map(l => `label:"${l}"`).join(" ");
-      query += ` ${labelQuery}`;
+      // GitHub Search treats space-separated label: terms as AND, returning near-zero results.
+      // Use the first (most specific) label only to return relevant results.
+      const primaryLabel = searchLabels[0];
+      query += ` label:"${primaryLabel}"`;
     }
 
     // Sort by recently updated
