@@ -68,6 +68,9 @@ export async function improveWithAI(rawParams) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Sign-in expired. Please authenticate again."] } };
 
+  const validation = validateInput(resumeImprovementSchema, rawParams);
+  if (!validation.success) return { success: false, errors: validation.errors };
+
   const limit = await checkRateLimit(userId, "resume");
   if (!limit.allowed) {
     return {
@@ -77,9 +80,6 @@ export async function improveWithAI(rawParams) {
       },
     };
   }
-
-  const validation = validateInput(resumeImprovementSchema, rawParams);
-  if (!validation.success) return { success: false, errors: validation.errors };
 
   const { current, type } = validation.data;
 

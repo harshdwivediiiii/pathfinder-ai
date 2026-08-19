@@ -32,6 +32,11 @@ export async function analyzeATS(rawParams) {
       return { success: false, errors: { _form: ["Sign-in required to scan applications."] } };
     }
 
+    const validation = validateInput(atsAnalysisSchema, rawParams);
+    if (!validation.success) {
+      return { success: false, errors: validation.errors };
+    }
+
     const limit = await checkRateLimit(userId, "ats");
     if (!limit.allowed) {
       return {
@@ -40,11 +45,6 @@ export async function analyzeATS(rawParams) {
           _form: [`ATS analysis limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
         },
       };
-    }
-
-    const validation = validateInput(atsAnalysisSchema, rawParams);
-    if (!validation.success) {
-      return { success: false, errors: validation.errors };
     }
 
     const { resumeContent, jobDescription, jobTitle, companyName } = validation.data;

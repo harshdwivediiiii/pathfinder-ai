@@ -25,11 +25,11 @@ export function useCareerShortlist() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       const items = readShortlistForOwner(stored, ownerId);
-      setShortlist(items);
+      setShortlist(items ?? []);
 
-      if (stored && items.length === 0) {
+      if (stored && items === null) {
         localStorage.removeItem(STORAGE_KEY);
-      } else if (items.length > 0) {
+      } else if (items && items.length > 0) {
         localStorage.setItem(STORAGE_KEY, writeShortlistPayload(ownerId, items));
       }
     } catch (e) {
@@ -48,7 +48,7 @@ export function useCareerShortlist() {
 
       try {
         if (e.newValue) {
-          setShortlist(readShortlistForOwner(e.newValue, ownerId));
+          setShortlist(readShortlistForOwner(e.newValue, ownerId) ?? []);
         } else {
           setShortlist([]);
         }
