@@ -17,6 +17,23 @@ export async function POST(request) {
   if (!signingSecret) {
     console.error("[clerk-webhook] No webhook signing secret configured");
     return jsonError("Webhook signing secret is not configured", 500);
+
+function getWebhookSigningSecret() {
+  return process.env.CLERK_WEBHOOK_SECRET || process.env.CLERK_WEBHOOK_SIGNING_SECRET;
+}
+
+function jsonError(message, status) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function POST(request) {
+  const signingSecret = getWebhookSigningSecret();
+  if (!signingSecret) {
+    console.error("[clerk-webhook] No webhook signing secret configured");
+    return jsonError("Webhook signing secret is not configured", 500);
 import { db } from "@/lib/db/prisma";
 import { ERROR_CODES, respondError } from "@/lib/api/error-handler";
 
@@ -96,6 +113,11 @@ export async function POST(request) {
     }
 
     const name = `${first_name ?? ""} ${last_name ?? ""}`.trim() || "User";
+    try {
+      await db.user.upsert({
+        where: { clerkUserId: id },
+        create: { clerkUserId: id, email, name, imageUrl: image_url ?? "" },
+        update: { email, name, imageUrl: image_url ?? "" },
     try {
       await db.user.upsert({
         where: { clerkUserId: id },
