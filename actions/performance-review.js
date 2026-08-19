@@ -7,6 +7,7 @@ import { getUserByClerkId } from "@/lib/auth/user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { getAiResponseText } from "@/lib/ai/ai-response";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { getHistoryUserContext } from "@/lib/history/history-auth";
 async function getPerformanceReviewUser(userId) {
@@ -50,7 +51,7 @@ export async function generateSelfAssessment(achievements, challenges, goals) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.performanceReview.create({
       data: {

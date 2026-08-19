@@ -67,6 +67,24 @@ export async function createJobApplication(data) {
   if (!user) return createErrorResponse("User not found");
 
   try {
+    const { atsAnalysisId, coverLetterId } = validation.data;
+
+    if (atsAnalysisId) {
+      const atsAnalysis = await db.atsAnalysis.findFirst({
+        where: { id: atsAnalysisId, userId: user.id },
+        select: { id: true },
+      });
+      if (!atsAnalysis) return createErrorResponse("ATS analysis not found or does not belong to you");
+    }
+
+    if (coverLetterId) {
+      const coverLetter = await db.coverLetter.findFirst({
+        where: { id: coverLetterId, userId: user.id },
+        select: { id: true },
+      });
+      if (!coverLetter) return createErrorResponse("Cover letter not found or does not belong to you");
+    }
+
     const job = await db.jobApplication.create({
       data: {
         userId: user.id,
@@ -392,6 +410,39 @@ export async function syncJobApplicationsFromEmail() {
             },
             orderBy: { updatedAt: "desc" },
             take: 2,
+
+      // Normalize the extracted status to its canonical value before comparing/writing
+      const canonicalStatus = toCanonicalStatus(status || "Applied");
+
+      const parsedDate = interviewDate ? new Date(interviewDate) : null;
+      const validDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
+
+      // Deduplicate on company AND role so distinct roles at the same company stay separate
+      const existing = await db.jobApplication.findFirst({
+        where: {
+          userId: user.id,
+          companyName: { contains: companyName, mode: "insensitive" },
+          ...(jobTitle
+            ? { jobTitle: { equals: jobTitle, mode: "insensitive" } }
+            : {}),
+        },
+        orderBy: { updatedAt: 'desc' }
+      });
+
+      if (existing) {
+        // Update if status changed or new interview date
+        const isNewStatus = existing.status !== canonicalStatus && canonicalStatus !== "Applied"; // Don't downgrade
+        const isNewDate = validDate && (!existing.interviewDate || existing.interviewDate.getTime() !== validDate.getTime());
+        const isNewTitle = jobTitle && existing.jobTitle !== jobTitle;
+
+        if (isNewStatus || isNewDate || isNewTitle) {
+          await db.jobApplication.update({
+            where: { id: existing.id },
+            data: {
+              ...(isNewStatus ? { status: canonicalStatus } : {}),
+              ...(isNewTitle ? { jobTitle } : {}),
+              ...(isNewDate ? { interviewDate: validDate } : {})
+            }
           });
 
           if (fallbackMatches.length === 1) {
@@ -424,6 +475,7 @@ export async function syncJobApplicationsFromEmail() {
             userId: user.id,
             companyName,
             jobTitle: normalizedJobTitle,
+            jobTitle: jobTitle || "Unknown Role",
             status: canonicalStatus,
             interviewDate: validDate,
             notes: `Auto-synced from email: ${email.subject}`

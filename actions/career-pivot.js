@@ -70,7 +70,8 @@ export async function generatePivotStrategy(currentRole, targetRole) {
     { "step": "Phase 3: Networking & Application", "action": "How to position yourself" }
   ]
 }`),
-    })
+    }),
+    { userId }
   );
   const parsedData = parseAiResponse(aiResult);
 
