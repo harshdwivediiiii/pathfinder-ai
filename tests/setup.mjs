@@ -19,9 +19,14 @@ if (!process.env.GEMINI_API_KEY) {
   process.env.GEMINI_API_KEY = "test-api-key";
 }
 
-// Mock build-time boundary guards in test environment
+// Mock build-time boundary guards and optional modules in test environment
 vi.mock("server-only", () => ({}));
 vi.mock("client-only", () => ({}));
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+  init: vi.fn(),
+}));
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),

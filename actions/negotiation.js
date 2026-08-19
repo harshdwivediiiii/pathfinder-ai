@@ -3,6 +3,7 @@ import { handleServerError } from "@/lib/errors/error-handler";
 
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { getAiResponseText } from "@/lib/ai-response";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
@@ -35,7 +36,7 @@ export async function chatSalaryNegotiation(history, userMessage) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    return { success: true, response: aiResult.response.text() };
+    return { success: true, response: getAiResponseText(aiResult) };
   } catch (error) {
     await decrementRateLimit(userId, "negotiation");
     return handleServerError(error, "negotiation");
@@ -73,7 +74,7 @@ export async function evaluateNegotiation(history) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
     return { success: true, data: parsedData };
   } catch (error) {
     await decrementRateLimit(userId, "negotiation");

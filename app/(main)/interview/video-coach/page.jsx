@@ -115,7 +115,7 @@ export default function VideoCoachPage() {
     return () => {
       // Stop speech recognition to release its WebSocket connection
       if (recognitionRef.current) {
-        try { recognitionRef.current.abort(); } catch {}
+        try { recognitionRef.current.abort(); } catch (e) { console.warn('Failed to stop speech recognition:', e); }
         recognitionRef.current.onresult = null;
         recognitionRef.current.onerror = null;
         recognitionRef.current = null;
@@ -197,7 +197,7 @@ export default function VideoCoachPage() {
         return;
       }
       setEvaluating(true);
-      
+
       // Calculate actual metrics from the recording interval
       const metrics = faceMetricsRef.current;
       const faceDetectedPercentage = metrics.totalFrames > 0 ? Math.round((metrics.faceDetectedFrames / metrics.totalFrames) * 100) : 0;
@@ -210,13 +210,19 @@ export default function VideoCoachPage() {
         eyeContactConsistency: eyeContactRatio > 0.8 ? "Good" : eyeContactRatio > 0.5 ? "Fair" : "Poor",
       };
 
-      const res = await evaluateVideoAnswer(question, transcript, actualMetrics);
-      if (res.success) {
-        setEvaluation(res.data);
-      } else {
-        toast.error(res.error);
+      try {
+        const res = await evaluateVideoAnswer(question, transcript, actualMetrics);
+        if (res.success) {
+          setEvaluation(res.data);
+        } else {
+          toast.error(res.error);
+        }
+      } catch (error) {
+        console.error("Video evaluation failed:", error);
+        toast.error(error.message || "Failed to evaluate answer.");
+      } finally {
+        setEvaluating(false);
       }
-      setEvaluating(false);
     }, 1000); // Give transcript time to finalize
   };
 

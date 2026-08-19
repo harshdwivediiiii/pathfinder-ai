@@ -12,7 +12,9 @@ import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
 import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
-
+function revalidateResumeRoute() {
+  revalidatePath("/resume");
+}
 export async function saveResume(rawContent) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Sign-in required to update resume files."] } };
@@ -37,7 +39,7 @@ export async function saveResume(rawContent) {
       },
     });
 
-    revalidatePath("/resume");
+    revalidateResumeRoute();
     return { success: true, data: resume };
   } catch (error) {
     return handleServerError(error, "resume");
@@ -68,6 +70,9 @@ export async function improveWithAI(rawParams) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Sign-in expired. Please authenticate again."] } };
 
+  const validation = validateInput(resumeImprovementSchema, rawParams);
+  if (!validation.success) return { success: false, errors: validation.errors };
+
   const limit = await checkRateLimit(userId, "resume");
   if (!limit.allowed) {
     return {
@@ -77,9 +82,6 @@ export async function improveWithAI(rawParams) {
       },
     };
   }
-
-  const validation = validateInput(resumeImprovementSchema, rawParams);
-  if (!validation.success) return { success: false, errors: validation.errors };
 
   const { current, type } = validation.data;
 

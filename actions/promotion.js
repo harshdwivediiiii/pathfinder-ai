@@ -10,6 +10,10 @@ import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
+
+function revalidatePromotionRoute() {
+  revalidatePath("/promotion-negotiator");
+}
 export async function generatePromotionStrategy(achievements, targetRole) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -68,7 +72,7 @@ export async function generatePromotionStrategy(achievements, targetRole) {
       },
     });
 
-    revalidatePath("/promotion-negotiator");
+    revalidatePromotionRoute();
     return { success: true, data: record };
   } catch (error) {
     await decrementRateLimit(userId, "promotion");
