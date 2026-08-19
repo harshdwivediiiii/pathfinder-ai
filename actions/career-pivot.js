@@ -33,6 +33,18 @@ import { getAuthenticatedUser } from "@/lib/auth/authenticated-history";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 /** Generate a career pivot strategy based on user goals. */
+
+
+function createCareerPivotValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
+
+
 export async function generatePivotStrategy(currentRole, targetRole) {
   const userId = await getAuthenticatedUserId(auth);
   if (!userId) return UNAUTHORIZED_RESPONSE;
@@ -51,9 +63,9 @@ export async function generatePivotStrategy(currentRole, targetRole) {
   if (!user) return createErrorResponse("User not found");
 
   if (!currentRole || !targetRole) {
-    return createValidationResponse(
-    "Both current and target roles are required."
-  );
+    return createCareerPivotValidationResponse(
+  "Both current and target roles are required."
+);
   }
 
   try {
