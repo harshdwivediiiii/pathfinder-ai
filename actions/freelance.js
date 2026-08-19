@@ -8,6 +8,9 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
+function revalidateFreelanceProposal() {
+  revalidatePath("/freelance-proposal");
+}
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateProposal(projectDetails, rate) {
@@ -57,7 +60,7 @@ export async function generateProposal(projectDetails, rate) {
       },
     });
 
-    revalidatePath("/freelance-proposal");
+    revalidateFreelanceProposal();
     return { success: true, data: record };
   } catch (error) {
     await decrementRateLimit(userId, "freelance");
