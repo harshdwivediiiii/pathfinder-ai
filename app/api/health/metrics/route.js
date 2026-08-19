@@ -7,6 +7,16 @@ export async function GET() {
 
   if (!userId) {
     return respondError(ERROR_CODES.UNAUTHORIZED);
+export async function GET(request) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const host = forwarded?.split(",")[0]?.trim() || request.headers.get("host") || "";
+  const isLocalhost =
+    host.includes("localhost") ||
+    host.includes("127.0.0.1") ||
+    host.includes("::1");
+
+  if (!isLocalhost) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   const metrics = getPrometheusMetrics();

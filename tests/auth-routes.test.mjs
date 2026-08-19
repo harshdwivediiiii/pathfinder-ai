@@ -210,40 +210,48 @@ describe("getAuthDecision", () => {
       expect(res.action).toBe("next");
     });
 
-    it("throws error for video-coach route in production", async () => {
+    it("redirects unauthenticated video-coach request in production to sign-in", async () => {
       process.env.NODE_ENV = "production";
       const req = createMockRequest("/interview/video-coach", "localhost");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "NOT allowed in production"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
 
-    it("throws error for video-coach route in non-development mode", async () => {
+    it("allows authenticated video-coach request in production", async () => {
+      process.env.NODE_ENV = "production";
+      const req = createMockRequest("/interview/video-coach", "localhost");
+
+      const res = await getAuthDecision(req, authed);
+      expect(res).toEqual({ action: "next" });
+    });
+
+    it("redirects unauthenticated video-coach request in non-development mode to sign-in", async () => {
       process.env.NODE_ENV = "staging";
       const req = createMockRequest("/interview/video-coach", "localhost");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "only allowed in development mode"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
 
-    it("throws error for video-coach route on non-localhost in development", async () => {
+    it("redirects unauthenticated video-coach request on non-localhost in development to sign-in", async () => {
       process.env.NODE_ENV = "development";
       const req = createMockRequest("/interview/video-coach", "example.com");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "only allowed on localhost"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
 
-    it("throws error for video-coach route on deployed environment", async () => {
+    it("redirects unauthenticated video-coach request on deployed environment to sign-in", async () => {
       process.env.NODE_ENV = "development";
       const req = createMockRequest("/interview/video-coach", "myapp.vercel.app");
-      
-      await expect(getAuthDecision(req, unauthed)).rejects.toThrow(
-        "only allowed on localhost"
-      );
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
     });
   });
 });
