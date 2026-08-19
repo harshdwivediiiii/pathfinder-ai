@@ -1,40 +1,5 @@
 import { db } from "@/lib/db/prisma";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
-
-function getWebhookSigningSecret() {
-  return process.env.CLERK_WEBHOOK_SECRET || process.env.CLERK_WEBHOOK_SIGNING_SECRET;
-}
-
-function jsonError(message, status) {
-  return new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-export async function POST(request) {
-  const signingSecret = getWebhookSigningSecret();
-  if (!signingSecret) {
-    console.error("[clerk-webhook] No webhook signing secret configured");
-    return jsonError("Webhook signing secret is not configured", 500);
-
-function getWebhookSigningSecret() {
-  return process.env.CLERK_WEBHOOK_SECRET || process.env.CLERK_WEBHOOK_SIGNING_SECRET;
-}
-
-function jsonError(message, status) {
-  return new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-export async function POST(request) {
-  const signingSecret = getWebhookSigningSecret();
-  if (!signingSecret) {
-    console.error("[clerk-webhook] No webhook signing secret configured");
-    return jsonError("Webhook signing secret is not configured", 500);
-import { db } from "@/lib/db/prisma";
 import { ERROR_CODES, respondError } from "@/lib/api/error-handler";
 
 function getWebhookSigningSecret() {
@@ -48,11 +13,6 @@ function jsonError(message, status) {
   });
 }
 
-export async function POST(request) {
-  const signingSecret = getWebhookSigningSecret();
-  if (!signingSecret) {
-    console.error("[clerk-webhook] No webhook signing secret configured");
-    return jsonError("Webhook signing secret is not configured", 500);
 /**
  * Clerk webhook endpoint.
  *
@@ -68,48 +28,35 @@ export async function POST(request) {
  * protection via timestamp validation.
  */
 export async function POST(request) {
-  const WEBHOOK_SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET;
+  const signingSecret = getWebhookSigningSecret();
 
-  // 1. Reject early if no signing secret is configured. The endpoint cannot
-  //    prove authenticity without it, so it must never process payloads.
-  if (!WEBHOOK_SIGNING_SECRET) {
-    console.error(
-      "[clerk-webhook] No signing secret configured (CLERK_WEBHOOK_SECRET). Rejecting request."
-    );
-    return respondError(
-      ERROR_CODES.INTERNAL_SERVER_ERROR,
-      "Webhook signing secret is not configured"
-    );
+  if (!signingSecret) {
+    console.error("[clerk-webhook] No signing secret configured (CLERK_WEBHOOK_SECRET). Rejecting request.");
+    return respondError(ERROR_CODES.INTERNAL_SERVER_ERROR, "Webhook signing secret is not configured");
   }
 
   let event;
   try {
     event = await verifyWebhook(request, { signingSecret });
   } catch (error) {
-    console.error(
-      "[clerk-webhook] Webhook signature verification failed:",
-      error?.message ?? error
-    );
-    return jsonError("Unauthorized", 401);
+    console.error("[clerk-webhook] Webhook signature verification failed:", error?.message ?? error);
     return respondError(ERROR_CODES.UNAUTHORIZED);
   }
 
   const { type, data } = event;
   if (!type || !data) {
-    return jsonError("Invalid webhook payload", 400);
     return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid webhook payload");
   }
 
   if (type === "user.created" || type === "user.updated") {
     const { id, email_addresses, first_name, last_name, image_url } = data;
     if (!id) {
-      return jsonError("Missing user id", 400);
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Missing user id");
     }
 
     const email = email_addresses?.[0]?.email_address;
     if (!email) {
-      return jsonError("User has no email address", 400);
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "User has no email address");
     }
 
     const name = `${first_name ?? ""} ${last_name ?? ""}`.trim() || "User";
@@ -118,44 +65,9 @@ export async function POST(request) {
         where: { clerkUserId: id },
         create: { clerkUserId: id, email, name, imageUrl: image_url ?? "" },
         update: { email, name, imageUrl: image_url ?? "" },
-    try {
-      await db.user.upsert({
-        where: { clerkUserId: id },
-        create: { clerkUserId: id, email, name, imageUrl: image_url ?? "" },
-        update: { email, name, imageUrl: image_url ?? "" },
-    try {
-      await db.user.upsert({
-        where: { clerkUserId: id },
-        create: { clerkUserId: id, email, name, imageUrl: image_url ?? "" },
-        update: { email, name, imageUrl: image_url ?? "" },
-      return respondError(
-        ERROR_CODES.VALIDATION_ERROR,
-        "User has no email address"
-      );
-    }
-
-    const name = `${first_name ?? ""} ${last_name ?? ""}`.trim();
-
-    try {
-      await db.user.upsert({
-        where: { clerkUserId: id },
-        create: {
-          clerkUserId: id,
-          email,
-          name: name || "User",
-          imageUrl: image_url ?? "",
-        },
-        update: {
-          email,
-          name: name || "User",
-          imageUrl: image_url ?? "",
-        },
       });
     } catch (error) {
-      console.error(
-        "[clerk-webhook] Failed to upsert user:",
-        error?.message ?? error
-      );
+      console.error("[clerk-webhook] Failed to upsert user:", error?.message ?? error);
       return respondError(ERROR_CODES.DATABASE_ERROR, "Failed to sync user");
     }
   }

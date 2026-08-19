@@ -2,12 +2,13 @@ import { auth } from "@clerk/nextjs/server";
 import { getPrometheusMetrics } from "@/lib/observability/metrics";
 import { ERROR_CODES, respondError } from "@/lib/api/error-handler";
 
-export async function GET() {
+export async function GET(request) {
   const { userId } = await auth();
 
   if (!userId) {
     return respondError(ERROR_CODES.UNAUTHORIZED);
-export async function GET(request) {
+  }
+
   const forwarded = request.headers.get("x-forwarded-for");
   const host = forwarded?.split(",")[0]?.trim() || request.headers.get("host") || "";
   const isLocalhost =

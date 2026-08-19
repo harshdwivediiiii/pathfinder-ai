@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 export default function BiasDetectionPage() {
   const [linter] = useState(new EthicalAILinter());
   
-  const initialCode = \`function filterApplicants(applicants) {
+  const initialCode = `function filterApplicants(applicants) {
     return applicants.filter(candidate => {
         // Must have good credit
         if (candidate.credit_score < 650) return false;
@@ -22,7 +22,7 @@ export default function BiasDetectionPage() {
         
         return true;
     });
-}\`;
+}`;
 
   const [code, setCode] = useState(initialCode);
   const [isScanning, setIsScanning] = useState(false);

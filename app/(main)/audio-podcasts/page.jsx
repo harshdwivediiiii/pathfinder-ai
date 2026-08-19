@@ -125,7 +125,7 @@ export default function AudioPodcastsPage() {
                         <div className="flex flex-col items-center gap-4 text-pink-500">
                             <div className="flex items-center gap-1">
                                 {[1,2,3,4,5].map(i => (
-                                    <div key={i} className="w-2 bg-pink-500 rounded-full animate-pulse" style={{ height: \`\${Math.random() * 40 + 10}px\`, animationDelay: \`\${i * 0.1}s\` }}></div>
+                                    <div key={i} className="w-2 bg-pink-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 40 + 10}px`, animationDelay: `${i * 0.1}s` }}></div>
                                 ))}
                             </div>
                             <p className="font-mono text-sm animate-pulse">Running TTS Inference...</p>
