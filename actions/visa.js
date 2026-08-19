@@ -8,7 +8,14 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
-
+function createVisaValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
 export async function generateVisaStrategy(visaType, targetRole, concerns) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -27,7 +34,9 @@ export async function generateVisaStrategy(visaType, targetRole, concerns) {
   }
 
   if (!visaType || !targetRole) {
-    return { success: false, errors: { _form: ["Visa type and target role are required."] } };
+    return createVisaValidationResponse(
+  "Visa type and target role are required."
+);
   }
 
   const prompt = buildSecurePrompt({
