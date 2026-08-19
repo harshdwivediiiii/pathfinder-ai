@@ -44,11 +44,14 @@ function CountUp({ target, suffix = "" }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
   const [val, setVal] = useState(0);
-  const numericTarget = parseInt(target.replace(/[^0-9]/g, ""), 10) || 0;
+
+  const numericMatch = target.match(/^[0-9][0-9,]*(?:\.[0-9]+)?/);
+  const numericTarget = numericMatch ? parseFloat(numericMatch[0].replace(/,/g, "")) || 0 : 0;
+  const decimals = numericMatch ? (numericMatch[0].split(".")[1] || "").length : 0;
+  const displaySuffix = suffix || target.slice(numericMatch ? numericMatch[0].length : 0);
 
   useEffect(() => {
     if (!inView) return;
-    let start = 0;
     const duration = 1200;
     const startTime = performance.now();
 
@@ -56,16 +59,21 @@ function CountUp({ target, suffix = "" }) {
       const elapsed = now - startTime;
       const p = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - p, 3);
-      setVal(Math.round(eased * numericTarget));
+      setVal(eased * numericTarget);
       if (p < 1) requestAnimationFrame(tick);
     };
 
     requestAnimationFrame(tick);
   }, [inView, numericTarget]);
 
+  const formatted = val.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+
   return (
     <span ref={ref} className="text-3xl md:text-4xl font-black text-foreground">
-      {val.toLocaleString()}{suffix || target.replace(/[0-9]/g, "")}
+      {formatted}{displaySuffix}
     </span>
   );
 }
