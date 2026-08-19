@@ -8,10 +8,21 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateProposal(projectDetails, rate) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "freelance");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Proposal generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!projectDetails || !rate) {
     return { success: false, errors: { _form: ["Project Details and Rate are required."] } };
@@ -49,6 +60,7 @@ export async function generateProposal(projectDetails, rate) {
     revalidatePath("/freelance-proposal");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "freelance");
     return handleServerError(error, "freelance");
   }
 }

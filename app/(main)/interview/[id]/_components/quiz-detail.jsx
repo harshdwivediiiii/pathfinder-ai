@@ -117,7 +117,7 @@ export default function QuizDetail({ assessment }) {
                 {!q.isCorrect && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">Correct answer: </span>
-                    <span className="text-green-600 font-medium">{q.answer}</span>
+                    <span className="text-green-600 font-medium">{q.correctAnswer}</span>
                   </div>
                 )}
                 <div className="bg-muted p-3 rounded-lg mt-2">

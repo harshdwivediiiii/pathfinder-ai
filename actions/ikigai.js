@@ -7,10 +7,21 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function discoverIkigai(passions, skills, marketNeeds) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "ikigai");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Ikigai discovery limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -68,6 +79,7 @@ export async function discoverIkigai(passions, skills, marketNeeds) {
     revalidatePath("/ikigai");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "ikigai");
     return handleServerError(error, "ikigai");
   }
 }
