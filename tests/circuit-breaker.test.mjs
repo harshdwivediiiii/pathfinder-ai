@@ -9,6 +9,7 @@ describe("CircuitBreaker", () => {
       failureThreshold: 2,
       resetTimeoutMs: 100,
       rollingWindowMs: 1000,
+      successThreshold: 3,
     });
   });
 
@@ -31,7 +32,7 @@ describe("CircuitBreaker", () => {
     expect(breaker.getState()).toBe("half-open");
   });
 
-  it("closes after a successful call in half-open state", async () => {
+  it("does not close until N consecutive successes in half-open state", async () => {
     breaker.onFailure();
     breaker.onFailure();
     expect(breaker.getState()).toBe("open");
@@ -40,7 +41,61 @@ describe("CircuitBreaker", () => {
     expect(breaker.getState()).toBe("half-open");
 
     breaker.onSuccess();
+    breaker.onSuccess();
+    expect(breaker.getState()).toBe("half-open");
+
+    breaker.onSuccess();
     expect(breaker.getState()).toBe("closed");
+  });
+
+  it("closes after a single success when successThreshold is 1", async () => {
+    const lowThresholdBreaker = new CircuitBreaker("test-service", {
+      failureThreshold: 2,
+      resetTimeoutMs: 100,
+      rollingWindowMs: 1000,
+      successThreshold: 1,
+    });
+
+    lowThresholdBreaker.onFailure();
+    lowThresholdBreaker.onFailure();
+    expect(lowThresholdBreaker.getState()).toBe("open");
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(lowThresholdBreaker.getState()).toBe("half-open");
+
+    lowThresholdBreaker.onSuccess();
+    expect(lowThresholdBreaker.getState()).toBe("closed");
+  });
+
+  it("resets successCount when transitioning to open from half-open", async () => {
+    breaker.onFailure();
+    breaker.onFailure();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(breaker.getState()).toBe("half-open");
+
+    breaker.onSuccess();
+    expect(breaker.successCount).toBe(1);
+
+    breaker.onFailure();
+    expect(breaker.getState()).toBe("open");
+    expect(breaker.successCount).toBe(0);
+  });
+
+  it("resets successCount when transitioning to open from closed", async () => {
+    breaker.onFailure();
+    breaker.onFailure();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(breaker.getState()).toBe("half-open");
+    breaker.onSuccess();
+    breaker.onSuccess();
+    breaker.onSuccess();
+    expect(breaker.getState()).toBe("closed");
+    expect(breaker.successCount).toBe(3);
+
+    breaker.onFailure();
+    breaker.onFailure();
+    expect(breaker.getState()).toBe("open");
+    expect(breaker.successCount).toBe(0);
   });
 
   it("throws CircuitBreakerOpenError when open", async () => {
@@ -68,6 +123,7 @@ describe("CircuitBreaker", () => {
     expect(status.state).toBe("open");
     expect(status.failureCount).toBe(2);
     expect(status.failureThreshold).toBe(2);
+    expect(status.successThreshold).toBe(3);
   });
 
   it("executes operation successfully in closed state", async () => {
