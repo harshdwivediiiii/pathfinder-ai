@@ -11,15 +11,52 @@ vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: vi.fn(),
 }));
 
+vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: vi.fn(),
+  formatResetTime: vi.fn(),
+}));
+
+import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+
 describe("analyzeSystemDesign", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    checkRateLimit.mockResolvedValue({ allowed: true });
+    formatResetTime.mockReturnValue("12:00:00");
   });
 
   it("returns unauthorized if no user", async () => {
     auth.mockResolvedValue({ userId: null });
     const result = await analyzeSystemDesign("base64data");
     expect(result).toEqual({ success: false, error: "Unauthorized" });
+  });
+
+  it("returns error when rate limit exceeded", async () => {
+    auth.mockResolvedValue({ userId: "user-1" });
+    checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date() });
+
+    const result = await analyzeSystemDesign("data:image/png;base64,bW9jaw==");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("limit reached");
+  });
+
+  it("rejects input without a data URL prefix", async () => {
+    auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await analyzeSystemDesign("mockbase64");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Invalid image format");
+  });
+
+  it("rejects unsupported image types", async () => {
+    auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await analyzeSystemDesign("data:image/svg+xml;base64,bW9jaw==");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Unsupported image type");
   });
 
   it("analyzes valid system design successfully", async () => {
@@ -38,7 +75,7 @@ describe("analyzeSystemDesign", () => {
       }
     });
 
-    const result = await analyzeSystemDesign("data:image/png;base64,mockbase64");
+    const result = await analyzeSystemDesign("data:image/png;base64,bW9jaw==");
     
     expect(result.success).toBe(true);
     expect(result.analysis).toEqual(mockJson);
@@ -50,7 +87,7 @@ describe("analyzeSystemDesign", () => {
     
     generateGeminiContent.mockRejectedValue(new Error("AI service unavailable"));
 
-    const result = await analyzeSystemDesign("mockbase64");
+    const result = await analyzeSystemDesign("data:image/png;base64,bW9jaw==");
     
     expect(result.success).toBe(false);
     expect(result.error).toBe("AI service unavailable");

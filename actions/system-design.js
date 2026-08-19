@@ -3,6 +3,14 @@
 import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { parseAIJson } from "@/lib/ai/validate";
+import { checkRateLimit, formatResetTime } from "@/lib/security/rate-limit-actions";
+import { VLM_IMAGE_MAX_LENGTH } from "@/lib/security/input-limits";
+
+const SUPPORTED_IMAGE_TYPES = {
+  "image/png": "image/png",
+  "image/jpeg": "image/jpeg",
+  "image/jpg": "image/jpeg",
+};
 import { getAiResponseText } from "@/lib/ai/ai-response";
 
 export async function analyzeSystemDesign(base64Image) {
@@ -10,6 +18,38 @@ export async function analyzeSystemDesign(base64Image) {
     const { userId } = await auth();
     if (!userId) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    const limit = await checkRateLimit(userId, "systemDesign");
+    if (!limit.allowed) {
+      return {
+        success: false,
+        error: `System design analysis limit reached. Resets in ${formatResetTime(limit.resetAt)}.`,
+      };
+    }
+
+    const match = base64Image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) {
+      return {
+        success: false,
+        error: "Invalid image format. Expected a data URL like data:image/png;base64,...",
+      };
+    }
+
+    const mimeType = SUPPORTED_IMAGE_TYPES[match[1]];
+    if (!mimeType) {
+      return {
+        success: false,
+        error: `Unsupported image type "${match[1]}". Please upload a PNG or JPEG image.`,
+      };
+    }
+
+    const base64Data = match[2];
+    if (base64Data.length > VLM_IMAGE_MAX_LENGTH) {
+      return {
+        success: false,
+        error: "Image is too large. Maximum allowed size is 10 MB.",
+      };
     }
 
     const prompt = `
