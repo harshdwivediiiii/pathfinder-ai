@@ -7,7 +7,9 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { validateInput } from "@/lib/ai/validate";
 import { userSettingsSchema, accessibilitySettingsSchema } from "@/lib/schemas/forms";
-
+function revalidateSettingsRoute() {
+  revalidatePath("/settings");
+}
 function normalizeSettings(settings) {
   if (!settings) return { 
     notifications: true, 
@@ -61,13 +63,34 @@ export async function updateUserSettings(data) {
       throw new Error("Unauthorized");
     }
 
-    const validation = validateInput(userSettingsSchema, data);
-    if (!validation.success) {
-      return { success: false, errors: validation.errors };
+    const preferenceValidation = validateInput(userSettingsSchema, {
+      notifications: data?.notifications,
+      emailAlerts: data?.emailAlerts,
+    });
+    const accessibilityValidation = validateInput(accessibilitySettingsSchema, {
+      largeButtonsMode: data?.largeButtonsMode,
+      highContrastMode: data?.highContrastMode,
+      speechSpeed: data?.speechSpeed,
+      preferredLanguage: data?.preferredLanguage,
+      preferredVoiceLanguage: data?.preferredVoiceLanguage,
+      oneTapCameraMode: data?.oneTapCameraMode,
+    });
+
+    if (!preferenceValidation.success || !accessibilityValidation.success) {
+      return {
+        success: false,
+        errors: {
+          ...preferenceValidation.errors,
+          ...accessibilityValidation.errors,
+        },
+      };
     }
 
     const user = await getUserByClerkId(userId);
-    const settingsData = validation.data;
+    const settingsData = {
+      ...preferenceValidation.data,
+      ...accessibilityValidation.data,
+    };
 
     const settings = await db.userSettings.upsert({
       where: {
@@ -80,7 +103,7 @@ export async function updateUserSettings(data) {
       update: settingsData,
     });
 
-    revalidatePath("/settings");
+    revalidateSettingsRoute();
     return { success: true, settings: normalizeSettings(settings) };
   } catch (error) {
     return handleServerError(error, "settings");
@@ -114,7 +137,7 @@ export async function updateAccessibilitySettings(data) {
       update: settingsData,
     });
 
-    revalidatePath("/settings");
+    revalidateSettingsRoute();
     return { success: true, settings: normalizeSettings(settings) };
   } catch (error) {
     return handleServerError(error, "settings");

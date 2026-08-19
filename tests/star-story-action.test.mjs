@@ -45,6 +45,11 @@ describe("generateStarStory", () => {
     mocks.formatResetTime.mockReturnValue("60 minutes");
   });
 
+  it("parses as ESM and exposes generateStarStory as a top-level export (regression for unclosed function brace)", async () => {
+    const mod = await import("../actions/star-story.js");
+    expect(mod.generateStarStory).toBeTypeOf("function");
+  });
+
   it("successfully generates STAR story when within rate limits", async () => {
     mocks.auth.mockResolvedValue({ userId: "user-1" });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });

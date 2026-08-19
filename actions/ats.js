@@ -12,10 +12,13 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateInput, validateOutput, parseAIJson } from "@/lib/ai/validate";
 import { atsAnalysisSchema } from "@/lib/schemas/forms";
 import { atsAnalysisOutputSchema } from "@/lib/schemas";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { normalizeAtsSuggestions } from "@/lib/resume/ats";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
-
+function revalidateAtsRoute() {
+  revalidatePath("/ats-analyzer");
+}
 /**
  * Runs an ATS analysis using Gemini AI and persists the result safely.
  */
@@ -32,6 +35,11 @@ export async function analyzeATS(rawParams) {
       return { success: false, errors: { _form: ["Sign-in required to scan applications."] } };
     }
 
+    const validation = validateInput(atsAnalysisSchema, rawParams);
+    if (!validation.success) {
+      return { success: false, errors: validation.errors };
+    }
+
     const limit = await checkRateLimit(userId, "ats");
     if (!limit.allowed) {
       return {
@@ -42,18 +50,13 @@ export async function analyzeATS(rawParams) {
       };
     }
 
-    const validation = validateInput(atsAnalysisSchema, rawParams);
-    if (!validation.success) {
-      return { success: false, errors: validation.errors };
-    }
-
     const { resumeContent, jobDescription, jobTitle, companyName } = validation.data;
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
     });
     if (!user) {
-      return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
+      return createErrorResponse(USER_NOT_FOUND_MESSAGE);
     }
 
     const prompt = buildSecurePrompt({
@@ -119,7 +122,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     const outputValidation = validateOutput(atsAnalysisOutputSchema, result.response.text());
     if (!outputValidation.success) {
       console.error("ATS analysis output validation failed:", outputValidation.errors);
-      return { success: false, errors: { _form: ["AI returned an unexpected format. Please try again."] } };
+      return createErrorResponse("AI returned an unexpected format. Please try again.");
     }
     const parsedAnalysis = outputValidation.data;
 
@@ -152,7 +155,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
       },
     });
 
-    revalidatePath("/ats-analyzer");
+    revalidateAtsRoute();
     return { success: true, data: record };
   } catch (error) {
     if (userId) await decrementRateLimit(userId, "ats");
@@ -206,7 +209,7 @@ export async function deleteATSAnalysis(id) {
       where: { clerkUserId: userId },
     });
     if (!user) {
-      return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
+      return createErrorResponse(USER_NOT_FOUND_MESSAGE);
     }
 
     // Check if this analysis is referenced by any job applications
@@ -255,7 +258,7 @@ export async function deleteATSAnalysis(id) {
       };
     }
 
-    revalidatePath("/ats-analyzer");
+    revalidateAtsRoute();
     revalidatePath("/job-tracker");
     return { success: true };
   } catch (error) {

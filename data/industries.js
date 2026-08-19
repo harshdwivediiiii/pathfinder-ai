@@ -153,7 +153,7 @@ export const industries = [
   },
   {
     id: "consulting",
-    name: "Professional Services",
+    name: "Consulting",
     subIndustries: [
       "Management Consulting",
       "IT Consulting",
