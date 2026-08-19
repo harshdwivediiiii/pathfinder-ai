@@ -11,7 +11,10 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { getAiResponseText } from "@/lib/ai-response";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { safeFetch } from "@/lib/security/safe-fetch";
-
+const EMPTY_HISTORY_RESPONSE = {
+  success: false,
+  data: [],
+};
 export async function generateCultureMatch(data) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -121,12 +124,13 @@ export async function generateCultureMatch(data) {
 
 export async function getCultureMatches({ take = 10, skip = 0 } = {}) {
   const { userId } = await auth();
-  if (!userId) return { success: false, data: [] };
+  if (!userId) return EMPTY_HISTORY_RESPONSE;
+  
 
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
   });
-  if (!user) return { success: false, data: [] };
+  if (!user) return EMPTY_HISTORY_RESPONSE;
 
   const records = await db.cultureMatch.findMany({
     where: { userId: user.id },
