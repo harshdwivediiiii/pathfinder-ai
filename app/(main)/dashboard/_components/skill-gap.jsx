@@ -82,6 +82,7 @@ export function SkillGap({ insight, userSkills = [] }) {
 
   const futureSkills = useMemo(() => {
     const all = [...recommendedSkills, ...topSkills];
+    const existing = new Set([...currentSkills.map((s) => s.toLowerCase())]);
     const existing = new Set([
       ...currentSkills.map((s) => s.toLowerCase()),
       ...recommendedSkills.map((s) => s.toLowerCase()),
