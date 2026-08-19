@@ -12,6 +12,7 @@ import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { validateInput, validateOutput, parseAIJson } from "@/lib/ai/validate";
 import { atsAnalysisSchema } from "@/lib/schemas/forms";
 import { atsAnalysisOutputSchema } from "@/lib/schemas";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { normalizeAtsSuggestions } from "@/lib/resume/ats";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
@@ -55,7 +56,7 @@ export async function analyzeATS(rawParams) {
       where: { clerkUserId: userId },
     });
     if (!user) {
-      return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
+      return createErrorResponse(USER_NOT_FOUND_MESSAGE);
     }
 
     const prompt = buildSecurePrompt({
@@ -208,7 +209,7 @@ export async function deleteATSAnalysis(id) {
       where: { clerkUserId: userId },
     });
     if (!user) {
-      return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
+      return createErrorResponse(USER_NOT_FOUND_MESSAGE);
     }
 
     // Check if this analysis is referenced by any job applications
