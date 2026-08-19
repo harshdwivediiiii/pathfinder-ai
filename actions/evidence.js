@@ -75,10 +75,11 @@ export async function updateEvidenceItem(id, data) {
   }
 
   try {
-    const item = await db.evidenceItem.update({
+    await db.evidenceItem.updateMany({
       where: { id, userId: user.id },
       data: validation.data,
     });
+    const item = await db.evidenceItem.findUnique({ where: { id } });
     revalidatePath("/evidence-locker");
     return { success: true, data: item };
   } catch (error) {
@@ -94,7 +95,7 @@ export async function deleteEvidenceItem(id) {
   if (!user) return createErrorResponse("User not found");
 
   try {
-    await db.evidenceItem.delete({
+    await db.evidenceItem.deleteMany({
       where: { id, userId: user.id },
     });
     revalidatePath("/evidence-locker");
