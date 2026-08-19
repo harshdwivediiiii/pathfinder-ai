@@ -234,6 +234,10 @@ export async function getRoadmap() {
     
     return { roadmap: roadmap || null, error: null };
   } catch (error) {
-    return handleServerError(error, "roadmap");
+    const result = handleServerError(error, "roadmap");
+    return {
+      roadmap: null,
+      error: result?.errors?._form?.[0] || "There was an error loading your roadmap. Please try again.",
+    };
   }
 }
