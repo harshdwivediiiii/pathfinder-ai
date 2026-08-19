@@ -3,7 +3,9 @@
 import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-
+function revalidateWorkspaceRoutes() {
+  revalidateWorkspaceRoutes();
+}
 /**
  * Centralized authorization helpers
  */
@@ -132,7 +134,7 @@ export async function createWorkspace(data) {
       },
     });
 
-    revalidatePath("/workspace");
+    revalidateWorkspaceRoutes();
     return workspace;
   } catch (error) {
     console.error("Error creating workspace:", error);
@@ -162,7 +164,7 @@ export async function updateWorkspace(id, data) {
     });
 
     revalidatePath(`/workspace/${id}`);
-    revalidatePath("/workspace");
+    revalidateWorkspaceRoutes();
     return workspace;
   } catch (error) {
     console.error("Error updating workspace:", error);
@@ -181,7 +183,7 @@ export async function deleteWorkspace(id) {
       where: { id: existing.id },
     });
 
-    revalidatePath("/workspace");
+    revalidateWorkspaceRoutes();
     return { success: true };
   } catch (error) {
     console.error("Error deleting workspace:", error);

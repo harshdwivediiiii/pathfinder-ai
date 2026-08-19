@@ -29,12 +29,29 @@ import { parseAiOutput } from "@/lib/ai/ai-output";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
 import { createOutputRules } from "@/lib/ai/output-rules";
 import { createHistoryResponse } from "@/lib/history/history-response";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 import { buildParsedResult } from "@/lib/ai/parsed-ai";
+
+
+const EMPTY_CAREER_BREAK_HISTORY = {
+  success: false,
+  data: [],
+};
 /** Generate a career break plan based on user preferences. */
 export async function planCareerBreak(duration, reason, returnGoals) {
   const userId = await getAuthenticatedUserId(auth);
   if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "careerBreak");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Career break plan limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -62,8 +79,6 @@ export async function planCareerBreak(duration, reason, returnGoals) {
 
     outputRules: createOutputRules(
   createJsonOutputRules(`{
-
-{
   "handoffPlan": ["Action 1 for leaving gracefully", "Action 2"],
   "stayingRelevant": ["Tip 1 for during the break", "Tip 2"],
   "resumeExplanation": "A strong, unapologetic 1-2 sentence explanation to put on their resume.",
@@ -74,7 +89,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
 );
 
   try {
-    const aiResult = await runAiGeneration(prompt);
+    const aiResult = await runAiGeneration(prompt, { userId });
     const parsedData = parseAiResponse(aiResult);
     
 
@@ -89,6 +104,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
     revalidatePath("/career-break");
     return createHistoryResponse(record);
   } catch (error) {
+    await decrementRateLimit(userId, "careerBreak");
     return handleServerError(error, "career-break");
   }
 }
@@ -96,7 +112,7 @@ export async function planCareerBreak(duration, reason, returnGoals) {
 
 export async function getCareerBreakPlans() {
   const user = await getAuthenticatedUser();
-  if (!user) return { success: false, data: [] };
+  if (!user) return EMPTY_CAREER_BREAK_HISTORY;
 
   const records = await getUserHistory(
     db.careerBreakPlan,

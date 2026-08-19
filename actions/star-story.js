@@ -40,6 +40,8 @@ function validateRawExperience(text) {
   }
 
   return null;
+}
+
 function isMeaningfulExperience(input) {
   if (!input || typeof input !== "string") return false;
 
@@ -119,11 +121,6 @@ export async function generateStarStory(rawExperience) {
         _form: [`STAR story generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
       },
     };
-  }
-
-  const validationError = validateRawExperience(rawExperience);
-  if (validationError) {
-    return { success: false, errors: { _form: [validationError] } };
   }
 
   // Build the prompt

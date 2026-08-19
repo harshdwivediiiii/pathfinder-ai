@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { NextResponse } from "next/server";
 import { ERROR_CODES, respondError } from "@/lib/api/error-handler";
+import { vlmNavigationSchema } from "@/lib/schemas/forms";
+import { sanitizeInput } from "@/lib/security/sanitize";
 
 export async function POST(request) {
   try {
@@ -12,17 +14,31 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { image, instruction } = body;
 
-    if (!image || !instruction) {
-      return respondError(ERROR_CODES.VALIDATION_ERROR, "Image and instruction are required.");
+    const validation = vlmNavigationSchema.safeParse(body);
+
+    if (!validation.success) {
+      return respondError(
+        ERROR_CODES.VALIDATION_ERROR,
+        "Invalid navigation payload",
+        validation.error.flatten().fieldErrors
+      );
     }
+
+    const { image, instruction } = validation.data;
+    const sanitizedInstruction = sanitizeInput(instruction);
 
     const base64Data = image.split(",")[1];
     const mimeType = image.split(",")[0].match(/:(.*?);/)[1];
 
     if (!base64Data || !mimeType) {
       return respondError(ERROR_CODES.VALIDATION_ERROR, "Invalid image format.");
+    }
+
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+    const decodedSize = Buffer.from(base64Data, "base64").length;
+    if (decodedSize > MAX_IMAGE_SIZE) {
+      return respondError(ERROR_CODES.VALIDATION_ERROR, "Image size exceeds the 5MB limit.");
     }
 
     const promptText = `
@@ -33,7 +49,7 @@ Translate the standard instruction into a natural language instruction using the
 For example, instead of "Turn right in 100 meters", say "Turn right just after the red brick Starbucks".
 Keep the instruction concise, natural, and helpful.
 
-Standard instruction: "${instruction}"
+Standard instruction: "${sanitizedInstruction}"
     `;
 
     const requestPayload = {
