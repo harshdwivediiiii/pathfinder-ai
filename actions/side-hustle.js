@@ -7,16 +7,37 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+function createSideHustleValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateSideHustles(skills, interests) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
+  const limit = await checkRateLimit(userId, "sideHustle");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Side hustle ideas limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
   if (!skills || !interests) {
-    return { success: false, errors: { _form: ["Both skills and interests are required."] } };
+    return createSideHustleValidationResponse(
+  "Both skills and interests are required."
+);
   }
 
   const prompt = buildSecurePrompt({
@@ -71,6 +92,7 @@ export async function generateSideHustles(skills, interests) {
     revalidatePath("/side-hustle");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "sideHustle");
     return handleServerError(error, "side-hustle");
   }
 }

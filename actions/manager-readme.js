@@ -11,10 +11,21 @@ import { getHistoryUser } from "@/lib/history/history-user";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
 import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function buildReadme(style, boundaries, feedback) {
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "managerReadme");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Manager README limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await getHistoryUser(userId);
   if (!user) return createErrorResponse("User not found");
@@ -56,6 +67,7 @@ export async function buildReadme(style, boundaries, feedback) {
     revalidatePath("/manager-readme");
     return { success: true, data: record };
   } catch (error) {
+    await decrementRateLimit(userId, "managerReadme");
     return handleServerError(error, "manager-readme");
   }
 }

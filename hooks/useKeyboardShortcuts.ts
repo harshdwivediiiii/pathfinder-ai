@@ -14,6 +14,7 @@ export function useKeyboardShortcuts(shortcuts: ShortcutMap) {
       if (
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
         target.isContentEditable
       ) {
         return;

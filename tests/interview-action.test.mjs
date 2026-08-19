@@ -106,4 +106,47 @@ describe("saveQuizResult", () => {
       "Focus on reviewing core technical concepts and typical industry practices in healthcare to strengthen your skills."
     );
   });
+
+  it("caches fallback quiz questions so saveQuizResult can load the session", async () => {
+    const { generateQuiz, saveQuizResult } = await import("../actions/interview.js");
+    const { getCacheStore } = await import("../lib/cache/index.js");
+
+    actionMocks.auth.mockResolvedValue({ userId: "user-123" });
+    actionMocks.findUnique.mockResolvedValue({
+      id: "db-user-123",
+      clerkUserId: "user-123",
+      industry: "Healthcare",
+    });
+    actionMocks.checkRateLimit.mockResolvedValue({ allowed: true });
+
+    // Force the fallback path in generateQuiz
+    actionMocks.generateGeminiContent.mockRejectedValue(new Error("AI service unavailable"));
+
+    const fallbackResult = await generateQuiz("Technical");
+    expect(fallbackResult.isFallback).toBe(true);
+    expect(fallbackResult.sessionId).toBeTruthy();
+
+    // The fallback session must be written to the quiz cache
+    const store = getCacheStore();
+    const quizSessionWrites = store.set.mock.calls.filter(([key]) => key.includes("quiz-session"));
+    expect(quizSessionWrites.length).toBe(1);
+    expect(quizSessionWrites[0][1]).toEqual(fallbackResult.questions);
+
+    // The cache now returns the persisted fallback questions, so saveQuizResult can load them
+    actionMocks.cacheGet.mockResolvedValue({
+      status: "success",
+      value: fallbackResult.questions,
+      isSuccess: true,
+      isMiss: false,
+      isError: false,
+    });
+    actionMocks.assessmentCreate.mockImplementation(({ data }) => Promise.resolve({ id: "assessment-1", ...data }));
+
+    const answers = fallbackResult.questions.map((q) => q.correctAnswer);
+    const saveResult = await saveQuizResult(fallbackResult.sessionId, answers, "Technical");
+
+    expect(saveResult.quizScore).toBe(100);
+    expect(saveResult.userId).toBe("db-user-123");
+    expect(actionMocks.assessmentCreate).toHaveBeenCalledTimes(1);
+  });
 });

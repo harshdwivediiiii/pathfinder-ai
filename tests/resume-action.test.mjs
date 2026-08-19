@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   findUnique: vi.fn(),
   checkRateLimit: vi.fn(),
+  decrementRateLimit: vi.fn(),
   cachedGenerateGeminiContent: vi.fn(),
   generateCacheKey: vi.fn(),
 }));
@@ -23,6 +24,7 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: vi.fn().mockReturnValue("10m"),
+  decrementRateLimit: mocks.decrementRateLimit,
 }));
 
 vi.mock("@/lib/cache", async () => {
@@ -97,5 +99,21 @@ describe("improveWithAI", () => {
         ttl: expect.any(Number),
       })
     );
+  });
+
+  it("does not consume the rate limit when input validation fails", async () => {
+    const rawParams = {
+      current: "x",
+      type: "bogus",
+    };
+
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await improveWithAI(rawParams);
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+    expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
   });
 });
