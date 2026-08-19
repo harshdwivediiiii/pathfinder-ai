@@ -1,5 +1,6 @@
 "use server";
 import { handleServerError } from "@/lib/errors/error-handler";
+import { getAiResponseText } from "@/lib/ai-response";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { buildUserLookup } from "@/lib/db/user-query";
 import { db } from "@/lib/db/prisma";
