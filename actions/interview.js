@@ -534,7 +534,7 @@ export async function getAssessments() {
       orderBy: { createdAt: "desc" },
     });
   } catch (error) {
-    return handleServerError(error, "interview");
+    return null;
   }
 }
 
@@ -558,6 +558,7 @@ export async function getAssessment(id) {
       },
     });
   } catch (error) {
+    return null;
     handleServerError(error, "interview");
     return null;
   }
