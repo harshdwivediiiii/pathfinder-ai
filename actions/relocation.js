@@ -8,7 +8,9 @@ import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
-
+function revalidateRelocationRoute() {
+  revalidatePath("/relocation");
+}
 export async function analyzeRelocation(currentCity, targetCity, salary) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -63,7 +65,7 @@ export async function analyzeRelocation(currentCity, targetCity, salary) {
       },
     });
 
-    revalidatePath("/relocation");
+    revalidateRelocationRoute();
     return { success: true, data: record };
   } catch (error) {
     await decrementRateLimit(userId, "relocation");
