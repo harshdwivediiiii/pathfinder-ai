@@ -67,6 +67,7 @@ export const markdownComponents = {
   ),
   p: ({ children }) => (
     <div className="mb-4 leading-relaxed text-muted-foreground last:mb-0">
+      <CitationRenderer text={String(children)} />
       <CitationRenderer text={extractText(children)} />
     </div>
   ),
