@@ -7,10 +7,21 @@ import { generateGeminiContent } from "@/lib/ai/gemini";
 import { createAiValidationError } from "@/lib/ai/ai-validation-response";
 import { validateOutput } from "@/lib/ai/validate";
 import { resumeRoastOutputSchema } from "@/lib/schemas/outputs";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateResumeRoast(resumeContent) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "resumeRoast");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Resume roast limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!resumeContent || resumeContent.trim().length < 50) {
     return { success: false, errors: { _form: ["Please paste your resume content."] } };
@@ -45,6 +56,7 @@ export async function generateResumeRoast(resumeContent) {
 
     return { success: true, data: validation.data };
   } catch (error) {
+    await decrementRateLimit(userId, "resumeRoast");
     return handleServerError(error, "resume-roast");
   }
 }

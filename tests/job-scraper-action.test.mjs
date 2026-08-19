@@ -5,13 +5,19 @@ import { http, HttpResponse } from "msw";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   generateGeminiContent: vi.fn(),
+  safeFetch: vi.fn(),
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
   formatResetTime: vi.fn().mockReturnValue("10 minutes"),
   decrementRateLimit: vi.fn().mockResolvedValue(true),
+  handleServerError: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
+}));
+
+vi.mock("@/lib/errors/error-handler", () => ({
+  handleServerError: mocks.handleServerError,
 }));
 
 vi.mock("@/lib/ai/gemini", () => ({
@@ -19,11 +25,7 @@ vi.mock("@/lib/ai/gemini", () => ({
 }));
 
 vi.mock("@/lib/security/safe-fetch", () => ({
-  safeFetch: vi.fn(async () => ({
-    success: true,
-    text: "<html><body><h1>Software Engineer</h1><p>Tech Corp</p></body></html>",
-    status: 200,
-  })),
+  safeFetch: mocks.safeFetch,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -34,8 +36,6 @@ vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   decrementRateLimit: mocks.decrementRateLimit,
   formatResetTime: mocks.formatResetTime,
-  checkRateLimit: () => Promise.resolve({ allowed: true }),
-  decrementRateLimit: () => Promise.resolve(),
 }));
 
 import { parseJobUrl } from "../actions/job-scraper.js";
@@ -43,8 +43,15 @@ import { parseJobUrl } from "../actions/job-scraper.js";
 describe("parseJobUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.formatResetTime.mockReturnValue("10 minutes");
+    mocks.safeFetch.mockResolvedValue({
+      success: true,
+      status: 200,
+      text: "<html><body><h1>Software Engineer</h1><p>Tech Corp</p></body></html>",
+    });
+    mocks.handleServerError.mockReturnValue({ success: false, error: "handled" });
   });
 
   it("successfully parses a job URL using generateGeminiContent and parseAIJson", async () => {
@@ -93,5 +100,51 @@ describe("parseJobUrl", () => {
     expect(result.success).toBe(false);
     expect(result.errors._form).toContain("Job scraping limit reached. Resets in 10 minutes.");
     expect(mocks.formatResetTime).toHaveBeenCalledWith(expect.any(Date));
+  });
+
+  it("refunds the quota when safeFetch fails", async () => {
+    mocks.safeFetch.mockResolvedValue({
+      success: false,
+      errors: { _form: ["Network error while fetching the job URL."] },
+    });
+
+    const result = await parseJobUrl("https://example.com/jobs/1");
+
+    expect(result.success).toBe(false);
+    expect(mocks.decrementRateLimit).toHaveBeenCalledWith("user-1", "jobScraper");
+  });
+
+  it("refunds the quota when the fetch returns a non-200 status", async () => {
+    mocks.safeFetch.mockResolvedValue({
+      success: true,
+      status: 503,
+      text: "",
+    });
+
+    const result = await parseJobUrl("https://example.com/jobs/1");
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form).toContain("Fetch failed with status 503");
+    expect(mocks.decrementRateLimit).toHaveBeenCalledWith("user-1", "jobScraper");
+  });
+
+  it("refunds the quota when AI extraction fails", async () => {
+    mocks.generateGeminiContent.mockResolvedValue({
+      response: { text: () => "" },
+    });
+
+    const result = await parseJobUrl("https://example.com/jobs/1");
+
+    expect(result.success).toBe(false);
+    expect(mocks.decrementRateLimit).toHaveBeenCalledWith("user-1", "jobScraper");
+  });
+
+  it("does not refund the quota when the rate limit is hit", async () => {
+    mocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: null });
+
+    const result = await parseJobUrl("https://example.com/jobs/1");
+
+    expect(result.success).toBe(false);
+    expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
   });
 });

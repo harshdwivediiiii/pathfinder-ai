@@ -15,7 +15,9 @@ import { atsAnalysisOutputSchema } from "@/lib/schemas";
 import { normalizeAtsSuggestions } from "@/lib/resume/ats";
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
-
+function revalidateAtsRoute() {
+  revalidatePath("/ats-analyzer");
+}
 /**
  * Runs an ATS analysis using Gemini AI and persists the result safely.
  */
@@ -32,6 +34,11 @@ export async function analyzeATS(rawParams) {
       return { success: false, errors: { _form: ["Sign-in required to scan applications."] } };
     }
 
+    const validation = validateInput(atsAnalysisSchema, rawParams);
+    if (!validation.success) {
+      return { success: false, errors: validation.errors };
+    }
+
     const limit = await checkRateLimit(userId, "ats");
     if (!limit.allowed) {
       return {
@@ -40,11 +47,6 @@ export async function analyzeATS(rawParams) {
           _form: [`ATS analysis limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
         },
       };
-    }
-
-    const validation = validateInput(atsAnalysisSchema, rawParams);
-    if (!validation.success) {
-      return { success: false, errors: validation.errors };
     }
 
     const { resumeContent, jobDescription, jobTitle, companyName } = validation.data;
@@ -152,7 +154,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
       },
     });
 
-    revalidatePath("/ats-analyzer");
+    revalidateAtsRoute();
     return { success: true, data: record };
   } catch (error) {
     if (userId) await decrementRateLimit(userId, "ats");
@@ -255,7 +257,7 @@ export async function deleteATSAnalysis(id) {
       };
     }
 
-    revalidatePath("/ats-analyzer");
+    revalidateAtsRoute();
     revalidatePath("/job-tracker");
     return { success: true };
   } catch (error) {
