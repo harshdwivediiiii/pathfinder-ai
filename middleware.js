@@ -20,12 +20,17 @@ function addSecureHeaders(response) {
 
   response.headers.set("Content-Security-Policy", csp);
 
-  const setCookie = response.headers.get("Set-Cookie");
-  if (setCookie && process.env.NODE_ENV === "production") {
-    response.headers.set(
-      "Set-Cookie",
-      setCookie.replace(/;\s*Secure(?=;|$)/gi, "").replace(/;\s*$/g, "") + "; Secure"
-    );
+  const cookies = [...response.headers.entries()]
+    .filter(([key]) => key.toLowerCase() === "set-cookie")
+    .map(([, value]) => value);
+  if (cookies.length && process.env.NODE_ENV === "production") {
+    response.headers.delete("Set-Cookie");
+    for (const cookie of cookies) {
+      response.headers.append(
+        "Set-Cookie",
+        cookie.replace(/;\s*Secure(?=;|$)/gi, "").replace(/;\s*$/g, "") + "; Secure"
+      );
+    }
   }
 
   return response;
@@ -135,10 +140,7 @@ export default function middleware(req, event) {
       return addSecureHeaders(NextResponse.next());
     }
 
-    // If validation failed with an error, throw it to fail fast
-    if (validation.error) {
-      throw validation.error;
-    }
+    // Not allowed (e.g. production) -> fall through to normal Clerk auth.
   }
 
   return clerkHandler(req, event);

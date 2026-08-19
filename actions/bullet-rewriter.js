@@ -103,7 +103,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
     if (!result.success) {
       console.error("Output validation failed:", result.errors);
-      return { success: false, errors: { _form: ["AI returned an unexpected format. Please try again."] } };
+      return createErrorResponse("AI returned an unexpected format. Please try again.");
     }
 
     return { success: true, data: result.data };

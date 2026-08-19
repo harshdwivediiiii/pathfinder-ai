@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   findUniqueUser: vi.fn(),
   createJobApplication: vi.fn(),
   updateJobApplicationMany: vi.fn(),
+  atsAnalysisFindFirst: vi.fn(),
+  coverLetterFindFirst: vi.fn(),
   fetchRecentJobEmails: vi.fn(),
   extractJobApplicationFromEmail: vi.fn(),
 }));
@@ -28,6 +30,12 @@ vi.mock("@/lib/db/prisma", () => ({
     jobApplication: {
       create: mocks.createJobApplication,
       updateMany: mocks.updateJobApplicationMany,
+    },
+    atsAnalysis: {
+      findFirst: mocks.atsAnalysisFindFirst,
+    },
+    coverLetter: {
+      findFirst: mocks.coverLetterFindFirst,
     },
   },
 }));
@@ -110,6 +118,71 @@ describe("job application status vocabulary", () => {
       const updateArgs = mocks.updateJobApplicationMany.mock.calls[0][0];
       expect(updateArgs.data.status).toBe(JOB_APPLICATION_STATUS.OFFER_RECEIVED);
       expect(updateArgs.data.status).not.toBe("Offer");
+    });
+  });
+
+  describe("createJobApplication foreign-key ownership (regression)", () => {
+    const baseInput = {
+      companyName: "Acme",
+      jobTitle: "Software Engineer",
+      status: "Applied",
+    };
+
+    beforeEach(() => {
+      mocks.auth.mockResolvedValue({ userId: "user-1" });
+      mocks.findUniqueUser.mockResolvedValue({ id: "db-user-1", clerkUserId: "user-1" });
+    });
+
+    it("rejects another user's atsAnalysisId and does not create the job application", async () => {
+      mocks.atsAnalysisFindFirst.mockResolvedValue(null);
+
+      const result = await createJobApplication({ ...baseInput, atsAnalysisId: "ats-foreign" });
+
+      expect(result.success).toBe(false);
+      expect(result.errors._form[0]).toContain("ATS analysis");
+      expect(mocks.createJobApplication).not.toHaveBeenCalled();
+      expect(mocks.atsAnalysisFindFirst).toHaveBeenCalledWith({
+        where: { id: "ats-foreign", userId: "db-user-1" },
+        select: { id: true },
+      });
+    });
+
+    it("rejects another user's coverLetterId and does not create the job application", async () => {
+      mocks.coverLetterFindFirst.mockResolvedValue(null);
+
+      const result = await createJobApplication({ ...baseInput, coverLetterId: "cl-foreign" });
+
+      expect(result.success).toBe(false);
+      expect(result.errors._form[0]).toContain("Cover letter");
+      expect(mocks.createJobApplication).not.toHaveBeenCalled();
+      expect(mocks.coverLetterFindFirst).toHaveBeenCalledWith({
+        where: { id: "cl-foreign", userId: "db-user-1" },
+        select: { id: true },
+      });
+    });
+
+    it("allows creating an application linked to owned ATS analysis and cover letter", async () => {
+      mocks.atsAnalysisFindFirst.mockResolvedValue({ id: "ats-own" });
+      mocks.coverLetterFindFirst.mockResolvedValue({ id: "cl-own" });
+      mocks.createJobApplication.mockImplementation(async ({ data }) => ({ id: "job-1", ...data }));
+
+      const result = await createJobApplication({ ...baseInput, atsAnalysisId: "ats-own", coverLetterId: "cl-own" });
+
+      expect(result.success).toBe(true);
+      expect(mocks.createJobApplication).toHaveBeenCalledTimes(1);
+      const createArgs = mocks.createJobApplication.mock.calls[0][0];
+      expect(createArgs.data.atsAnalysisId).toBe("ats-own");
+      expect(createArgs.data.coverLetterId).toBe("cl-own");
+    });
+
+    it("does not check ownership when neither id is supplied", async () => {
+      mocks.createJobApplication.mockImplementation(async ({ data }) => ({ id: "job-1", ...data }));
+
+      const result = await createJobApplication({ ...baseInput });
+
+      expect(result.success).toBe(true);
+      expect(mocks.atsAnalysisFindFirst).not.toHaveBeenCalled();
+      expect(mocks.coverLetterFindFirst).not.toHaveBeenCalled();
     });
   });
 

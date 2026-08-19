@@ -1,11 +1,14 @@
 "use server";
 import { handleServerError } from "@/lib/errors/error-handler";
+import { getAiResponseText } from "@/lib/ai-response";
 import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { buildUserLookup } from "@/lib/db/user-query";
 import { db } from "@/lib/db/prisma";
+import { getAiResponseText } from "@/lib/ai-response";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { getAiResponseText } from "@/lib/ai/ai-response";
 import { generateGeminiContent } from "@/lib/ai/gemini";
 import { careerDecisionSchema } from "@/lib/schemas/forms";
 import { careerDecisionOutputSchema } from "@/lib/schemas/outputs";
@@ -75,7 +78,7 @@ export async function simulateCareerDecision(input) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const outputValidation = careerDecisionOutputSchema.safeParse(parsedData);
     if (!outputValidation.success) {
