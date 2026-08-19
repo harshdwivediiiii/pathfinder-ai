@@ -20,12 +20,17 @@ function addSecureHeaders(response) {
 
   response.headers.set("Content-Security-Policy", csp);
 
-  const setCookie = response.headers.get("Set-Cookie");
-  if (setCookie && process.env.NODE_ENV === "production") {
-    response.headers.set(
-      "Set-Cookie",
-      setCookie.replace(/;\s*Secure(?=;|$)/gi, "").replace(/;\s*$/g, "") + "; Secure"
-    );
+  const cookies = [...response.headers.entries()]
+    .filter(([key]) => key.toLowerCase() === "set-cookie")
+    .map(([, value]) => value);
+  if (cookies.length && process.env.NODE_ENV === "production") {
+    response.headers.delete("Set-Cookie");
+    for (const cookie of cookies) {
+      response.headers.append(
+        "Set-Cookie",
+        cookie.replace(/;\s*Secure(?=;|$)/gi, "").replace(/;\s*$/g, "") + "; Secure"
+      );
+    }
   }
 
   return response;
