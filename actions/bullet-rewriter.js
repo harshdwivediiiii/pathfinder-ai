@@ -1,21 +1,22 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { generateWithStructuredOutput, buildSecurePrompt } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { validateInput, validateOutput } from "@/lib/validate";
+import { generateWithStructuredOutput, buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { bulletRewriterSchema, bulletRewriterOutputSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
-import { assertFeatureEnabled } from "@/lib/ai-gating";
-import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { assertFeatureEnabled } from "@/lib/ai/ai-gating";
+import { generateGeminiContent } from "@/lib/ai/gemini";
 
 /** Rewrite a resume bullet point for stronger impact. */
 export async function rewriteBullet(rawParams) {
   try {
     assertFeatureEnabled("bulletRewriter");
   } catch (err) {
-    return { success: false, errors: { _form: [err.message] } };
+    return handleServerError(err, "bullet-rewriter");
   }
 
   const { userId } = await auth();
@@ -102,12 +103,12 @@ Respond ONLY with a valid JSON object in this exact format:
 
     if (!result.success) {
       console.error("Output validation failed:", result.errors);
-      return { success: false, errors: { _form: ["AI returned an unexpected format. Please try again."] } };
+      return createErrorResponse("AI returned an unexpected format. Please try again.");
     }
 
     return { success: true, data: result.data };
   } catch (error) {
-    console.error("Error rewriting bullet:", error);
-    return { success: false, errors: { _form: ["An unexpected error occurred while rewriting your bullet. Please try again later."] } };
+    await decrementRateLimit(userId, "bulletRewriter");
+    return handleServerError(error, "bullet-rewriter");
   }
 }

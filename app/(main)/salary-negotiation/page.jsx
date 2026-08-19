@@ -44,7 +44,7 @@ export default function SalaryNegotiationPage() {
     } else {
       toast.error(res.error || "Failed to get a response");
       // Remove user message if failed
-      setMessages(messages);
+      setMessages(prev => prev.slice(0, -1));
     }
     setLoading(false);
   };

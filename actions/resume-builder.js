@@ -1,27 +1,33 @@
 "use server";
-import { validateAuthenticatedUser } from "@/lib/auth-user";
-import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/input-limits";
-import { isValidAIOutput } from "@/lib/ai-validation";
-import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
-import { db } from "@/lib/prisma";
-import { getHistoryUserContext } from "@/lib/history-auth";
-import { getUserByClerkId } from "@/lib/user";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { validateAuthenticatedUser } from "@/lib/auth/auth-user";
+import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/security/input-limits";
+import { isValidAIOutput } from "@/lib/ai/ai-validation";
+import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
+import { db } from "@/lib/db/prisma";
+import { getHistoryUserContext } from "@/lib/history/history-auth";
+import { getUserByClerkId } from "@/lib/auth/user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { validateOutput } from "@/lib/validate";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { validateOutput } from "@/lib/ai/validate";
 import { resumeOutputSchema } from "@/lib/schemas/resume";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
-import { EMPTY_HISTORY_RESPONSE } from "@/lib/history-response";
-import { createErrorResponse } from "@/lib/action-errors";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getCachedOrFetch } from "@/lib/ai/ai-cache";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 async function getResumeBuilderUser(userId) {
   return getUserByClerkId(userId);
 }
 export async function generateResumeContent(jobDescription) {
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  if (!jobDescription || jobDescription.trim().length < 50) {
+    return { success: false, errors: { _form: ["Please provide a valid job description (at least 50 characters)."] } };
+  }
 
   const limit = await checkRateLimit(userId, "resumeBuilder");
   if (!limit.allowed) {
@@ -33,10 +39,6 @@ export async function generateResumeContent(jobDescription) {
     };
   }
 
-  if (!jobDescription || jobDescription.trim().length < 50) {
-    return { success: false, errors: { _form: ["Please provide a valid job description (at least 50 characters)."] } };
-  }
-  
   const user = await getResumeBuilderUser(userId);
   if (!validateAuthenticatedUser(user)) {
     return createErrorResponse("User not found");
@@ -92,8 +94,16 @@ export async function generateResumeContent(jobDescription) {
   });
 
   try {
-    const aiResult = await generateGeminiContent(prompt);
-    const validation = validateOutput(resumeOutputSchema, aiResult.response.text());
+    const rawAiText = await getCachedOrFetch(
+      JSON.stringify(prompt),
+      'resume',
+      async () => {
+        const res = await generateGeminiContent(prompt);
+        return res.response.text();
+      },
+      1 // 1 hour TTL
+    );
+    const validation = validateOutput(resumeOutputSchema, rawAiText);
     if (!isValidAIOutput(validation)) {
       console.error("Resume output validation failed:", validation.errors);
       return createErrorResponse("AI returned an unexpected format. Please try again.");
@@ -110,22 +120,40 @@ export async function generateResumeContent(jobDescription) {
 
     revalidatePath("/resume-builder");
     return { success: true, data: record };
-  } catch (error) {
-    console.error("Resume Generation Error:", error);
-    return createErrorResponse(
-  error.message || "Failed to generate resume"
-);
+  } catch (err) {
+    await decrementRateLimit(userId, "resumeBuilder");
+    console.error("Resume generation error:", err);
+    const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED';
+    return {
+      success: false,
+      error: isRateLimit
+        ? 'AI service is currently busy. Please try again in a moment.'
+        : 'Failed to generate resume. Please check your inputs and try again.',
+      errors: {
+        _form: [
+          isRateLimit
+            ? 'AI service is currently busy. Please try again in a moment.'
+            : 'Failed to generate resume. Please check your inputs and try again.',
+        ],
+      },
+    };
   }
 }
 
 export async function getResumeHistory() {
-  const user = await getHistoryUserContext();
-  if (!user) return EMPTY_HISTORY_RESPONSE;
+  try {
+    const user = await getHistoryUserContext();
 
-  const records = await db.resumeGeneration.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-  });
+    if (!user) return EMPTY_HISTORY_RESPONSE;
 
-  return { success: true, data: records };
+    const records = await db.resumeGeneration.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { success: true, data: records };
+  } catch (error) {
+    console.error("Resume history error:", error);
+    throw error;
+  }
 }

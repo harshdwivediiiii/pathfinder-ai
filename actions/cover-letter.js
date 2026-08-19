@@ -1,17 +1,20 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { validateInput, validateOutput } from "@/lib/validate";
+import { revalidatePath } from "next/cache";
+import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getCachedOrFetch } from "@/lib/ai/ai-cache";
+import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { coverLetterInputSchema } from "@/lib/schemas/forms";
 import { coverLetterOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
-import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/input-limits";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/security/input-limits";
 
 const FALLBACK_COVER_LETTER = `Dear Hiring Manager,
 
@@ -33,13 +36,21 @@ export async function generateCoverLetter(data) {
   let companyName;
   let jobTitle;
   let jobDescription;
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const limit = await checkRateLimit(userId, "coverLetter");
     if (!limit.allowed) {
-      throw new Error(`Cover letter limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Cover letter limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+        },
+      };
+      const message = `Cover letter limit reached. Resets in ${formatResetTime(limit.resetAt)}.`;
+      return { success: false, error: message, errors: { _form: [message] } };
     }
 
     const validation = validateInput(coverLetterInputSchema, data);
@@ -89,8 +100,16 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
       schemaDescription,
       schema: coverLetterOutputSchema,
       generateFn: async (p) => {
-        const raw = await generateGeminiContent(p);
-        return raw.response.text().trim();
+        const rawText = await getCachedOrFetch(
+          JSON.stringify(p),
+          'cover-letter',
+          async () => {
+            const raw = await generateGeminiContent(p);
+            return raw.response.text().trim();
+          },
+          1
+        );
+        return rawText;
       },
       validateFn: validateOutput,
     });
@@ -116,21 +135,22 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     });
 
     return { ...coverLetter, isFallback: false };
-  } catch (error) {
-    console.error("Error generating cover letter, using fallback:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    
-    // We do not save fallback cover letters to the DB
+  } catch (err) {
+    if (userId) await decrementRateLimit(userId, "coverLetter");
+    console.error("Cover letter generation error:", err);
+    const isRateLimit = err.status === 429 || err.code === 'RATE_LIMITED' || err.message?.includes('limit reached');
     return {
-      content: FALLBACK_COVER_LETTER,
-      companyName: companyName ?? null,
-      jobTitle: jobTitle ?? null,
-      jobDescription: jobDescription ?? null,
-      status: "fallback",
-      userId: coverLetterUser?.id ?? null,
-      isFallback: true
+      success: false,
+      error: isRateLimit
+        ? 'AI service is currently busy. Please try again in a moment.'
+        : 'Failed to generate cover letter. Please check your inputs and try again.',
+      errors: {
+        _form: [
+          isRateLimit
+            ? 'AI service is currently busy. Please try again in a moment.'
+            : 'Failed to generate cover letter. Please check your inputs and try again.',
+        ],
+      },
     };
   }
 }
@@ -153,8 +173,7 @@ export async function getCoverLetters() {
       orderBy: { createdAt: "desc" },
     });
   } catch (error) {
-    console.error("Error fetching cover letters:", error);
-    return [];
+    return handleServerError(error, "cover-letter");
   }
 }
 
@@ -178,13 +197,13 @@ export async function getCoverLetter(id) {
       },
     });
   } catch (error) {
-    console.error("Error fetching cover letter:", error);
-    return null;
+    return handleServerError(error, "cover-letter");
   }
 }
 
 /**
  *Deletes a specific cover letter record with strict ownership validation.
+ * Prevents deletion if the cover letter is referenced by any job applications.
  */
 export async function deleteCoverLetter(id) {
   try {
@@ -200,6 +219,36 @@ export async function deleteCoverLetter(id) {
     });
     if (!user) return createErrorResponse("User not found");
 
+    // Check if this cover letter is referenced by any job applications
+    const referencedApplications = await db.jobApplication.findMany({
+      where: {
+        coverLetterId: id.trim(),
+        userId: user.id,
+      },
+      select: {
+        id: true,
+        jobTitle: true,
+        companyName: true,
+      },
+    });
+
+    if (referencedApplications.length > 0) {
+      const jobTitles = referencedApplications
+        .map(app => `${app.jobTitle} at ${app.companyName}`)
+        .slice(0, 3)
+        .join(", ");
+      const moreText = referencedApplications.length > 3 ? ` and ${referencedApplications.length - 3} more` : "";
+      
+      return {
+        success: false,
+        errors: {
+          _form: [
+            `Cannot delete: This cover letter is referenced by ${referencedApplications.length} job application(s) (${jobTitles}${moreText}). Please remove the association from those applications first.`,
+          ],
+        },
+      };
+    }
+
     const { count } = await db.coverLetter.deleteMany({
       where: {
         id: id.trim(),
@@ -211,9 +260,10 @@ export async function deleteCoverLetter(id) {
       return { success: false, errors: { _form: ["Cover letter not found or already deleted."] } };
     }
 
+    revalidatePath("/ai-cover-letter");
+    revalidatePath("/job-tracker");
     return { success: true };
   } catch (error) {
-    console.error("Failed to delete cover letter:", error);
-    return { success: false, errors: { _form: [error.message || String(error)] } };
+    return handleServerError(error, "cover-letter");
   }
 }

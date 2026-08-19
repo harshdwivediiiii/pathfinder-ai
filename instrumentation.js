@@ -1,18 +1,24 @@
-/**
- * Next.js instrumentation hook — runs once when the server starts.
- *
- * Node.js 22+ may expose a broken global `localStorage` during SSR where
- * `typeof localStorage !== "undefined"` passes but `getItem` is not a function.
- * Libraries like Clerk and next-themes then crash with:
- *   TypeError: localStorage.getItem is not a function
- */
+import * as Sentry from "@sentry/nextjs";
+
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") {
-    return;
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    Sentry.init({
+      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN || "",
+      tracesSampleRate: 1,
+      debug: false,
+    });
+
+    sanitizeBrokenWebStorage("localStorage");
+    sanitizeBrokenWebStorage("sessionStorage");
   }
 
-  sanitizeBrokenWebStorage("localStorage");
-  sanitizeBrokenWebStorage("sessionStorage");
+  if (process.env.NEXT_RUNTIME === "edge") {
+    Sentry.init({
+      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN || "",
+      tracesSampleRate: 1,
+      debug: false,
+    });
+  }
 }
 
 function sanitizeBrokenWebStorage(name) {

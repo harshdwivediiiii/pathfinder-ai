@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 const useFetch = (cb) => {
   const [data, setData] = useState(undefined);
-  const [loading, setLoading] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const isMounted = useRef(true);
 
@@ -16,6 +16,19 @@ const useFetch = (cb) => {
     };
   }, []);
 
+  const getErrorMessage = (response) => {
+    if (typeof response.error === "string" && response.error) return response.error;
+    if (response.errors && typeof response.errors === "object") {
+      for (const value of Object.values(response.errors)) {
+        if (Array.isArray(value) && value.length > 0 && typeof value[0] === "string") {
+          return value[0];
+        }
+        if (typeof value === "string" && value) return value;
+      }
+    }
+    return null;
+  };
+
   const fn = async (...args) => {
     if (isMounted.current) setLoading(true);
     if (isMounted.current) setError(null);
@@ -24,7 +37,7 @@ const useFetch = (cb) => {
       const response = await cb(...args);
       if (response && typeof response === "object") {
         if (response.success === false) {
-          throw new Error(response.error || "An error occurred");
+          throw new Error(getErrorMessage(response) || "An error occurred");
         }
         if (response.error && (response.data === null || response.data === undefined)) {
           throw new Error(response.error);

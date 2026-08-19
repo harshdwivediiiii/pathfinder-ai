@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 import { messageCreateSchema, messageUpdateSchema } from "@/lib/schemas/forms";
-import { validateId } from "@/lib/validate";
+import { validateId } from "@/lib/ai/validate";
+import { sanitizeInput } from "@/lib/security/sanitize";
 
 export async function POST(request, context) {
   const params = await context.params;
@@ -57,12 +58,12 @@ export async function POST(request, context) {
       );
     }
 
-    const { role, content } = validation.data;
+    const { content } = validation.data;
 
     const message = await db.message.create({
       data: {
         conversationId: idValidation.data,
-        role,
+        role: "user",
         content,
       },
     });
@@ -92,7 +93,7 @@ export async function PATCH(request, context) {
     return respondError(ERROR_CODES.VALIDATION_ERROR, "Conversation ID is required", idValidation.errors);
   }
 
-  const messageId = request.nextUrl.searchParams.get("messageId");
+  const messageId = sanitizeInput(request.nextUrl.searchParams.get("messageId") || "");
   const messageIdValidation = validateId(messageId, "messageId");
 
   if (!messageIdValidation.success) {
@@ -174,7 +175,7 @@ export async function DELETE(request, context) {
     return respondError(ERROR_CODES.VALIDATION_ERROR, "Conversation ID is required", idValidation.errors);
   }
 
-  const messageId = request.nextUrl.searchParams.get("messageId");
+  const messageId = sanitizeInput(request.nextUrl.searchParams.get("messageId") || "");
   const messageIdValidation = validateId(messageId, "messageId");
 
   if (!messageIdValidation.success) {

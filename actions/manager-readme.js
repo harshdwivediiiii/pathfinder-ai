@@ -1,19 +1,31 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
-import { db } from "@/lib/prisma";
-import { getUserByClerkId } from "@/lib/user";
+import { db } from "@/lib/db/prisma";
+import { getUserByClerkId } from "@/lib/auth/user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { getHistoryUser } from "@/lib/history-user";
-import { createErrorResponse } from "@/lib/action-errors";
-import { EMPTY_HISTORY_RESPONSE } from "@/lib/history-response";
-import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getHistoryUser } from "@/lib/history/history-user";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
+import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function buildReadme(style, boundaries, feedback) {
   const { userId } = await auth();
   if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "managerReadme");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Manager README limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await getHistoryUser(userId);
   if (!user) return createErrorResponse("User not found");
@@ -55,8 +67,8 @@ export async function buildReadme(style, boundaries, feedback) {
     revalidatePath("/manager-readme");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Manager README Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate README"] } };
+    await decrementRateLimit(userId, "managerReadme");
+    return handleServerError(error, "manager-readme");
   }
 }
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, FileText, Mail, Layout } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const TEMPLATES = [

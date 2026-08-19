@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { FileText, Mail, Mic, ChevronRight, Clock, MoreHorizontal } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 import { motion } from "framer-motion";
 
 export default function RecentDocs({ resumes = [], coverLetters = [], interviews = [] }) {

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, useEffect } from "react";
 
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { useTheme } from "next-themes";
 import { getUserOnboardingStatus } from "@/actions/user";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { IssueFormModal } from "./IssueFormModal";
 
 const NAV_LINKS = [
   { id: "features", label: "Features" },
@@ -77,14 +78,16 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/dev/status")
+    const controller = new AbortController();
+    fetch("/api/dev/status", { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
-        if (active && data?.clerkKeyless) setClerkKeyless(true);
+        if (data?.clerkKeyless) setClerkKeyless(true);
       })
-      .catch(() => {});
-    return () => (active = false);
+      .catch((err) => {
+        console.warn("Failed to fetch dev status:", err);
+      });
+    return () => controller.abort();
   }, []);
 
   const logoSrc =
@@ -122,13 +125,24 @@ export default function Header() {
         alignItems: "center",
       }}
     >
-      <h1 style={{ fontSize: "28px", fontWeight: "bold" }}>
-        Pathfinder AI
-      </h1>
+      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
+        {mounted ? (
+          <img
+            src={logoSrc}
+            alt="PathFinder AI"
+            style={{ height: "36px", width: "auto" }}
+          />
+        ) : (
+          <span style={{ fontSize: "28px", fontWeight: "bold", color: "inherit" }}>
+            PathFinder AI
+          </span>
+        )}
+      </Link>
 
-      <nav style={{ display: "flex", gap: "20px" }}>
+      <nav style={{ display: "flex", gap: "20px", alignItems: "center" }}>
         <Link href="/">Home</Link>
         <Link href="/dashboard">Dashboard</Link>
+        <IssueFormModal />
       </nav>
     </header>
   );

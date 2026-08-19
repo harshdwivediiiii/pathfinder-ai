@@ -1,15 +1,32 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
-
-import { db } from "@/lib/prisma";
+import { requireHistoryUser } from "@/lib/history/history-guard";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { parseAiResponse } from "@/lib/ai/ai-parser";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
+import { getAiResponseText } from "@/lib/ai/ai-response";
+import { db } from "@/lib/db/prisma";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { invokeAiGeneration } from "@/lib/ai/ai-generator";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildHistoryResponse } from "@/lib/history/history-loader";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function decodeEquityOffer(offerDetails) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "equity");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Equity analysis limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
@@ -47,7 +64,7 @@ export async function decodeEquityOffer(offerDetails) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.equityAnalysis.create({
       data: {
@@ -60,22 +77,25 @@ export async function decodeEquityOffer(offerDetails) {
     revalidatePath("/equity-decoder");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Equity Decoder Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to decode equity"] } };
+    await decrementRateLimit(userId, "equity");
+    return handleServerError(error, "equity");
   }
 }
 
 export async function getEquityAnalyses() {
   const { userId } = await auth();
-  if (!userId) return { success: false, data: [] };
+  if (!userId) return EMPTY_HISTORY_RESPONSE;
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, data: [] };
+  const user = await requireHistoryUser();
+
+if ("success" in user) {
+  return user;
+}
 
   const records = await db.equityAnalysis.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
   });
 
-  return { success: true, data: records };
+  return buildHistoryResponse(records);
 }

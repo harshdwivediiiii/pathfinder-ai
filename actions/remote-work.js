@@ -1,21 +1,43 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+function createRemoteWorkValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateRemotePitch(role, reasons, objections) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
+  const limit = await checkRateLimit(userId, "remoteWork");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Remote work pitch limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
   if (!role || !reasons) {
-    return { success: false, errors: { _form: ["Role and reasons are required."] } };
+    return createRemoteWorkValidationResponse(
+  "Role and reasons are required."
+);
   }
 
   const prompt = buildSecurePrompt({
@@ -55,8 +77,8 @@ export async function generateRemotePitch(role, reasons, objections) {
     revalidatePath("/remote-work");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Remote Work Pitch Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate pitch"] } };
+    await decrementRateLimit(userId, "remoteWork");
+    return handleServerError(error, "remote-work");
   }
 }
 

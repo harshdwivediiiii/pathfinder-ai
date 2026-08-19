@@ -14,8 +14,8 @@
 <br/>
 
 <p align="center">
-  <a href="https://pathfinder-ai.vercel.app">
-    <img src="https://img.shields.io/badge/🌐_Live_Demo-pathfinder--ai.vercel.app-000000?style=for-the-badge" alt="Live Demo" />
+  <a href="https://pathfinder-ai-auta.vercel.app">
+    <img src="https://img.shields.io/badge/🌐_Live_Demo-pathfinder--ai--auta.vercel.app-000000?style=for-the-badge" alt="Live Demo" />
   </a>
   <a href="https://nextjs.org">
     <img src="https://img.shields.io/badge/Next.js_15-000000?style=for-the-badge&logo=nextdotjs" alt="Next.js" />
@@ -57,8 +57,8 @@
 <br/>
 
 <p align="center">
-  <a href="https://pathfinder-ai.vercel.app"><strong>🚀 Try It Live</strong></a> &nbsp;·&nbsp;
-  <a href="#-getting-started"><strong>📖 Docs</strong></a> &nbsp;·&nbsp;
+  <a href="https://pathfinder-ai-auta.vercel.app"><strong>🚀 Try It Live</strong></a> &nbsp;·&nbsp;
+  <a href="#-table-of-contents"><strong>📖 Docs</strong></a> &nbsp;·&nbsp;
   <a href="#-contributing"><strong>🤝 Contribute</strong></a> &nbsp;·&nbsp;
   <a href="https://github.com/harshdwivediiiii/pathfinder-ai/issues/new?template=bug_report.md"><strong>🐛 Report Bug</strong></a> &nbsp;·&nbsp;
   <a href="https://github.com/harshdwivediiiii/pathfinder-ai/issues/new?template=feature_request.md"><strong>💡 Request Feature</strong></a>
@@ -330,7 +330,8 @@ pathfinder-ai/
 
 ## 🚀 Getting Started
 
-### Prerequisites
+<details>
+<summary><b>Prerequisites</b></summary>
 
 | Tool | Version | Link |
 |---|---|---|
@@ -338,16 +339,20 @@ pathfinder-ai/
 | npm / pnpm | `v9+` / `v8+` | Bundled with Node |
 | PostgreSQL | Any recent | [Neon](https://neon.tech) · [Supabase](https://supabase.com) · [Railway](https://railway.app) |
 
----
+</details>
 
-### 1. Clone the Repository
+<details>
+<summary><b>1. Clone the Repository</b></summary>
 
 ```bash
 git clone https://github.com/harshdwivediiiii/pathfinder-ai.git
 cd pathfinder-ai
 ```
 
-### 2. Install Dependencies
+</details>
+
+<details>
+<summary><b>2. Install Dependencies</b></summary>
 
 ```bash
 npm install
@@ -355,7 +360,10 @@ npm install
 pnpm install
 ```
 
-### 3. Configure Environment Variables
+</details>
+
+<details>
+<summary><b>3. Configure Environment Variables</b></summary>
 
 ```bash
 cp .env.example .env.local
@@ -363,7 +371,10 @@ cp .env.example .env.local
 
 Fill in your values — see the [Environment Variables](#-environment-variables) section for a full reference.
 
-### 4. Set Up the Database
+</details>
+
+<details>
+<summary><b>4. Set Up the Database</b></summary>
 
 ```bash
 npx prisma generate
@@ -373,7 +384,10 @@ npx prisma migrate dev --name init
 npx prisma db seed
 ```
 
-### 5. Start the Development Server
+</details>
+
+<details>
+<summary><b>5. Start the Development Server</b></summary>
 
 ```bash
 npm run dev
@@ -383,10 +397,14 @@ Open [http://localhost:3000](http://localhost:3000). You're in.
 
 > **💡 Keyless Mode:** Running without Clerk keys? The app runs safely in keyless mode — auth routes redirect gracefully and protected pages won't crash. Perfect for UI-only development.
 
----
+> **⚠️ Development Authentication Bypass:** For local development without Clerk setup, you can set `SKIP_AUTH=true` to bypass authentication. This is ONLY allowed on localhost in development mode and will throw an error in production or on non-localhost hosts. See the [Environment Variables](#-environment-variables) section for details.
 
-<!-- Fix: Corrected step numbering from 5.5 to 6 for proper sequential numbering -->
-### 6. Start the Inngest Dev Server (required for background jobs)
+> **⚠️ E2E Testing Bypass:** The `E2E_TEST=true` variable drives the Playwright end-to-end test suite's auth bypass. It works only outside of production and only on localhost/`127.0.0.1`. Setting `E2E_TEST=true` on a deployed instance now throws an error instead of silently disabling authentication.
+
+</details>
+
+<details>
+<summary><b>6. Start the Inngest Dev Server (required for background jobs)</b></summary>
 
 In a **second terminal**, run:
 
@@ -397,6 +415,10 @@ npx inngest-cli@latest dev
 > ⚠️ Without this, `generateIndustryInsights` and all background functions
 > will silently never fire — no error, no warning. This is a required step.
 > Get your production keys from [app.inngest.com](https://app.inngest.com).
+
+</details>
+
+---
 
 ## 🔑 Environment Variables
 
@@ -425,9 +447,10 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
 GEMINI_API_KEY=AIza...
 
 # Inngest (Background Job Processing)
-# Without these, background jobs like generateIndustryInsights silently never fire.
-# For local dev set both to: local
-# For production get them from: https://app.inngest.com → your app → Manage
+# Required in production for background jobs (industry insights, rate limit cleanup, etc.)
+# Optional in development - the app will start without these keys
+# For local development with Inngest dev server, set both to: local
+# For production, get keys from: https://app.inngest.com → your app → Manage
 INNGEST_EVENT_KEY=your_inngest_event_key
 INNGEST_SIGNING_KEY=your_inngest_signing_key
 
@@ -441,7 +464,25 @@ RATE_LIMIT_STORE=auto
 # APP (OPTIONAL)
 # ─────────────────────────────────────────────
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# ─────────────────────────────────────────────
+# DEVELOPMENT AUTHENTICATION BYPASS (OPTIONAL)
+# ─────────────────────────────────────────────
+# ⚠️ SECURITY WARNING: Never set this to "true" in production!
+# When set to "true", authentication is bypassed for local development only.
+# This requires:
+# - NODE_ENV=development
+# - Request from localhost or 127.0.0.1
+# The application will throw an error if these conditions are not met.
+# Remove this variable or set to "false" for production deployments.
+SKIP_AUTH=false
+
+# E2E testing auth bypass (E2E tests only, development-only, localhost-only)
+E2E_TEST=false
 ```
+
+<details>
+<summary><b>Full Environment Variables Reference</b></summary>
 
 > **Rate limiting in production:** Redis is required for consistent multi-instance throttling. In production, set `REDIS_URL` and keep `RATE_LIMIT_STORE=auto` (or set `RATE_LIMIT_STORE=redis`).
 
@@ -455,9 +496,15 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 | `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | ✅ | Redirect destination after sign-in |
 | `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | ✅ | Redirect destination after sign-up |
 | `GEMINI_API_KEY` | ✅ | Google Gemini API key for all AI features |
+| `INNGEST_EVENT_KEY` | ✅ (prod) | Inngest event key for background job processing (required in production) |
+| `INNGEST_SIGNING_KEY` | ✅ (prod) | Inngest signing key for background job processing (required in production) |
 | `REDIS_URL` | ⚪ | Redis connection string for production rate limiting |
 | `RATE_LIMIT_STORE` | ⚪ | Rate limiter driver (`auto` or `redis`) |
 | `NEXT_PUBLIC_APP_URL` | ⚪ | Base URL used in production builds |
+| `SKIP_AUTH` | ⚪ | Development-only auth bypass (NEVER use in production) |
+| `E2E_TEST` | ⚪ | E2E test suite auth bypass (development/localhost only, NEVER use in production) |
+
+</details>
 
 ---
 
@@ -478,6 +525,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ---
 
 ## 🔐 Authentication Setup
+
+<details>
+<summary><b>Clerk Authentication Configuration</b></summary>
 
 PathFinder AI uses **[Clerk](https://clerk.dev)** — handling sign-up, sign-in, session management, and user profiles with zero boilerplate and enterprise-grade security.
 
@@ -501,9 +551,14 @@ PathFinder AI uses **[Clerk](https://clerk.dev)** — handling sign-up, sign-in,
 
 All routes under `/(main)/` require authentication. Unauthenticated users are redirected to `/sign-in` automatically via Clerk middleware.
 
+</details>
+
 ---
 
 ## 🗄️ Database Setup
+
+<details>
+<summary><b>PostgreSQL & Prisma Configuration</b></summary>
 
 PathFinder AI uses **PostgreSQL** with **Prisma ORM** for all data operations — type-safe from schema to query.
 
@@ -535,6 +590,8 @@ npx prisma migrate dev --name describe_your_change
 npx prisma generate
 ```
 
+</details>
+
 ---
 
 ## ☁️ Deployment
@@ -545,7 +602,7 @@ PathFinder AI is optimized for **[Vercel](https://vercel.com)** deployment out o
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/harshdwivediiiii/pathfinder-ai)
 
-> 🌐 **Live Demo:** [pathfinder-ai.vercel.app](https://pathfinder-ai.vercel.app)
+> 🌐 **Live Demo:** [pathfinder-ai-auta.vercel.app](https://pathfinder-ai-auta.vercel.app)
 
 ### Manual Deploy
 
@@ -554,7 +611,8 @@ PathFinder AI is optimized for **[Vercel](https://vercel.com)** deployment out o
 3. Add all env variables from `.env.example` in Vercel project settings
 4. Hit deploy — Vercel auto-detects Next.js and configures the build
 
-### Pre-Launch Checklist
+<details>
+<summary><b>Pre-Launch Checklist</b></summary>
 
 - [ ] All environment variables added to Vercel project settings
 - [ ] `DATABASE_URL` points to a production PostgreSQL instance
@@ -562,6 +620,8 @@ PathFinder AI is optimized for **[Vercel](https://vercel.com)** deployment out o
 - [ ] Clerk configured with production keys + correct redirect URLs
 - [ ] `NEXT_PUBLIC_APP_URL` set to your production domain
 - [ ] Custom domain configured (optional but recommended)
+
+</details>
 
 ### Run Migrations in Production
 
@@ -572,6 +632,9 @@ DATABASE_URL="your_prod_db_url" npx prisma migrate deploy
 ---
 
 ## 🎨 UI/UX Highlights
+
+<details>
+<summary><b>Design System & Animations</b></summary>
 
 PathFinder AI ships with a premium, production-grade interface designed for clarity and delight — not just functionality.
 
@@ -595,9 +658,14 @@ Built on **ShadCN UI** primitives with a custom TailwindCSS theme:
 - Client Components isolated to interactive UI islands
 - `<Suspense>` boundaries with meaningful, contextual loading states
 
+</details>
+
 ---
 
 ## ⚡ Performance
+
+<details>
+<summary><b>Optimization Details</b></summary>
 
 Performance is a first-class concern, not an afterthought.
 
@@ -619,6 +687,8 @@ Performance is a first-class concern, not an afterthought.
 ### Caching Strategy
 - `fetch` cache for stable AI-generated content
 - Per-type revalidation (insights refreshed more aggressively than user-generated content)
+
+</details>
 
 ---
 
@@ -659,7 +729,8 @@ PathFinder AI has an active Discord community where contributors, mentors, maint
   Join our Discord server for discussions, issue guidance, feature brainstorming, announcements, mentorship, and GSSoC'26 collaboration.
 </p>
 
-### Why Join?
+<details>
+<summary><b>Why Join?</b></summary>
 
 - 🤝 Connect with contributors and mentors
 - 🚀 Get help with issues and pull requests
@@ -674,13 +745,16 @@ PathFinder AI has an active Discord community where contributors, mentors, maint
 
 We encourage all contributors and mentors to join before starting work on issues and pull requests.
 
+</details>
+
 ---
 
 ## 🤝 Contributing
 
 PathFinder AI is actively participating in **GirlScript Summer of Code 2026 (GSSoC'26)** ❤️ and we warmly welcome all contributors — first-timers and veterans alike.
 
-### Quick Start
+<details>
+<summary><b>Quick Start Guide</b></summary>
 
 ```bash
 # 1. Fork the repo, then clone your fork
@@ -697,7 +771,10 @@ git commit -m "feat: add resume analytics dashboard"
 git push origin feature/your-feature-name
 ```
 
-### Commit Message Format
+</details>
+
+<details>
+<summary><b>Commit Message Format</b></summary>
 
 ```
 feat:      new feature
@@ -710,7 +787,10 @@ test:      adding or updating tests
 chore:     build process or tooling
 ```
 
-### PR Checklist
+</details>
+
+<details>
+<summary><b>PR Checklist</b></summary>
 
 - [ ] Feature works correctly and tested locally
 - [ ] UI changes are responsive across all screen sizes
@@ -720,7 +800,10 @@ chore:     build process or tooling
 - [ ] Screenshots or screen recording attached for UI changes
 - [ ] Branch synced with latest `main`, all conflicts resolved
 
-### Getting Assigned (GSSoC'26)
+</details>
+
+<details>
+<summary><b>Getting Assigned (GSSoC'26)</b></summary>
 
 1. Browse [open issues](https://github.com/harshdwivediiiii/pathfinder-ai/issues)
 2. Drop a comment describing your planned approach
@@ -760,6 +843,8 @@ Could you please assign it to me? Thanks!
 | `enhancement` | Feature additions |
 | `bug` | Something's broken |
 | `documentation` | Docs improvements |
+
+</details>
 
 ---
 

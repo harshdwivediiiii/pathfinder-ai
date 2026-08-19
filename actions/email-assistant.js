@@ -1,12 +1,15 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildUserProfileContext } from "@/lib/ai-context";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { getAiResponseText } from "@/lib/ai/ai-response";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateEmailReply(originalEmail, goal) {
   const { userId } = await auth();
@@ -21,6 +24,16 @@ export async function generateEmailReply(originalEmail, goal) {
   });
   if (!user) return createErrorResponse("User not found");
 
+  const limit = await checkRateLimit(userId, "emailAssistant");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Email reply generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
   const prompt = buildSecurePrompt({
     context: buildUserProfileContext(user),
     task: `You are an expert career coach helping a candidate reply to a recruiter or hiring manager. 
@@ -34,7 +47,7 @@ export async function generateEmailReply(originalEmail, goal) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const replyContent = aiResult.response.text().trim();
+    const replyContent = getAiResponseText(aiResult).trim();
 
     const record = await db.recruiterEmail.create({
       data: {
@@ -48,8 +61,8 @@ export async function generateEmailReply(originalEmail, goal) {
     revalidatePath("/email-assistant");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Email Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate email reply"] } };
+    await decrementRateLimit(userId, "emailAssistant");
+    return handleServerError(error, "email-assistant");
   }
 }
 

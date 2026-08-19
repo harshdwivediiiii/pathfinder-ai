@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 
-export function MagneticButton({ children, className, ...props }) {
+export function MagneticButton({ children, className, asChild, ...props }) {
   const ref = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 

@@ -5,8 +5,8 @@ const mocks = vi.hoisted(() => ({
   cachedGenerateGeminiContent: vi.fn(),
 }));
 
-vi.mock("@/lib/prompt-safety", async () => {
-  const actual = await vi.importActual("@/lib/prompt-safety");
+vi.mock("@/lib/ai/prompt-safety", async () => {
+  const actual = await vi.importActual("@/lib/ai/prompt-safety");
   return {
     ...actual,
     buildSecurePrompt: mocks.buildSecurePrompt,
@@ -25,7 +25,7 @@ vi.mock("../lib/cache/index.js", async () => {
 import {
   generateIndustryInsightData,
   isIndustryInsightStale,
-} from "../lib/industry-insights.js";
+} from "../lib/misc/industry-insights.js";
 
 describe("industry insights helper", () => {
   beforeEach(() => {
@@ -172,6 +172,32 @@ describe("industry insights helper", () => {
         ttl: 5 * 60 * 1000,
       })
     );
+
+    // The grounded and estimate branches must never share a cache slot,
+    // otherwise an estimate could be served as web-sourced data.
+    const groundedKey = mocks.cachedGenerateGeminiContent.mock.calls[0][2].key;
+    const estimateKey = mocks.cachedGenerateGeminiContent.mock.calls[1][2].key;
+    expect(groundedKey).not.toBe(estimateKey);
+  });
+
+  it("falls back to default estimate when Gemini returns non-JSON text (extractJSON throws)", async () => {
+    mocks.cachedGenerateGeminiContent
+      .mockRejectedValueOnce(new Error("search unavailable"))
+      .mockResolvedValueOnce({
+        response: {
+          text: () => "I'm sorry, I couldn't find specific data for this industry right now.",
+          candidates: [{}],
+        },
+      });
+
+    const insights = await generateIndustryInsightData("healthcare");
+
+    expect(insights.isGrounded).toBe(false);
+    expect(insights.salaryRanges[0].citations).toEqual([]);
+    expect(insights.marketOutlook).toBe("Positive");
+    // Default fallback values should be present
+    expect(insights.topSkills).toContain("JavaScript");
+    expect(insights.keyTrends).toContain("AI integration in software workflows");
   });
 
   it("treats missing nextUpdate as stale", () => {

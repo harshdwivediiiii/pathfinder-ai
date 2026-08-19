@@ -1,15 +1,81 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { validateInput, parseAIJson } from "@/lib/validate";
+import { validateInput, parseAIJson } from "@/lib/ai/validate";
 import { linkedInOptimizationSchema } from "@/lib/schemas/forms";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { safeFetch } from "@/lib/security/safe-fetch";
+
+async function fetchLinkedInProfile(url) {
+  try {
+    // Use safeFetch to prevent SSRF attacks
+    const result = await safeFetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch LinkedIn profile');
+    }
+
+    const html = result.text;
+    
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1] : '';
+    
+    const metaDescMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i) 
+      || html.match(/<meta[^>]*content="([^"]+)"[^>]*name="description"/i);
+    const metaDesc = metaDescMatch ? metaDescMatch[1] : '';
+    
+    const ogTitleMatch = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/i)
+      || html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:title"/i);
+    const ogTitle = ogTitleMatch ? ogTitleMatch[1] : '';
+    
+    const ogDescMatch = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/i)
+      || html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:description"/i);
+    const ogDesc = ogDescMatch ? ogDescMatch[1] : '';
+    
+    let profileContent = '';
+    
+    if (title) profileContent += `Title: ${title}\n`;
+    if (ogTitle && ogTitle !== title) profileContent += `Headline: ${ogTitle}\n`;
+    if (metaDesc) profileContent += `Summary: ${metaDesc}\n`;
+    if (ogDesc && ogDesc !== metaDesc) profileContent += `About: ${ogDesc}\n`;
+    
+    const experienceSection = html.match(/experience[^]*?(?=education|skills|projects|$)/i);
+    if (experienceSection) {
+      const experiences = experienceSection[0].match(/<li[^>]*class="[^"]*experience[^"]*"[^>]*>[^]*?<\/li>/gi) || [];
+      if (experiences.length > 0) {
+        profileContent += '\nExperience:\n';
+        experiences.slice(0, 5).forEach(exp => {
+          const cleanExp = exp.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          profileContent += `- ${cleanExp}\n`;
+        });
+      }
+    }
+    
+    profileContent = profileContent.trim();
+    
+    if (profileContent.length < 50) {
+      throw new Error('Could not extract enough profile data from the URL. Please try pasting your profile text directly.');
+    }
+    
+    return profileContent;
+  } catch (error) {
+    console.error('LinkedIn fetch error:', error);
+    throw new Error('Failed to fetch LinkedIn profile. Please try pasting your profile text directly.');
+  }
+}
 
 export async function optimizeLinkedInProfile(data) {
   const { userId } = await auth();
@@ -35,31 +101,11 @@ export async function optimizeLinkedInProfile(data) {
 
   let profileContent = validation.data.profileContent;
 
-  if (validation.data.profileUrl) {
-    if (!process.env.PROXYCURL_API_KEY) {
-      return { success: false, errors: { _form: ["Proxycurl API key is not configured. Please add PROXYCURL_API_KEY to your environment variables."] } };
-    }
-
+  if (!profileContent && validation.data.profileUrl) {
     try {
-      const response = await fetch(`https://nubela.co/proxycurl/api/v2/linkedin?url=${encodeURIComponent(validation.data.profileUrl)}`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.PROXYCURL_API_KEY}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error(`Proxycurl error: ${response.statusText}`);
-      }
-      const profileData = await response.json();
-      
-      profileContent = `
-Headline: ${profileData.headline || ''}
-Summary: ${profileData.summary || ''}
-Experiences:
-${(profileData.experiences || []).map(exp => `- ${exp.title} at ${exp.company}\n  ${exp.description || ''}`).join('\n')}
-      `.trim();
+      profileContent = await fetchLinkedInProfile(validation.data.profileUrl);
     } catch (err) {
-      console.error("Proxycurl API Error:", err);
-      return { success: false, errors: { _form: ["Failed to fetch LinkedIn profile from URL."] } };
+      return { success: false, errors: { _form: [err.message] } };
     }
   }
 
@@ -88,26 +134,30 @@ ${(profileData.experiences || []).map(exp => `- ${exp.title} at ${exp.company}\n
 }`,
   });
 
-  try {
-    const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+ try {
+  const aiResult = await generateGeminiContent(prompt);
 
-    const record = await db.linkedInOptimization.create({
-      data: {
-        userId: user.id,
-        profileContent: profileContent,
-        analysis: parsedData,
-      },
-    });
+  const parsedData = parseAIJson(aiResult.response.text());
 
-    revalidatePath("/linkedin-optimizer");
-    return { success: true, data: record };
-  } catch (error) {
-    console.error("LinkedIn Optimization Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate optimization"] } };
-  }
+  const record = await db.linkedInOptimization.create({
+    data: {
+      userId: user.id,
+      profileContent,
+      analysis: parsedData,
+    },
+  });
+
+  revalidatePath("/linkedin-optimizer");
+
+  return {
+    success: true,
+    data: record,
+  };
+} catch (error) {
+    await decrementRateLimit(userId, "linkedin");
+  return handleServerError(error, "linkedin");
 }
-
+}
 export async function getLinkedInOptimizations({ take = 10, skip = 0 } = {}) {
   const { userId } = await auth();
   if (!userId) return { success: false, data: [] };

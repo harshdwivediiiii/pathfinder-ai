@@ -1,16 +1,31 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildUserProfileContext } from "@/lib/ai-context";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+function revalidateFreelanceProposal() {
+  revalidatePath("/freelance-proposal");
+}
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateProposal(projectDetails, rate) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "freelance");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Proposal generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!projectDetails || !rate) {
     return { success: false, errors: { _form: ["Project Details and Rate are required."] } };
@@ -45,11 +60,11 @@ export async function generateProposal(projectDetails, rate) {
       },
     });
 
-    revalidatePath("/freelance-proposal");
+    revalidateFreelanceProposal();
     return { success: true, data: record };
   } catch (error) {
-    console.error("Freelance Proposal Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate proposal"] } };
+    await decrementRateLimit(userId, "freelance");
+    return handleServerError(error, "freelance");
   }
 }
 

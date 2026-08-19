@@ -130,7 +130,7 @@ Coolify is an open-source, self-hostable Heroku/Netlify alternative.
 3.  **Configure Build & Deploy:**
     *   Coolify should detect your `Dockerfile`.
     *   Set the `Build Command` to `npm ci && npx prisma generate && npm run build`.
-    *   Set the `Start Command` to `sh -c "npx prisma migrate deploy && node server.js"`.
+    *   Set the `Start Command` to `sh -c "npx prisma migrate deploy && node scripts/check-schema-drift.mjs && node server.js"`. The schema smoke check fails the boot if any `schema.prisma` table is missing, so `migrate deploy` drift surfaces immediately instead of on the first real query.
 4.  **Environment Variables:**
     Add your production environment variables through the Coolify UI.
 5.  **Database and Redis:**

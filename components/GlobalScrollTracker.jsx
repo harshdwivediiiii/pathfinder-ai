@@ -22,7 +22,7 @@ export function GlobalScrollTracker() {
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 100; // 100px header offset
-      const scrollStoryEl = document.getElementById("scroll-story");
+      const scrollStoryEl = document.getElementById("career-scroll");
       const heroEl = document.getElementById("hero");
       const featuresEl = document.getElementById("features");
       const pricingEl = document.getElementById("pricing");
@@ -36,7 +36,7 @@ export function GlobalScrollTracker() {
         return;
       }
 
-      // Check scroll-story dimensions
+      // Check career-scroll dimensions
       if (scrollStoryEl) {
         const offsetTop = scrollStoryEl.offsetTop;
         const offsetHeight = scrollStoryEl.offsetHeight;
@@ -95,21 +95,21 @@ export function GlobalScrollTracker() {
   }, []);
 
   const handleDotClick = (id) => {
-    const scrollStoryEl = document.getElementById("scroll-story");
-    
-    if (id === "roadmap" && scrollStoryEl) {
+    const careerScrollEl = document.getElementById("career-scroll");
+
+    if (id === "roadmap" && careerScrollEl) {
       window.scrollTo({
-        top: scrollStoryEl.offsetTop + window.innerHeight + 10,
+        top: careerScrollEl.offsetTop + careerScrollEl.offsetHeight * 0.3,
         behavior: "smooth"
       });
-    } else if (id === "resume" && scrollStoryEl) {
+    } else if (id === "resume" && careerScrollEl) {
       window.scrollTo({
-        top: scrollStoryEl.offsetTop + (2 * window.innerHeight) + 10,
+        top: careerScrollEl.offsetTop + careerScrollEl.offsetHeight * 0.55,
         behavior: "smooth"
       });
-    } else if (id === "interview" && scrollStoryEl) {
+    } else if (id === "interview" && careerScrollEl) {
       window.scrollTo({
-        top: scrollStoryEl.offsetTop + (3 * window.innerHeight) + 10,
+        top: careerScrollEl.offsetTop + careerScrollEl.offsetHeight * 0.8,
         behavior: "smooth"
       });
     } else {

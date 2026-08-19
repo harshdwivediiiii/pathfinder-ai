@@ -1,12 +1,15 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
-import { db } from "@/lib/prisma";
-import { getUserByClerkId } from "@/lib/user";
+import { db } from "@/lib/db/prisma";
+import { getUserByClerkId } from "@/lib/auth/user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { validateInput } from "@/lib/validate";
+import { validateInput } from "@/lib/ai/validate";
 import { userSettingsSchema, accessibilitySettingsSchema } from "@/lib/schemas/forms";
-
+function revalidateSettingsRoute() {
+  revalidatePath("/settings");
+}
 function normalizeSettings(settings) {
   if (!settings) return { 
     notifications: true, 
@@ -30,12 +33,6 @@ function normalizeSettings(settings) {
   };
 }
 
-function normalizeSettingsInput(data) {
-  return {
-    notifications: Boolean(data.notifications),
-    emailAlerts: Boolean(data.emailAlerts),
-  };
-}
 
 export async function getUserSettings() {
   const { userId } = await auth();
@@ -46,6 +43,7 @@ export async function getUserSettings() {
 
   try {
     const user = await getUserByClerkId(userId);
+    if (!user) return normalizeSettings(null);
 
     const settings = await db.userSettings.findUnique({
       where: { userId: user.id },
@@ -53,8 +51,7 @@ export async function getUserSettings() {
 
     return normalizeSettings(settings);
   } catch (error) {
-    console.error("[Settings Action] Error in getUserSettings:", error.message);
-    return normalizeSettings(null);
+    return handleServerError(error, "settings");
   }
 }
 
@@ -66,13 +63,34 @@ export async function updateUserSettings(data) {
       throw new Error("Unauthorized");
     }
 
-    const validation = validateInput(userSettingsSchema, data);
-    if (!validation.success) {
-      return { success: false, errors: validation.errors };
+    const preferenceValidation = validateInput(userSettingsSchema, {
+      notifications: data?.notifications,
+      emailAlerts: data?.emailAlerts,
+    });
+    const accessibilityValidation = validateInput(accessibilitySettingsSchema, {
+      largeButtonsMode: data?.largeButtonsMode,
+      highContrastMode: data?.highContrastMode,
+      speechSpeed: data?.speechSpeed,
+      preferredLanguage: data?.preferredLanguage,
+      preferredVoiceLanguage: data?.preferredVoiceLanguage,
+      oneTapCameraMode: data?.oneTapCameraMode,
+    });
+
+    if (!preferenceValidation.success || !accessibilityValidation.success) {
+      return {
+        success: false,
+        errors: {
+          ...preferenceValidation.errors,
+          ...accessibilityValidation.errors,
+        },
+      };
     }
 
     const user = await getUserByClerkId(userId);
-    const settingsData = validation.data;
+    const settingsData = {
+      ...preferenceValidation.data,
+      ...accessibilityValidation.data,
+    };
 
     const settings = await db.userSettings.upsert({
       where: {
@@ -85,17 +103,10 @@ export async function updateUserSettings(data) {
       update: settingsData,
     });
 
-    revalidatePath("/settings");
+    revalidateSettingsRoute();
     return { success: true, settings: normalizeSettings(settings) };
   } catch (error) {
-    console.error("[Settings Action] Error in updateUserSettings:", error.message);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    return {
-      success: false,
-      error: "Failed to update settings. Please ensure database migrations are applied."
-    };
+    return handleServerError(error, "settings");
   }
 }
 
@@ -126,16 +137,9 @@ export async function updateAccessibilitySettings(data) {
       update: settingsData,
     });
 
-    revalidatePath("/settings");
+    revalidateSettingsRoute();
     return { success: true, settings: normalizeSettings(settings) };
   } catch (error) {
-    console.error("[Settings Action] Error in updateAccessibilitySettings:", error.message);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    return {
-      success: false,
-      error: "Failed to update accessibility settings."
-    };
+    return handleServerError(error, "settings");
   }
 }

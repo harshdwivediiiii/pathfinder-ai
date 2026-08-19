@@ -38,7 +38,10 @@ import {
   Home,
   Rocket,
   ShieldAlert,
-  BookOpenText
+  BookOpenText,
+  SearchCode,
+  MessagesSquare,
+  GraduationCap
 } from "lucide-react";
 
 const TOOL_CATEGORIES = [
@@ -50,6 +53,7 @@ const TOOL_CATEGORIES = [
       { name: "Resume Roast", desc: "Brutal AI feedback", icon: Flame, color: "bg-red-500/10 text-red-500 border-red-500/20", href: "/resume-roast" },
       { name: "Cover Letter", desc: "Tailored for success", icon: Mail, color: "bg-rose-500/10 text-rose-500 border-rose-500/20", href: "/ai-cover-letter" },
       { name: "LinkedIn Optimizer", desc: "Profile audits", icon: ScanSearch, color: "bg-[#0A66C2]/10 text-[#0A66C2] border-[#0A66C2]/20", href: "/linkedin-optimizer" },
+      { name: "Portfolio Builder", desc: "AI generated portfolios", icon: LayoutList, color: "bg-teal-500/10 text-teal-500 border-teal-500/20", href: "/portfolio-builder" },
       { name: "LinkedIn Posts", desc: "Viral content creator", icon: Linkedin, color: "bg-[#0A66C2]/10 text-[#0A66C2] border-[#0A66C2]/20", href: "/linkedin-post" },
     ]
   },
@@ -61,6 +65,7 @@ const TOOL_CATEGORIES = [
       { name: "Video Coach", desc: "Visual mock interviews", icon: Video, color: "bg-blue-500/10 text-blue-500 border-blue-500/20", href: "/interview/video-coach" },
       { name: "STAR Builder", desc: "Craft perfect stories", icon: Star, color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20", href: "/interview/star-builder" },
       { name: "Cheat Sheet", desc: "Quick prep guide", icon: FileText, color: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20", href: "/interview/cheat-sheet" },
+      { name: "Reverse Interviewer", desc: "Ask the right questions", icon: GraduationCap, color: "bg-purple-500/10 text-purple-500 border-purple-500/20", href: "/reverse-interviewer" },
       { name: "Behavioral Prep", desc: "Beat personality tests", icon: BrainCircuit, color: "bg-rose-500/10 text-rose-500 border-rose-500/20", href: "/behavioral-prep" },
       { name: "Coffee Chat", desc: "Mock networking", icon: Coffee, color: "bg-amber-500/10 text-amber-500 border-amber-500/20", href: "/coffee-chat" },
       { name: "Take-Home Grader", desc: "Ace the technical test", icon: Code2, color: "bg-violet-500/10 text-violet-500 border-violet-500/20", href: "/assignment-grader" },
@@ -69,6 +74,7 @@ const TOOL_CATEGORIES = [
   {
     category: "Job Search & Offers",
     tools: [
+      { name: "JD Decoder", desc: "Red flag detector", icon: SearchCode, color: "bg-destructive/10 text-destructive border-destructive/20", href: "/jd-decoder" },
       { name: "Job Tracker", desc: "Kanban board", icon: LayoutList, color: "bg-green-500/10 text-green-500 border-green-500/20", href: "/job-tracker" },
       { name: "Salary Coach", desc: "Negotiation scripts", icon: DollarSign, color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", href: "/salary-negotiation" },
       { name: "Offer Comparer", desc: "Total comp calculator", icon: Calculator, color: "bg-teal-500/10 text-teal-500 border-teal-500/20", href: "/offer-comparer" },
@@ -97,6 +103,13 @@ const TOOL_CATEGORIES = [
       { name: "Remote Work Negotiator", desc: "Pitch remote transition", icon: Home, color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", href: "/remote-work" },
       { name: "Manager README", desc: "User manual for you", icon: BookOpenText, color: "bg-blue-500/10 text-blue-500 border-blue-500/20", href: "/manager-readme" },
       { name: "Imposter Syndrome", desc: "Reframing exercises", icon: ShieldAlert, color: "bg-rose-500/10 text-rose-500 border-rose-500/20", href: "/imposter-syndrome" },
+      { name: "Toxic Escape Plan", desc: "Covert exit strategy", icon: ShieldAlert, color: "bg-red-500/10 text-red-500 border-red-500/20", href: "/toxic-workplace" },
+    ]
+  },
+  {
+    category: "Everyday Tools",
+    tools: [
+      { name: "Corporate Translator", desc: "AI Slack Diplomat", icon: MessagesSquare, color: "bg-blue-500/10 text-blue-500 border-blue-500/20", href: "/translator" },
     ]
   }
 ];

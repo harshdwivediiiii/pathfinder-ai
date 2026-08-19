@@ -1,37 +1,84 @@
 "use server";
-
-import { db } from "@/lib/prisma";
+import { executeSecurePrompt } from "@/lib/ai/prompt-execution";
+import { returnRecord } from "@/lib/action-helpers/record-response";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createJsonOutputRules } from "@/lib/ai/output-rules";
+import { executeAiWorkflow } from "@/lib/ai/ai-workflow";
+import { PROMPT_CONTEXTS } from "@/lib/ai/prompt-contexts";
+import { executeAiLifecycle } from "@/lib/ai/ai-lifecycle";
+import { createValidationResponse } from "@/lib/errors/validation-response";
+import { runAiGeneration } from "@/lib/ai/ai-pipeline";
+import { DEFAULT_PROMPT_CONFIG } from "@/lib/ai/prompt-defaults";
+import { loadHistory } from "@/lib/history/history-loader";
+import { getUserHistory } from "@/lib/history/history-query";
+import { createSuccessResponse } from "@/lib/action-helpers/action-success";
+import { db } from "@/lib/db/prisma";
+import { parseAiResponse } from "@/lib/ai/ai-json";
+import { buildParsedResult } from "@/lib/ai/parsed-ai";
 import { auth } from "@clerk/nextjs/server";
+import { createHistoryResponse } from "@/lib/history/history-response";
+import { createPromptConfig } from "@/lib/ai/prompt-config";
 import { revalidatePath } from "next/cache";
-import { createErrorResponse } from "@/lib/action-errors";
-import { getAuthenticatedUserId } from "@/lib/auth-userid";
-import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { userExists } from "@/lib/user-guards";
-import { generateGeminiContent } from "@/lib/gemini";
-import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
+import { createOutputRules } from "@/lib/ai/output-rules";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
+import { completePersistence } from "@/lib/persistence/persistence-complete";
+import { createRecord } from "@/lib/db/record-create";
+import { getAuthenticatedUserId } from "@/lib/auth/auth-userid";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { withParsedData } from "@/lib/persistence/persistence-data";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
+import { parseAiOutput } from "@/lib/ai/ai-output";
+import { getAuthenticatedUser } from "@/lib/auth/authenticated-history";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 /** Generate a career pivot strategy based on user goals. */
+
+
+function createCareerPivotValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
+
+
 export async function generatePivotStrategy(currentRole, targetRole) {
   const userId = await getAuthenticatedUserId(auth);
   if (!userId) return UNAUTHORIZED_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "careerPivot");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Career pivot strategy limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
   if (!currentRole || !targetRole) {
-    return { success: false, errors: { _form: ["Both current and target roles are required."] } };
+    return createCareerPivotValidationResponse(
+  "Both current and target roles are required."
+);
   }
 
-  const prompt = buildSecurePrompt({
-    context: "You are an expert career transition coach.",
-    task: `Analyze a career pivot from '${currentRole}' to '${targetRole}'. 
-    Identify the hidden transferable skills the candidate already has, the major skill gaps they need to close, and a step-by-step roadmap to make the transition.`,
-    untrustedData: [
-      { label: "currentRole", value: currentRole, maxLength: 100 },
-      { label: "targetRole", value: targetRole, maxLength: 100 },
-    ],
-    outputRules: `Provide the output in the following JSON format ONLY:
+  try {
+    const aiResult = await runAiGeneration(
+      createPromptConfig({
+        context: "You are an expert career transition coach.",
+        task: `Analyze a career pivot from '${currentRole}' to '${targetRole}'.
+      Identify the hidden transferable skills the candidate already has, the major skill gaps they need to close, and a step-by-step roadmap to make the transition.`,
+        untrustedData: [
+          { label: "currentRole", value: currentRole, maxLength: 100 },
+          { label: "targetRole", value: targetRole, maxLength: 100 },
+        ],
+        outputRules: createJsonOutputRules(`Provide the output in the following JSON format ONLY:
 {
   "transferableSkills": [
     "Skill 1 (and how it translates)",
@@ -46,41 +93,39 @@ export async function generatePivotStrategy(currentRole, targetRole) {
     { "step": "Phase 2: Portfolio", "action": "What to build or prove" },
     { "step": "Phase 3: Networking & Application", "action": "How to position yourself" }
   ]
-}`,
-  });
+}`),
+      })
+    );
+    const parsedData = parseAiResponse(aiResult);
+    }),
+    { userId }
+  );
+  const parsedData = parseAiResponse(aiResult);
 
-  try {
-    const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
-
-    const record = await db.careerPivot.create({
-      data: {
-        userId: user.id,
-        currentRole,
-        targetRole,
-        analysis: parsedData,
-      },
+    const record = await createRecord(db.careerPivot, {
+      userId: user.id,
+      currentRole,
+      targetRole,
+      ...buildParsedResult("analysis", parsedData),
     });
 
     revalidatePath("/career-pivot");
-    return { success: true, data: record };
+    return createSuccessResponse(record);
   } catch (error) {
-    console.error("Career Pivot Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate pivot strategy"] } };
+    await decrementRateLimit(userId, "careerPivot");
+    return handleServerError(error, "career-pivot");
   }
 }
 
 export async function getCareerPivots() {
-  const userId = await getAuthenticatedUserId(auth);
-  if (!userId) return { success: false, data: [] };
-
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const user = await getAuthenticatedUser();
   if (!user) return { success: false, data: [] };
 
-  const records = await db.careerPivot.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const records = await getUserHistory(
+  db.careerPivot,
+  user.id,
+  { createdAt: "desc" }
+);
 
-  return { success: true, data: records };
+  return createHistoryResponse(records);
 }

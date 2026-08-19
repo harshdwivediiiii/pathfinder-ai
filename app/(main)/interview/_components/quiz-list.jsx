@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, XCircle, ArrowRight } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowRight, Lightbulb } from "lucide-react";
 
 const CATEGORY_FILTERS = [
   { value: "all", label: "All" },
@@ -156,7 +156,8 @@ export default function QuizList({ assessments }) {
 
                     {assessment.improvementTip && (
                       <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                        💡 {assessment.improvementTip}
+                        <Lightbulb className="h-4 w-4 inline-block mr-1" aria-hidden="true" />
+                        {assessment.improvementTip}
                       </p>
                     )}
                   </CardContent>

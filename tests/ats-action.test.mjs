@@ -11,13 +11,14 @@ const mocks = vi.hoisted(() => ({
   generateCacheKey: vi.fn(),
   checkRateLimit: vi.fn(),
   formatResetTime: vi.fn(),
+  decrementRateLimit: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.findUniqueUser,
@@ -35,9 +36,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: mocks.checkRateLimit,
   formatResetTime: mocks.formatResetTime,
+  decrementRateLimit: mocks.decrementRateLimit,
 }));
 
 vi.mock("@/lib/cache", async () => {
@@ -49,18 +51,8 @@ vi.mock("@/lib/cache", async () => {
   };
 });
 
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: mocks.formatResetTime,
-}));
-
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/lib/rate-limit-actions", () => ({
-  checkRateLimit: mocks.checkRateLimit,
-  formatResetTime: vi.fn(),
 }));
 process.env.GEMINI_API_KEY = "dummy-api-key";
 
@@ -113,6 +105,7 @@ describe("analyzeATS", () => {
     expect(result.success).toBe(true);
     expect(mocks.generateCacheKey).toHaveBeenCalledWith(
       "ats",
+      "user-1",
       rawParams.resumeContent,
       rawParams.jobDescription,
       rawParams.jobTitle,
@@ -127,5 +120,21 @@ describe("analyzeATS", () => {
       })
     );
     expect(mocks.atsAnalysisCreate).toHaveBeenCalled();
+  });
+
+  it("does not consume the rate limit when input validation fails", async () => {
+    const rawParams = {
+      resumeContent: "short",
+      jobDescription: "short",
+    };
+
+    mocks.auth.mockResolvedValue({ userId: "user-1" });
+
+    const result = await analyzeATS(rawParams);
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+    expect(mocks.decrementRateLimit).not.toHaveBeenCalled();
   });
 });

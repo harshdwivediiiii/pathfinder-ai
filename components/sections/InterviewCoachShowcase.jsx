@@ -17,6 +17,8 @@ export function InterviewCoachShowcase() {
   const [showTyping, setShowTyping] = useState(true);
   const [feedbackScore, setFeedbackScore] = useState(0);
 
+  const typingTimeoutRef = useRef(null);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setShowTyping(true);
@@ -27,9 +29,12 @@ export function InterviewCoachShowcase() {
         }
         return p + 1;
       });
-      setTimeout(() => setShowTyping(false), 1500);
+      typingTimeoutRef.current = setTimeout(() => setShowTyping(false), 1500);
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
   }, []);
 
   const metrics = [

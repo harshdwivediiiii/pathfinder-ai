@@ -21,7 +21,7 @@ import CoverLetterPreview from "./cover-letter-preview";
 import useFetch from "@/hooks/use-fetch";
 import { coverLetterSchema } from "@/app/lib/schema";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 const JD_MAX = 6000;
 

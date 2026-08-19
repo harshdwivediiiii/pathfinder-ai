@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, FileLoader } from "lucide-react";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DownloadPdf({ contentRefId, fileName, label = "Download PDF" }) {
@@ -23,7 +23,7 @@ export default function DownloadPdf({ contentRefId, fileName, label = "Download 
         margin: [15, 15],
         filename: fileName || "document.pdf",
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true, ignoreElements: (el) => el.hasAttribute("data-debug") },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["avoid-all", "css", "legacy"] }
       };

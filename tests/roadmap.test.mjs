@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "../lib/schemas/outputs.js";
-import { validateOutput } from "../lib/validate.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
+import { validateOutput } from "@/lib/ai/validate";
+import { buildFormatCorrectionPrompt } from "@/lib/ai/prompt-safety";
 
 // ── Output Schema Validation ───────────────────────────────────────────────
 
@@ -186,13 +186,14 @@ const actionMocks = vi.hoisted(() => ({
   generateGeminiContent: vi.fn(),
   checkRateLimit: vi.fn(),
   formatResetTime: vi.fn(),
+  decrementRateLimit: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: actionMocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: actionMocks.findUnique,
@@ -201,16 +202,25 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: actionMocks.roadmapFindUnique,
       upsert: actionMocks.upsert,
     },
+    roadmapMilestone: {
+      deleteMany: vi.fn(),
+      update: vi.fn(),
+    },
+    $transaction: (ops) => Promise.all(ops),
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn((args) => Promise.all(args)),
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
+  decrementRateLimit: vi.fn(),
   formatResetTime: actionMocks.formatResetTime,
+  decrementRateLimit: actionMocks.decrementRateLimit,
 }));
 
 vi.mock("next/cache", () => ({
@@ -290,25 +300,33 @@ describe("generateCareerRoadmap", () => {
     expect(result.id).toBe("roadmap-1");
   });
 
-  it("throws on unauthorized access", async () => {
+  it("returns error on unauthorized access", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: null });
 
-    await expect(generateCareerRoadmap()).rejects.toThrow("Unauthorized");
+    const result = await generateCareerRoadmap();
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveProperty("_form");
   });
 
-  it("throws when rate limit is exceeded", async () => {
+  it("returns error when rate limit is exceeded", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
     actionMocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date(Date.now() + 3600000) });
     actionMocks.formatResetTime.mockReturnValue("60 minutes");
 
-    await expect(generateCareerRoadmap()).rejects.toThrow("Roadmap generation limit reached");
+    const result = await generateCareerRoadmap();
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("limit reached");
+    // A denial must not be refunded, otherwise the limit is never enforced.
+    expect(actionMocks.decrementRateLimit).not.toHaveBeenCalled();
   });
 
-  it("throws when AI generation fails", async () => {
+  it("returns error when AI generation fails", async () => {
     const { generateCareerRoadmap } = await import("../actions/roadmap.js");
 
     actionMocks.auth.mockResolvedValue({ userId: "user-1" });
@@ -328,7 +346,10 @@ describe("generateCareerRoadmap", () => {
       });
     actionMocks.generateGeminiContent.mockRejectedValue(new Error("AI service unavailable"));
 
-    await expect(generateCareerRoadmap()).rejects.toThrow("AI returned an unexpected format.");
+    const result = await generateCareerRoadmap();
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveProperty("_form");
   });
 });
 
@@ -353,6 +374,7 @@ describe("getRoadmap", () => {
     expect(actionMocks.findUnique).toHaveBeenCalled();
     expect(actionMocks.roadmapFindUnique).toHaveBeenCalledWith({
       where: { userId: "db-user-1" },
+      include: { milestones: { orderBy: { createdAt: "asc" } } },
     });
     expect(result.roadmap?.id).toBe("roadmap-1");
     expect(result.error).toBeNull();

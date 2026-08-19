@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { Sparkles, Building2, Target, Clock3, TrendingUp, ShieldCheck, BrainCircuit } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
+import LinkedinImportButton from "@/components/linkedin-import-button";
 
 const ringColors = {
   "primary": { track: "oklch(var(--primary) / 0.8)", iconBg: "bg-primary/10", iconText: "text-primary" },
@@ -176,6 +177,8 @@ export function WelcomeHero({ userName, currentRole, targetRole, insight, career
             transition={{ delay: 0.15 }}
             className="flex flex-row md:flex-col items-center md:items-end gap-3 shrink-0"
           >
+            <LinkedinImportButton className="rounded-full shadow-sm text-xs h-9 px-4" />
+            
             {lastUpdated && (
               <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/30 border border-border/50">
                 <Clock3 className="h-3 w-3" />
@@ -190,7 +193,7 @@ export function WelcomeHero({ userName, currentRole, targetRole, insight, career
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex flex-wrap items-center justify-center sm:justify-start gap-6 md:gap-10 py-4"
+          className="flex flex-wrap items-center justify-center sm:justify-start gap-6 md:gap-10 py-4 overflow-hidden max-w-full"
         >
           <ScoreRing value={careerScore ?? 70} label="Career" icon={BrainCircuit} color="primary" size="lg" />
           <ScoreRing value={marketScore ?? 60} label="Market" icon={TrendingUp} color="emerald-500" />

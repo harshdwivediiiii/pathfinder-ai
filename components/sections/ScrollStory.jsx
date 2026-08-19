@@ -458,6 +458,7 @@ export function ScrollStory() {
   const containerRef = useRef(null);
   const stickyRef = useRef(null);
   const stageRefs = useRef([]);
+  const wheelTimeoutRef = useRef(null);
   const [activeStage, setActiveStage] = useState(0);
   const [animationLock, setAnimationLock] = useState(false);
 
@@ -490,11 +491,14 @@ export function ScrollStory() {
     const handleWheel = (e) => {
       if (animationLock) return;
       setAnimationLock(true);
-      setTimeout(() => setAnimationLock(false), 800);
+      wheelTimeoutRef.current = setTimeout(() => setAnimationLock(false), 800);
     };
 
     stickyEl.addEventListener("wheel", handleWheel, { passive: false });
-    return () => stickyEl.removeEventListener("wheel", handleWheel);
+    return () => {
+      stickyEl.removeEventListener("wheel", handleWheel);
+      if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
+    };
   }, [animationLock]);
 
   const renderActiveStage = () => {

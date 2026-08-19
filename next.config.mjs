@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -25,9 +27,13 @@ const nextConfig = {
   serverExternalPackages: ["@prisma/client"],
 
   experimental: {
-    // optimizePackageImports: ["lucide-react", "framer-motion", "@clerk/nextjs"],
+    lightningcss: true,
   },
   output: "standalone",
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: "tancodex",
+  project: "pathfinder-ai",
+});

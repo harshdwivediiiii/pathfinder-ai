@@ -7,7 +7,7 @@ import {
   quizResultSaveSchema,
   userProfileSchema,
 } from "../lib/schemas/forms.js";
-import { validateId } from "../lib/validate.js";
+import { validateId } from "../lib/ai/validate.js";
 
 it("rejects empty chat prompts", () => {
   const result = chatPromptSchema.safeParse({ prompt: "" });
@@ -24,9 +24,17 @@ it("accepts conversation creation payloads with optional first messages", () => 
   expect(result.success).toBe(true);
 });
 
-it("rejects invalid message roles", () => {
+it("accepts message payloads with content only", () => {
   const result = messageCreateSchema.safeParse({
-    role: "assistant",
+    content: "Hello there",
+  });
+
+  expect(result.success).toBe(true);
+});
+
+it("rejects client-supplied message roles", () => {
+  const result = messageCreateSchema.safeParse({
+    role: "user",
     content: "Hello",
   });
 

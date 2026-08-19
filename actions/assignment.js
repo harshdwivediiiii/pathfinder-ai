@@ -1,25 +1,34 @@
 "use server";
-
-import { db } from "@/lib/prisma";
-import { buildUserLookup } from "@/lib/user-query";
-import { getAuthenticatedHistoryResponse } from "@/lib/history-response-auth";
-import { createSuccessResponse } from "@/lib/action-success";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { mapParsedOutput } from "@/lib/ai/field-mapping";
+import { ACTION_CONTEXT } from "@/lib/action-helpers/action-context";
+import { getAiResponseText } from "@/lib/ai/ai-response";
+import { db } from "@/lib/db/prisma";
+import { finalizeAiPersistence } from "@/lib/ai/ai-persistence";
+import { requireAuthenticatedUser } from "@/lib/auth/auth-guards";
+import { buildUserLookup } from "@/lib/db/user-query";
+import { getAuthenticatedHistoryResponse } from "@/lib/history/history-response-auth";
+import { createSuccessResponse } from "@/lib/action-helpers/action-success";
 import { auth } from "@clerk/nextjs/server";
-import { logActionError } from "@/lib/action-logger";
+import { logActionError } from "@/lib/action-helpers/action-logger";
 import { revalidatePath } from "next/cache";
-import { EMPTY_HISTORY_RESPONSE } from "@/lib/history-response";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { revalidateAppPath } from "@/lib/cache-revalidate";
-import { getAuthenticatedHistoryUser } from "@/lib/history-auth";
-import { buildHistoryResponse } from "@/lib/history-loader";
-import { generateGeminiContent } from "@/lib/gemini";
-import { getHistoryRecords } from "@/lib/history-query";
-import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { revalidateAppPath } from "@/lib/db/cache-revalidate";
+import { getAuthenticatedHistoryUser } from "@/lib/history/history-auth";
+import { buildHistoryResponse } from "@/lib/history/history-loader";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getHistoryRecords } from "@/lib/history/history-query";
+import { USER_NOT_FOUND_RESPONSE } from "@/lib/errors/user-not-found";
 
 /** Grade an assignment submission against a rubric or prompt. */
 export async function gradeAssignment(promptText, solutionText) {
   const user = await getAuthenticatedHistoryUser();
   if (!user) return USER_NOT_FOUND_RESPONSE;
+  const init = await initializeAuthenticatedAction();
+  if ("success" in init) return init;
+
+  const { user } = init;
 
   if (!promptText || !solutionText) {
     return { success: false, errors: { _form: ["Both prompt and solution are required."] } };
@@ -46,22 +55,21 @@ export async function gradeAssignment(promptText, solutionText) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.assignmentGrade.create({
-      data: {
-        userId: user.id,
-        prompt: promptText,
-        solution: solutionText,
-        gradeData: parsedData,
-      },
-    });
+  data: {
+    userId: user.id,
+    prompt: promptText,
+    solution: solutionText,
+    ...mapParsedOutput("gradeData", parsedData),
+  },
+});
 
-    revalidatePath("/assignment-grader");
+    finalizeAiPersistence("/assignment-grader");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Assignment Grader Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to grade assignment"] } };
+    return handleServerError(error, ACTION_CONTEXT.ASSIGNMENT);
   }
 /** Retrieve all graded assignments for the current user. */
 }
@@ -77,6 +85,9 @@ export async function getAssignmentGrades() {
     db.assignmentGrade,
     user.id
   );
+  db.assignmentGrade,
+  user.id
+);
 
   return buildHistoryResponse(records);
 }

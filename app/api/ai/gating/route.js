@@ -1,5 +1,5 @@
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
-import { isAiEnabled, isFeatureEnabled } from "@/lib/ai-gating";
+import { isAiEnabled, isFeatureEnabled } from "@/lib/ai/ai-gating";
 
 export async function GET() {
   try {

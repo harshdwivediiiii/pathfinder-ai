@@ -46,7 +46,7 @@ export default function EmailAssistantPage() {
   };
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => toast.error("Failed to copy"));
     toast.success("Copied to clipboard");
   };
 

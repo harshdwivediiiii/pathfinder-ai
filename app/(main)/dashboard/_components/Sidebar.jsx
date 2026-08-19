@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { 
   LayoutDashboard, 
@@ -13,9 +14,10 @@ import {
   Bot, 
   Briefcase, 
   Settings,
-  Compass
+  Compass,
+  Loader2
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 const NAV_ITEMS = [
   { name: "Overview", icon: LayoutDashboard, href: "/dashboard" },
@@ -38,6 +40,11 @@ export default function Sidebar() {
   const searchParams = useSearchParams();
   const { user } = useUser();
   const tab = searchParams.get("tab");
+  const [navigating, setNavigating] = useState(null);
+
+  useEffect(() => {
+    setNavigating(null);
+  }, [pathname]);
 
   const isActive = (href) => {
     if (href.includes("?tab=templates")) {
@@ -51,17 +58,24 @@ export default function Sidebar() {
 
   const NavLink = ({ item }) => {
     const active = isActive(item.href);
+    const isLoading = navigating === item.href;
     return (
       <Link
         href={item.href}
+        onClick={() => !active && setNavigating(item.href)}
         className={cn(
           "flex items-center gap-2 px-3 py-2 text-[13px] mx-1.5 my-0.5 rounded-md transition-colors",
+          isLoading && "animate-pulse opacity-60 pointer-events-none",
           active 
             ? "bg-muted text-foreground font-medium" 
             : "text-muted-foreground hover:bg-muted hover:text-foreground"
         )}
       >
-        <item.icon className="w-4 h-4" />
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <item.icon className="w-4 h-4" />
+        )}
         {item.name}
       </Link>
     );

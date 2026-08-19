@@ -1,17 +1,20 @@
 "use server";
-import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
-import { db } from "@/lib/prisma";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { cachedGenerateGeminiContent, RESUME_IMPROVEMENT_CACHE_TTL_MS, generateCacheKey } from "@/lib/cache";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { validateInput, validateOutput } from "@/lib/validate";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { validateInput, validateOutput } from "@/lib/ai/validate";
 import { resumeSaveSchema, resumeImprovementSchema } from "@/lib/schemas/forms";
 import { resumeImprovementOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
-
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+function revalidateResumeRoute() {
+  revalidatePath("/resume");
+}
 export async function saveResume(rawContent) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Sign-in required to update resume files."] } };
@@ -36,11 +39,10 @@ export async function saveResume(rawContent) {
       },
     });
 
-    revalidatePath("/resume");
+    revalidateResumeRoute();
     return { success: true, data: resume };
   } catch (error) {
-    console.error("Error saving resume content:", error);
-    return { success: false, errors: { _form: ["Failed to update resume storage transaction record."] } };
+    return handleServerError(error, "resume");
   }
 }
 
@@ -60,14 +62,16 @@ export async function getResume() {
       },
     });
   } catch (error) {
-    console.error("Error fetching resume:", error);
-    return null;
+    return handleServerError(error, "resume");
   }
 }
 
 export async function improveWithAI(rawParams) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Sign-in expired. Please authenticate again."] } };
+
+  const validation = validateInput(resumeImprovementSchema, rawParams);
+  if (!validation.success) return { success: false, errors: validation.errors };
 
   const limit = await checkRateLimit(userId, "resume");
   if (!limit.allowed) {
@@ -78,9 +82,6 @@ export async function improveWithAI(rawParams) {
       },
     };
   }
-
-  const validation = validateInput(resumeImprovementSchema, rawParams);
-  if (!validation.success) return { success: false, errors: validation.errors };
 
   const { current, type } = validation.data;
 
@@ -147,8 +148,8 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
     const improvedText = `${result.data.improvedContent}${highlightsText}`;
     return { success: true, data: improvedText };
   } catch (error) {
-    console.error("Error optimizing structural field elements:", error);
-    return { success: false, errors: { _form: [error?.message || "AI pipeline configuration encountered an error."] } };
+    await decrementRateLimit(userId, "resume");
+    return handleServerError(error, "resume");
   }
 }
 

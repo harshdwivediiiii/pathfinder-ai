@@ -4,10 +4,12 @@ import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Trash2, ExternalLink, FileText, ScanSearch, MapPin, DollarSign, Calendar, Clock, AlertCircle, Wand2 } from "lucide-react";
 import { deleteJobApplication, updateJobApplicationInterviewDate } from "@/actions/job-tracker";
+import { toDisplayStatus, JOB_APPLICATION_STATUS } from "@/lib/constants/job-application-status";
 import { toast } from "sonner";
 import Link from "next/link";
 
-export default function JobCard({ job, onDelete }) {
+export default function JobCard({ job, onDelete, onUpdate }) {
+  const isInterview = toDisplayStatus(job.status) === JOB_APPLICATION_STATUS.INTERVIEW;
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [interviewDate, setInterviewDate] = useState(() => {
@@ -38,9 +40,8 @@ export default function JobCard({ job, onDelete }) {
     const res = await updateJobApplicationInterviewDate(job.id, interviewDate);
     if (res.success) {
       toast.success("Interview date updated");
-      const newDate = interviewDate ? new Date(interviewDate) : null;
-      if (newDate && !isNaN(newDate.getTime())) {
-        job.interviewDate = newDate;
+      if (onUpdate) {
+        onUpdate(job.id, { interviewDate: interviewDate ? new Date(interviewDate) : null });
       }
       setShowDatePicker(false);
     } else {
@@ -118,7 +119,7 @@ export default function JobCard({ job, onDelete }) {
         </p>
       )}
 
-      {job.status === "Interview" && (
+      {isInterview && (
         <>
           {job.interviewDate ? (
             <div className="mt-3 p-2.5 bg-amber-500/5 rounded-xl border border-amber-500/20 text-xs flex flex-col gap-1.5">

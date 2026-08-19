@@ -1,13 +1,27 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
 import { auth } from "@clerk/nextjs/server";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { parseAIJson } from "@/lib/validate";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { createAiValidationError } from "@/lib/ai/ai-validation-response";
+import { validateOutput } from "@/lib/ai/validate";
+import { resumeRoastOutputSchema } from "@/lib/schemas/outputs";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateResumeRoast(resumeContent) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "resumeRoast");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Resume roast limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!resumeContent || resumeContent.trim().length < 50) {
     return { success: false, errors: { _form: ["Please paste your resume content."] } };
@@ -34,12 +48,15 @@ export async function generateResumeRoast(resumeContent) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    let rawText = aiResult.response.text();
-    const parsedData = parseAIJson(rawText);
+    const validation = validateOutput(resumeRoastOutputSchema, aiResult.response.text());
 
-    return { success: true, data: parsedData };
+    if (!validation.success) {
+      return createAiValidationError();
+    }
+
+    return { success: true, data: validation.data };
   } catch (error) {
-    console.error("Resume Roast Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to roast resume"] } };
+    await decrementRateLimit(userId, "resumeRoast");
+    return handleServerError(error, "resume-roast");
   }
 }

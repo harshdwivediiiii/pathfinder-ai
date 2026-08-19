@@ -1,16 +1,28 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildUserProfileContext } from "@/lib/ai-context";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateResignationLetter(circumstance, lastDay) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "resignation");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Resignation letter limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!circumstance || !lastDay) {
     return { success: false, errors: { _form: ["Circumstance and Last Day are required."] } };
@@ -20,7 +32,13 @@ export async function generateResignationLetter(circumstance, lastDay) {
   if (isNaN(parsedLastDay.getTime())) {
     return { success: false, errors: { _form: ["Last Day must be a valid date."] } };
   }
-  if (parsedLastDay < new Date()) {
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const normalizedLastDay = new Date(parsedLastDay);
+  normalizedLastDay.setHours(0, 0, 0, 0);
+
+  if (normalizedLastDay < today) {
     return { success: false, errors: { _form: ["Last Day must be a future date."] } };
   }
 
@@ -56,8 +74,8 @@ export async function generateResignationLetter(circumstance, lastDay) {
     revalidatePath("/resignation-letter");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Resignation Letter Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate resignation letter"] } };
+    await decrementRateLimit(userId, "resignation");
+    return handleServerError(error, "resignation");
   }
 }
 

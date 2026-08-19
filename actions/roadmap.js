@@ -1,14 +1,15 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { validateOutput } from "@/lib/validate";
-import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { validateOutput } from "@/lib/ai/validate";
+import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
 import { careerRoadmapOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 const ROADMAP_SYSTEM_CONTEXT = `You are a senior career strategist and technical mentor. Your expertise is creating personalized, actionable career roadmaps that break down long-term goals into concrete milestones. Each milestone should be a stepping stone that builds on the previous one, with clear skills to develop and a realistic time frame.`;
 
@@ -60,7 +61,12 @@ export async function generateCareerRoadmap() {
 
     const limit = await checkRateLimit(userId, "roadmap");
     if (!limit.allowed) {
-      throw new Error(`Roadmap generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Roadmap generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({
@@ -118,33 +124,93 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no code
       throw new Error("AI returned an unexpected format.");
     }
 
-    // Upsert — each user has at most one roadmap
-    const roadmap = await db.roadmap.upsert({
-      where: { userId: user.id },
-      create: {
-        content: result.data,
-        userId: user.id,
-      },
-      update: {
-        content: result.data,
-      },
-    });
+    const parsedData = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+
+    // Atomically replace existing milestones and upsert the roadmap so a
+    // failed regeneration leaves the previous roadmap intact and concurrent
+    // regenerations serialize.
+    const [, roadmap] = await db.$transaction([
+      db.roadmapMilestone.deleteMany({
+        where: { roadmap: { userId: user.id } },
+      }),
+
+      // Upsert — each user has at most one roadmap
+      db.roadmap.upsert({
+        where: { userId: user.id },
+        create: {
+          content: parsedData,
+          userId: user.id,
+          milestones: {
+            create: parsedData.milestones.map((m) => ({
+              title: m.title,
+              description: m.description,
+              skillsToLearn: m.skillsToLearn || [],
+              estimatedDuration: m.estimatedDuration,
+              priority: m.priority,
+              isCompleted: false,
+            })),
+          }
+        },
+        update: {
+          content: parsedData,
+          milestones: {
+            create: parsedData.milestones.map((m) => ({
+              title: m.title,
+              description: m.description,
+              skillsToLearn: m.skillsToLearn || [],
+              estimatedDuration: m.estimatedDuration,
+              priority: m.priority,
+              isCompleted: false,
+            })),
+          }
+        },
+        include: {
+          milestones: {
+            orderBy: { createdAt: 'asc' }
+          }
+        }
+      }),
+    ]);
 
     // Return with success flag
     const returnData = { ...roadmap, isFallback: false };
     return returnData;
   } catch (error) {
-    console.error("Error generating career roadmap, using fallback:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
+    if (authUserId) await decrementRateLimit(authUserId, "roadmap");
+    return handleServerError(error, "roadmap");
+  }
+}
+
+import { revalidatePath } from "next/cache";
+
+export async function toggleMilestoneCompletion(milestoneId, isCompleted) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+    if (!user) return { milestone: null, error: "User not found" };
+
+    const result = await db.roadmapMilestone.updateMany({
+      where: {
+        id: milestoneId,
+        roadmap: { userId: user.id },
+      },
+      data: { isCompleted },
+    });
+
+    if (result.count === 0) {
+      return { milestone: null, error: "Milestone not found" };
     }
-    
-    // We don't save the fallback to the DB so they can try again later
-    return {
-      content: FALLBACK_ROADMAP,
-      userId: authUserId ?? null,
-      isFallback: true
-    };
+
+    const milestone = await db.roadmapMilestone.findUnique({
+      where: { id: milestoneId },
+    });
+
+    revalidatePath("/roadmap");
+    return { milestone, error: null };
+  } catch (error) {
+    return handleServerError(error, "roadmap");
   }
 }
 
@@ -164,14 +230,19 @@ export async function getRoadmap() {
 
     const roadmap = await db.roadmap.findUnique({
       where: { userId: user.id },
+      include: {
+        milestones: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
     });
     
     return { roadmap: roadmap || null, error: null };
   } catch (error) {
-    console.error("Error fetching roadmap:", error);
-    return { 
-      roadmap: null, 
-      error: error.message || "Failed to load roadmap. Please try again." 
+    const result = handleServerError(error, "roadmap");
+    return {
+      roadmap: null,
+      error: result?.errors?._form?.[0] || "There was an error loading your roadmap. Please try again.",
     };
   }
 }

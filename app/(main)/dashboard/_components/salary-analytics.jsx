@@ -21,7 +21,7 @@ import {
   Briefcase,
   Info,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("en-US", {

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { TrendingUp, DollarSign, Zap, Activity, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 const snapshotCards = [
   {

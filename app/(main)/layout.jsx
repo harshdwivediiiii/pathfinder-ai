@@ -3,7 +3,6 @@
 import React, { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import AppSidebar from "@/components/app-sidebar";
-import DashboardNavbar from "./dashboard/_components/navbar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export default function MainLayout({ children }) {
@@ -24,8 +23,6 @@ export default function MainLayout({ children }) {
       </Suspense>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <DashboardNavbar />
-
         <main className="flex-1 px-4 md:px-6 py-6">
           <div className="max-w-7xl mx-auto">
             {children}

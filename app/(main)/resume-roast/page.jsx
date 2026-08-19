@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/ui/file-upload";
-import { extractResumeText } from "@/lib/extract-text";
+import { extractResumeText } from "@/lib/resume/extract-text";
 
 export default function ResumeRoastPage() {
   const [loading, setLoading] = useState(false);

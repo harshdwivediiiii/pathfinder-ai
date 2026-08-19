@@ -3,11 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { generateResumeContent, getResumeHistory } from "@/actions/resume-builder";
 import { FileText, Download, Sparkles, Building, Briefcase } from "lucide-react";
-import { isValidResume } from "@/lib/type-guards";
+import { isValidResume } from "@/lib/auth/type-guards";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { JOB_DESCRIPTION_MAX_LENGTH } from "@/lib/security/input-limits";
+
+import LinkedinImportButton from "@/components/linkedin-import-button";
 
 export default function ResumeBuilderPage() {
   const [loading, setLoading] = useState(false);
@@ -43,7 +46,7 @@ export default function ResumeBuilderPage() {
     if (res.success) {
       if (isValidResume(res.data.content)) {
         toast.success("Resume generated successfully!");
-        setHistory([res.data, ...history]);
+        setHistory((prev) => [res.data, ...prev]);
         setActiveResume(res.data.content);
       } else {
         toast.error("Generated resume has an invalid format.");
@@ -103,6 +106,21 @@ export default function ResumeBuilderPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-card border border-border p-6 rounded-3xl shadow-sm">
+              <div className="space-y-3 pb-6 mb-6 border-b border-border">
+                <h3 className="font-bold text-lg">Base Profile</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Import your LinkedIn profile PDF to automatically populate your base resume data before generating tailored ATS resumes.
+                </p>
+                <LinkedinImportButton 
+                  className="w-full" 
+                  onImportComplete={(data) => {
+                    if (data?.resumeContent) {
+                      setActiveResume(data.resumeContent);
+                    }
+                  }} 
+                />
+              </div>
+
               <h3 className="font-bold text-lg mb-4">Target Job</h3>
               
               <form onSubmit={handleGenerate} className="space-y-5">
@@ -115,8 +133,20 @@ export default function ResumeBuilderPage() {
                     className="min-h-[300px] rounded-xl resize-none bg-background focus-visible:ring-primary text-sm"
                     value={jobDescription}
                     onChange={(e) => setJobDescription(e.target.value)}
+                    maxLength={JOB_DESCRIPTION_MAX_LENGTH}
                     required
                   />
+                  <div className="flex justify-end">
+                    <span
+                      className={`text-xs font-medium ${
+                        jobDescription.length > JOB_DESCRIPTION_MAX_LENGTH * 0.9
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {jobDescription.length} / {JOB_DESCRIPTION_MAX_LENGTH}
+                    </span>
+                  </div>
                 </div>
 
                 <Button

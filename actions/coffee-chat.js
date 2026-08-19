@@ -1,11 +1,13 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
-import { db } from "@/lib/prisma";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { getAiResponseText } from "@/lib/ai-response";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function startCoffeeChat(industry, targetRole) {
   const { userId } = await auth();
@@ -54,16 +56,14 @@ export async function startCoffeeChat(industry, targetRole) {
       data: record,
     };
   } catch (error) {
-    console.error("Start Coffee Chat Error:", error);
-    return {
-      success: false,
-      errors: {
-        _form: ["Failed to start session. Please try again later."],
-      },
-    };
+    await decrementRateLimit(userId, "coffeeChat");
+    return handleServerError(error, "coffee-chat");
   }
 }
-
+const EMPTY_HISTORY_RESPONSE = {
+  success: false,
+  data: [],
+};
 export async function sendCoffeeChatMessage(sessionId, userMessage) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -104,17 +104,17 @@ export async function sendCoffeeChatMessage(sessionId, userMessage) {
   });
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
     updatedHistory.push({ role: "assistant", content: parsedData.reply });
     const record = await db.coffeeChatSession.update({
-      where: { id: sessionId, userId: user.id },
+      where: { id: sessionId },
       data: { chatHistory: updatedHistory },
     });
     revalidatePath(`/coffee-chat/${sessionId}`);
     return { success: true, data: record };
   } catch (error) {
-    console.error("Coffee Chat Reply Error:", error);
-    return { success: false, errors: { _form: ["Failed to get reply. Please try again later."] } };
+    await decrementRateLimit(userId, "coffeeChat");
+    return handleServerError(error, "coffee-chat");
   }
 }
 
@@ -156,24 +156,25 @@ export async function generateCoffeeChatFeedback(sessionId) {
   });
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
     const record = await db.coffeeChatSession.update({
-      where: { id: sessionId, userId: user.id },
+      where: { id: sessionId },
       data: { feedback: parsedData },
     });
     revalidatePath(`/coffee-chat/${sessionId}`);
     return { success: true, data: record };
   } catch (error) {
-    console.error("Coffee Chat Feedback Error:", error);
-    return { success: false, errors: { _form: ["Failed to generate feedback. Please try again later."] } };
+    await decrementRateLimit(userId, "coffeeChat");
+    return handleServerError(error, "coffee-chat");
   }
 }
 
 export async function getCoffeeChatSessions() {
   const { userId } = await auth();
-  if (!userId) return { success: false, data: [] };
+  if (!userId) return EMPTY_HISTORY_RESPONSE;
+
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, data: [] };
+  if (!user) return EMPTY_HISTORY_RESPONSE;
   const records = await db.coffeeChatSession.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },

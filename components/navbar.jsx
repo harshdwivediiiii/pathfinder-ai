@@ -8,12 +8,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ArrowRight, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 const NAV_LINKS = [
   { id: "features", label: "Features", href: "/#features" },
-  { id: "pricing", label: "Pricing", href: "/#pricing" },
+  { id: "pricing", label: "Pricing", href: "/coming-soon" },
   { id: "about", label: "About", href: "/#about" },
   { id: "question", label: "FAQ", href: "/#question" },
 ];

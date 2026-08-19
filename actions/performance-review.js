@@ -1,19 +1,32 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
-import { getUserByClerkId } from "@/lib/user";
+import { db } from "@/lib/db/prisma";
+import { getUserByClerkId } from "@/lib/auth/user";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { getHistoryUserContext } from "@/lib/history-auth";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { getAiResponseText } from "@/lib/ai/ai-response";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getHistoryUserContext } from "@/lib/history/history-auth";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 async function getPerformanceReviewUser(userId) {
   return getUserByClerkId(userId);
 }
 export async function generateSelfAssessment(achievements, challenges, goals) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
+
+  const limit = await checkRateLimit(userId, "performanceReview");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Performance review limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const user = await getPerformanceReviewUser(userId);
   if (!user) return createErrorResponse("User not found");
@@ -49,7 +62,7 @@ export async function generateSelfAssessment(achievements, challenges, goals) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.performanceReview.create({
       data: {
@@ -64,8 +77,8 @@ export async function generateSelfAssessment(achievements, challenges, goals) {
     revalidatePath("/performance-review");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Performance Review Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate review"] } };
+    await decrementRateLimit(userId, "performanceReview");
+    return handleServerError(error, "performance-review");
   }
 }
 

@@ -1,17 +1,37 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
-
-import { db } from "@/lib/prisma";
+import { requireHistoryUser } from "@/lib/history/history-guard";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { parseAiResponse } from "@/lib/ai/ai-parser";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
+import { getAiResponseText } from "@/lib/ai/ai-response";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { invokeAiGeneration } from "@/lib/ai/ai-generator";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { buildUserLookup } from "@/lib/db/user-query";
+import { buildHistoryResponse } from "@/lib/history/history-loader";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateCheatSheet(company, role) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
+  const limit = await checkRateLimit(userId, "cheatSheet");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Cheat sheet generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
+  const user = await db.user.findUnique(
+  buildUserLookup(userId)
+);
   if (!user) return createErrorResponse("User not found");
 
   if (!company || !role) {
@@ -45,7 +65,7 @@ export async function generateCheatSheet(company, role) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.interviewCheatSheet.create({
       data: {
@@ -59,22 +79,22 @@ export async function generateCheatSheet(company, role) {
     revalidatePath("/interview/cheat-sheet");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Cheat Sheet Generation Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate cheat sheet"] } };
+    await decrementRateLimit(userId, "cheatSheet");
+    return handleServerError(error, "cheat-sheet");
   }
 }
 
 export async function getCheatSheets() {
   const { userId } = await auth();
-  if (!userId) return { success: false, data: [] };
+  if (!userId) return EMPTY_HISTORY_RESPONSE;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, data: [] };
+  if (!user) return EMPTY_HISTORY_RESPONSE;
 
   const records = await db.interviewCheatSheet.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
   });
 
-  return { success: true, data: records };
+  return buildHistoryResponse(records);
 }

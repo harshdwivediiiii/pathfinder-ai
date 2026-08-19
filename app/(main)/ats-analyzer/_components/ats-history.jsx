@@ -27,7 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { normalizeAtsSuggestions } from "@/lib/ats";
+import { normalizeAtsSuggestions } from "@/lib/resume/ats";
 
 function ScoreBadge({ score }) {
   if (score >= 75)
@@ -178,7 +178,7 @@ function HistoryCard({ item, onDelete }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this analysis?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the ATS analysis record. This action cannot be undone.
+              This will permanently remove the ATS analysis record. If this analysis is referenced by any job applications, deletion will be prevented. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

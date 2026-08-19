@@ -39,7 +39,7 @@ import useStreamFetch from "@/hooks/use-stream-fetch";
 import StreamedText, { markdownComponents } from "@/components/streamed-text";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 const formatTime = (dateString) => {
   if (!dateString) return "";

@@ -1,417 +1,369 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
-import { useSignIn } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { motion } from "framer-motion";
+import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import {
-  Eye, EyeOff, Mail, Lock, ArrowRight, Loader2,
-  ShieldCheck, KeyRound, ArrowLeft,
+  BarChart3,
+  FileText,
+  Target,
+  Mic,
+  Brain,
+  Route,
+  Shield,
+  Zap,
 } from "lucide-react";
-import { toast } from "sonner";
-import { PasswordStrength, evaluatePassword } from "@/components/auth/password-strength";
 
-// ─── Shared UI atoms ─────────────────────────────────────────────────────────
-function InputWrapper({ label, htmlFor, error, children }) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-foreground">
-        {label}
-      </label>
-      {children}
-      {error && (
-        <p className="text-xs text-destructive animate-in fade-in slide-in-from-top-1">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
+const dashboardCards = [
+  {
+    icon: FileText,
+    label: "Resume",
+    value: "85%",
+    sub: "Score",
+    color: "from-purple-500 to-violet-600",
+  },
+  {
+    icon: Target,
+    label: "ATS Score",
+    value: "24",
+    sub: "Matched",
+    color: "from-blue-500 to-cyan-600",
+  },
+  {
+    icon: Mic,
+    label: "Interviews",
+    value: "12",
+    sub: "This Month",
+    color: "from-pink-500 to-rose-600",
+  },
+  {
+    icon: Brain,
+    label: "AI Resume Review",
+    value: "Ready",
+    sub: "",
+    color: "from-emerald-500 to-green-600",
+  },
+  {
+    icon: Route,
+    label: "Career Roadmap",
+    value: "Generated",
+    sub: "",
+    color: "from-amber-500 to-orange-600",
+  },
+  {
+    icon: Mic,
+    label: "Mock Interview",
+    value: "Available",
+    sub: "",
+    color: "from-indigo-500 to-blue-600",
+  },
+];
 
-function PasswordInput({ id, value, onChange, placeholder, autoComplete = "current-password" }) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="relative">
-      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-      <input
-        id={id}
-        type={visible ? "text" : "password"}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200"
-      />
-      <button
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label={visible ? "Hide password" : "Show password"}
-      >
-        {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
-    </div>
-  );
-}
-
-function PrimaryButton({ loading, loadingText, children, disabled, id }) {
-  return (
-    <button
-      type="submit"
-      id={id}
-      disabled={loading || disabled}
-      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-semibold text-sm transition-all duration-200 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20 hover:shadow-primary/40 active:scale-[0.98]"
-    >
-      {loading ? (
-        <><Loader2 className="w-4 h-4 animate-spin" /> {loadingText}</>
-      ) : children}
-    </button>
-  );
-}
-
-// ─── Screen 1: Sign-in form ───────────────────────────────────────────────────
-function SignInForm({ onForgot }) {
-  const { isLoaded, signIn, setActive } = useSignIn();
-  const router = useRouter();
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-
-  const validate = () => {
-    const errs = {};
-    if (!form.email.trim()) errs.email = "Email address is required.";
-    if (!form.password)     errs.password = "Password is required.";
-    return errs;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    setErrors({});
-    if (!isLoaded) return;
-    setLoading(true);
-    try {
-      const result = await signIn.create({
-        identifier: form.email,
-        password: form.password,
-      });
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        toast.success("Welcome back!");
-        router.push("/dashboard");
-      } else {
-        toast.error("Sign-in incomplete. Please try again.");
-      }
-    } catch (err) {
-      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || "Incorrect email or password.";
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      <InputWrapper label="Email address" htmlFor="signin-email" error={errors.email}>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            id="signin-email"
-            type="email"
-            value={form.email}
-            onChange={set("email")}
-            placeholder="jane@example.com"
-            autoComplete="email"
-            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200"
-          />
-        </div>
-      </InputWrapper>
-
-      <InputWrapper label="Password" htmlFor="signin-password" error={errors.password}>
-        <PasswordInput
-          id="signin-password"
-          value={form.password}
-          onChange={set("password")}
-          placeholder="Your password"
-        />
-        <div className="flex justify-end pt-0.5">
-          <button
-            type="button"
-            onClick={onForgot}
-            className="text-xs text-primary font-semibold hover:underline underline-offset-4"
-          >
-            Forgot password?
-          </button>
-        </div>
-      </InputWrapper>
-
-      <PrimaryButton loading={loading} loadingText="Signing in…" id="signin-submit">
-        <ArrowRight className="w-4 h-4" /> Sign in
-      </PrimaryButton>
-    </form>
-  );
-}
-
-// ─── Screen 2: Forgot-password → request reset code ─────────────────────────
-function ForgotRequestForm({ onBack, onCodeSent }) {
-  const { isLoaded, signIn } = useSignIn();
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email.trim()) { setError("Email address is required."); return; }
-    if (!isLoaded) return;
-    setLoading(true);
-    setError("");
-    try {
-      await signIn.create({ identifier: email });
-      await signIn.prepareFirstFactor({
-        strategy: "reset_password_email_code",
-        emailAddressId: signIn.supportedFirstFactors.find(
-          (f) => f.strategy === "reset_password_email_code"
-        )?.emailAddressId,
-      });
-      toast.success("Reset code sent! Check your inbox.");
-      onCodeSent(email);
-    } catch (err) {
-      setError(err?.errors?.[0]?.longMessage || "Could not send reset code. Check your email and try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      <div className="text-center space-y-1">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-2">
-          <KeyRound className="w-5 h-5" />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Enter the email linked to your account and we'll send a reset code.
-        </p>
-      </div>
-
-      <InputWrapper label="Email address" htmlFor="forgot-email" error={error}>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            id="forgot-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="jane@example.com"
-            autoComplete="email"
-            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200"
-          />
-        </div>
-      </InputWrapper>
-
-      <PrimaryButton loading={loading} loadingText="Sending code…" id="forgot-submit">
-        <Mail className="w-4 h-4" /> Send reset code
-      </PrimaryButton>
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> Back to sign-in
-      </button>
-    </form>
-  );
-}
-
-// ─── Screen 3: Reset password (code + new password) ─────────────────────────
-function ResetPasswordForm({ email, onBack }) {
-  const { isLoaded, signIn, setActive } = useSignIn();
-  const router = useRouter();
-  const [form, setForm] = useState({ code: "", password: "", confirm: "" });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-
-  const validate = useCallback(() => {
-    const errs = {};
-    if (form.code.length !== 6)             errs.code = "Enter the 6-digit code from your email.";
-    const { score } = evaluatePassword(form.password);
-    if (score < 5)                           errs.password = "Password must satisfy all requirements.";
-    if (form.confirm !== form.password)     errs.confirm = "Passwords do not match.";
-    return errs;
-  }, [form]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    setErrors({});
-    if (!isLoaded) return;
-    setLoading(true);
-    try {
-      const result = await signIn.attemptFirstFactor({
-        strategy: "reset_password_email_code",
-        code: form.code,
-        password: form.password,
-      });
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        toast.success("Password updated! You're now signed in. 🔐");
-        router.push("/dashboard");
-      } else {
-        toast.error("Something went wrong. Please try again.");
-      }
-    } catch (err) {
-      const msg = err?.errors?.[0]?.longMessage || "Invalid code or password. Please retry.";
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const { score } = evaluatePassword(form.password);
-  const allMet = score === 5;
-
-  return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      <div className="text-center">
-        <p className="text-sm text-muted-foreground">
-          Code sent to <span className="font-semibold text-foreground">{email}</span>
-        </p>
-      </div>
-
-      {/* OTP code */}
-      <InputWrapper label="Reset code" htmlFor="reset-code" error={errors.code}>
-        <input
-          id="reset-code"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={6}
-          value={form.code}
-          onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-          placeholder="000000"
-          className="w-full text-center tracking-[0.5em] text-xl font-mono py-3 rounded-lg border border-border bg-background placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200"
-        />
-      </InputWrapper>
-
-      {/* New password */}
-      <InputWrapper label="New password" htmlFor="reset-password" error={errors.password}>
-        <PasswordInput
-          id="reset-password"
-          value={form.password}
-          onChange={set("password")}
-          placeholder="Create a strong new password"
-          autoComplete="new-password"
-        />
-        <PasswordStrength password={form.password} />
-      </InputWrapper>
-
-      {/* Confirm password */}
-      <InputWrapper label="Confirm new password" htmlFor="reset-confirm" error={errors.confirm}>
-        <PasswordInput
-          id="reset-confirm"
-          value={form.confirm}
-          onChange={set("confirm")}
-          placeholder="Repeat your new password"
-          autoComplete="new-password"
-        />
-      </InputWrapper>
-
-      <PrimaryButton
-        loading={loading}
-        loadingText="Resetting…"
-        disabled={!allMet || form.confirm !== form.password || form.code.length !== 6}
-        id="reset-submit"
-      >
-        <ShieldCheck className="w-4 h-4" /> Set new password
-      </PrimaryButton>
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> Back
-      </button>
-    </form>
-  );
-}
-
-// ─── Page shell ──────────────────────────────────────────────────────────────
-const STEPS = {
-  signin:        { title: "Welcome back",         sub: "Sign in to your PathFinder AI account." },
-  forgot_request:{ title: "Reset your password",  sub: "We'll email you a secure reset code." },
-  forgot_reset:  { title: "Create new password",  sub: "Enter your code and choose a new password." },
-};
-
-function SignInContent() {
-  const [screen, setScreen] = useState("signin");
-  const [resetEmail, setResetEmail] = useState("");
-
-  const { title, sub } = STEPS[screen];
-
-  return (
-    <div className="w-full max-w-md mx-auto px-4">
-      <div className="bg-card border border-border rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden">
-        {/* Header */}
-        <div className="px-8 pt-8 pb-6 border-b border-border/60 bg-gradient-to-br from-primary/5 to-transparent">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="text-xs font-semibold uppercase tracking-widest text-primary">
-              PathFinder AI
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-foreground mt-3">{title}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{sub}</p>
-        </div>
-
-        {/* Body */}
-        <div className="px-8 pt-6 pb-8">
-          {screen === "signin" && (
-            <SignInForm onForgot={() => setScreen("forgot_request")} />
-          )}
-          {screen === "forgot_request" && (
-            <ForgotRequestForm
-              onBack={() => setScreen("signin")}
-              onCodeSent={(email) => { setResetEmail(email); setScreen("forgot_reset"); }}
-            />
-          )}
-          {screen === "forgot_reset" && (
-            <ResetPasswordForm
-              email={resetEmail}
-              onBack={() => setScreen("forgot_request")}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Footer link */}
-      {screen === "signin" && (
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Don't have an account?{" "}
-          <Link
-            href="/sign-up"
-            className="text-primary font-semibold hover:underline underline-offset-4"
-          >
-            Create one free
-          </Link>
-        </p>
-      )}
-    </div>
-  );
-}
+const features = [
+  { icon: Shield, text: "Secure" },
+  { icon: Zap, text: "Fast" },
+  { icon: Brain, text: "AI Powered" },
+];
 
 export default function SignInPage() {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, i) => ({
+        w: 1 + ((i * 7 + 3) % 10) / 3,
+        h: 1 + ((i * 11 + 5) % 10) / 4,
+        l: ((i * 17 + 13) % 100),
+        t: ((i * 23 + 7) % 100),
+        dur: 3 + (i % 5),
+        del: (i % 7),
+      })),
+    []
+  );
+
   return (
-    <Suspense>
-      <SignInContent />
-    </Suspense>
+    <div className="relative flex min-h-screen w-full overflow-hidden bg-black">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-purple-600/20 blur-[120px]"
+        />
+        <motion.div
+          animate={{ x: [0, -50, 30, 0], y: [0, 40, -20, 0] }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 2,
+          }}
+          className="absolute -bottom-32 -right-32 h-[600px] w-[600px] rounded-full bg-blue-600/20 blur-[120px]"
+        />
+        <motion.div
+          animate={{ x: [0, 30, -40, 0], y: [0, -20, 30, 0] }}
+          transition={{
+            duration: 22,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 4,
+          }}
+          className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-pink-600/15 blur-[100px]"
+        />
+        {particles.map((p, i) => (
+          <motion.div
+            key={i}
+            animate={{ opacity: [0.1, 0.4, 0.1] }}
+            transition={{
+              duration: p.dur,
+              repeat: Infinity,
+              delay: p.del,
+            }}
+            className="absolute rounded-full bg-white"
+            style={{
+              width: `${p.w}px`,
+              height: `${p.h}px`,
+              left: `${p.l}%`,
+              top: `${p.t}%`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 flex w-full flex-col items-center justify-center lg:flex-row">
+        <motion.div
+          initial={{ opacity: 0, x: -60 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="flex w-full flex-col items-center justify-center px-6 py-10 lg:w-1/2 lg:items-start lg:px-16 xl:px-24"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mb-6 flex items-center gap-3"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg shadow-purple-500/30">
+              <BarChart3 className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-white">PathFinder AI</span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="mb-4 max-w-lg text-center text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-left lg:text-5xl"
+          >
+            Welcome{" "}
+            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+              Back
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mb-8 max-w-md text-center text-base text-gray-400 lg:text-left lg:text-lg"
+          >
+            Continue your AI-powered career journey
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+            className="mb-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
+          >
+            {features.map((f) => (
+              <div
+                key={f.text}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm"
+              >
+                <f.icon className="h-4 w-4 text-purple-400" />
+                <span className="text-sm font-medium text-gray-300">
+                  {f.text}
+                </span>
+              </div>
+            ))}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="hidden w-full max-w-md lg:block"
+          >
+            <div className="blur-sm opacity-70 scale-95">
+              <div className="grid grid-cols-3 gap-3">
+                {dashboardCards.map((card, i) => (
+                  <motion.div
+                    key={card.label}
+                    animate={{ opacity: [0.7, 1, 0.7] }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      delay: i * 0.4,
+                    }}
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md"
+                  >
+                    <div
+                      className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${card.color}`}
+                    >
+                      <card.icon className="h-4 w-4 text-white" />
+                    </div>
+                    <p className="text-xs text-gray-400">{card.label}</p>
+                    <p className="text-lg font-bold text-white">{card.value}</p>
+                    {card.sub && (
+                      <p className="text-[10px] text-gray-500">{card.sub}</p>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        <div className="flex w-full items-center justify-center px-4 py-8 lg:w-1/2 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+            className="relative w-full max-w-md"
+          >
+            <div className="absolute -inset-1 rounded-[28px] bg-gradient-to-r from-purple-600/30 via-blue-600/20 to-pink-600/30 blur-xl" />
+
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl">
+              <div className="px-8 pt-8 pb-4 text-center">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="mb-2 flex items-center justify-center gap-2"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg shadow-purple-500/30">
+                    <BarChart3 className="h-5 w-5 text-white" />
+                  </div>
+                </motion.div>
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.55 }}
+                  className="text-2xl font-bold text-white"
+                >
+                  Welcome Back
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="mt-1 text-sm text-gray-400"
+                >
+                  Continue your AI-powered career journey
+                </motion.p>
+              </div>
+
+              <div className="px-2 pb-4">
+                <SignIn
+                  fallbackRedirectUrl="/dashboard"
+                  appearance={{
+                    elements: {
+                      rootBox: "w-full",
+                      card: "bg-transparent border-none shadow-none",
+                      headerTitle: "hidden",
+                      headerSubtitle: "hidden",
+                      formButtonPrimary:
+                        "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl font-semibold py-2.5 shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] !important",
+                      formFieldInput:
+                        "rounded-xl border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:ring-2 focus:ring-purple-500/50 py-2.5",
+                      formFieldLabel: "text-sm font-medium text-gray-300",
+                      footerActionLink:
+                        "text-purple-400 hover:text-purple-300 font-semibold",
+                      dividerLine: "bg-white/10",
+                      dividerText: "text-gray-500",
+                      socialButtonsBlockButton:
+                        "border-white/10 bg-white/5 hover:bg-white/10 rounded-xl text-white transition-all hover:scale-[1.02]",
+                      socialButtonsBlockButtonText:
+                        "text-gray-300 font-medium",
+                      identityPreviewText: "text-white",
+                      identityPreviewEditButton: "text-purple-400",
+                      formFieldAction__forgotPassword:
+                        "text-purple-400 hover:text-purple-300",
+                      footer: "hidden",
+                      formFieldInputShowPasswordButton:
+                        "text-gray-400 hover:text-white",
+                    },
+                  }}
+                />
+              </div>
+
+              <div className="border-t border-white/5 px-6 py-4">
+                <p className="text-center text-sm text-gray-400">
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    href="/sign-up"
+                    className="font-semibold text-purple-400 hover:text-purple-300 hover:underline"
+                  >
+                    Sign up
+                  </Link>
+                </p>
+              </div>
+
+              <div className="border-t border-white/5 px-6 py-3">
+                <p className="text-center text-[11px] leading-relaxed text-gray-500">
+                  By continuing, you agree to our{" "}
+                  <a
+                    href="#"
+                    className="text-purple-400 hover:text-purple-300 hover:underline"
+                  >
+                    Terms of Service
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    href="#"
+                    className="text-purple-400 hover:text-purple-300 hover:underline"
+                  >
+                    Privacy Policy
+                  </a>
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 block lg:hidden">
+              <div className="grid grid-cols-2 gap-3">
+                {dashboardCards.slice(0, 4).map((card, i) => (
+                  <motion.div
+                    key={card.label}
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      delay: i * 0.5,
+                    }}
+                    className="rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-md"
+                  >
+                    <div className="mb-1 flex items-center gap-2">
+                      <div
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br ${card.color}`}
+                      >
+                        <card.icon className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <p className="text-[10px] font-medium text-gray-400">
+                        {card.label}
+                      </p>
+                    </div>
+                    <p className="text-base font-bold text-white">
+                      {card.value}
+                    </p>
+                    {card.sub && (
+                      <p className="text-[9px] text-gray-500">{card.sub}</p>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
   );
 }

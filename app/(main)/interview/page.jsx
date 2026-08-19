@@ -2,10 +2,13 @@ import { getAssessments } from "@/actions/interview";
 import StatsCards from "./_components/stats-cards";
 import PerformanceChart from "./_components/performace-chart";
 import QuizList from "./_components/quiz-list";
-import { Sparkles, Bot, Mic, Video } from "lucide-react";
+import { Sparkles, Bot, Mic, Video, Bookmark } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export default async function InterviewPrepPage() {
-  const assessments = await getAssessments();
+  const result = await getAssessments();
+  const assessments = Array.isArray(result) ? result : [];
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -38,6 +41,13 @@ export default async function InterviewPrepPage() {
               >
                 <Video className="h-5 w-5 mr-2" />
                 Try Video Coach
+              </a>
+              <a 
+                href="/interview/bookmarks" 
+                className="inline-flex items-center justify-center rounded-xl font-bold h-12 px-6 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors shadow-lg"
+              >
+                <Bookmark className="h-5 w-5 mr-2" />
+                Saved Questions
               </a>
             </div>
           </div>

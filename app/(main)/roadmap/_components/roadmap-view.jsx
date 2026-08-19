@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
-import { Calendar, Flag, Target, TrendingUp, Trophy } from "lucide-react";
+import { cn } from "@/lib/misc/utils";
+import { Calendar, Flag, Target, TrendingUp, Trophy, CheckCircle2 } from "lucide-react";
+import { toggleMilestoneCompletion } from "@/actions/roadmap";
 
 const PRIORITY_STYLES = {
   high: "bg-red-500/10 text-red-500 border-red-500/20",
@@ -20,25 +22,50 @@ const PRIORITY_ICONS = {
 
 function MilestoneCard({ milestone, index, total }) {
   const PriorityIcon = PRIORITY_ICONS[milestone.priority] || Flag;
+  const [isPending, startTransition] = useTransition();
+  const [isCompleted, setIsCompleted] = useState(milestone.isCompleted || false);
+
+  const handleToggle = () => {
+    if (!milestone.id) return; // Cannot toggle legacy/fallback milestones without IDs
+    const newState = !isCompleted;
+    setIsCompleted(newState);
+    startTransition(async () => {
+      await toggleMilestoneCompletion(milestone.id, newState);
+    });
+  };
 
   return (
     <div className="relative flex gap-6 group">
       {/* Timeline connector */}
       <div className="flex flex-col items-center">
-        <div className={cn(
-          "h-10 w-10 rounded-2xl flex items-center justify-center text-sm font-black shrink-0 border-2 transition-all duration-300",
-          "bg-primary/10 border-primary/30 text-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"
-        )}>
-          {index + 1}
-        </div>
+        <button
+          onClick={handleToggle}
+          disabled={isPending || !milestone.id}
+          title={!milestone.id ? "Regenerate roadmap to enable tracking" : "Toggle milestone"}
+          className={cn(
+            "h-10 w-10 rounded-2xl flex items-center justify-center text-sm font-black shrink-0 border-2 transition-all duration-300",
+            isCompleted 
+              ? "bg-green-500 border-green-500 text-white shadow-lg shadow-green-500/20" 
+              : "bg-primary/10 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary",
+            (isPending || !milestone.id) && "opacity-50 cursor-not-allowed hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+          )}
+        >
+          {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : index + 1}
+        </button>
         {index < total - 1 && (
-          <div className="w-0.5 flex-1 bg-gradient-to-b from-primary/30 to-transparent min-h-[24px]" />
+          <div className={cn(
+            "w-0.5 flex-1 min-h-[24px] transition-colors duration-300",
+            isCompleted ? "bg-green-500/30" : "bg-gradient-to-b from-primary/30 to-transparent"
+          )} />
         )}
       </div>
 
       {/* Content */}
       <div className="flex-1 pb-8 min-w-0">
-        <Card className="border border-border/30 hover:border-primary/30 transition-all duration-300 shadow-md">
+        <Card className={cn(
+          "border transition-all duration-300 shadow-md",
+          isCompleted ? "border-green-500/30 opacity-80" : "border-border/30 hover:border-primary/30"
+        )}>
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
             <div className="space-y-1.5">
               <CardTitle className="text-lg font-bold text-foreground">
@@ -92,10 +119,12 @@ function MilestoneCard({ milestone, index, total }) {
 
 export default function RoadmapView({ roadmap }) {
   const content = roadmap?.content || { milestones: [], totalEstimatedTime: "", summary: "" };
-  const milestones = content.milestones || [];
-  const completedMilestones = milestones.filter((m) => m.priority === "completed").length;
+  // Prefer relation milestones if available, fallback to JSON content milestones
+  const milestones = roadmap?.milestones?.length > 0 ? roadmap.milestones : (content.milestones || []);
+  
+  const completedCount = milestones.filter((m) => m.isCompleted).length;
   const progress = milestones.length > 0
-    ? Math.round((completedMilestones / milestones.length) * 100)
+    ? Math.round((completedCount / milestones.length) * 100)
     : 0;
 
   return (

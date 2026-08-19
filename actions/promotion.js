@@ -1,13 +1,19 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildUserProfileContext } from "@/lib/ai-context";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
+
+function revalidatePromotionRoute() {
+  revalidatePath("/promotion-negotiator");
+}
 export async function generatePromotionStrategy(achievements, targetRole) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -20,6 +26,16 @@ export async function generatePromotionStrategy(achievements, targetRole) {
     where: { clerkUserId: userId },
   });
   if (!user) return createErrorResponse("User not found");
+
+  const limit = await checkRateLimit(userId, "promotion");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Promotion strategy generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   const prompt = buildSecurePrompt({
     context: buildUserProfileContext(user) + "\nYou are an expert executive coach specializing in internal promotions and salary negotiation.",
@@ -56,11 +72,11 @@ export async function generatePromotionStrategy(achievements, targetRole) {
       },
     });
 
-    revalidatePath("/promotion-negotiator");
+    revalidatePromotionRoute();
     return { success: true, data: record };
   } catch (error) {
-    console.error("Promotion Strategy Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate promotion strategy"] } };
+    await decrementRateLimit(userId, "promotion");
+    return handleServerError(error, "promotion");
   }
 }
 

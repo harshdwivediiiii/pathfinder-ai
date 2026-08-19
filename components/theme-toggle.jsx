@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Moon, Sun, Monitor } from "lucide-react";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 const themes = [
   { value: "light", icon: Sun, label: "Light" },

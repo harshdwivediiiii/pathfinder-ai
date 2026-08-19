@@ -1,4 +1,4 @@
-import { getEnv, isClerkConfigured } from "@/lib/env";
+import { getEnv, isClerkConfigured } from "@/lib/security/env";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 
 export async function GET() {

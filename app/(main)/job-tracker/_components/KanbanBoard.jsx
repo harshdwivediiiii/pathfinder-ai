@@ -7,6 +7,7 @@ import { updateJobApplicationStatus } from "@/actions/job-tracker";
 import { Plus, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { JOB_STATUSES } from "@/lib/schemas/forms";
+import { toDisplayStatus } from "@/lib/constants/job-application-status";
 
 const COLUMN_CONFIG = {
   "Saved": { label: "Saved", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
@@ -76,6 +77,10 @@ export default function KanbanBoard({ initialJobs, setJobs }) {
     setJobs(prev => prev.filter(j => j.id !== id));
   };
 
+  const handleUpdateJob = (id, updates) => {
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updates } : j));
+  };
+
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="flex justify-end">
@@ -90,7 +95,7 @@ export default function KanbanBoard({ initialJobs, setJobs }) {
       <div className="flex h-full overflow-x-auto gap-6 pb-4 custom-scrollbar snap-x">
         {COLUMNS.map(column => {
           const columnJobs = initialJobs.filter(j => 
-            j.status === column.id || (column.id === "Saved" && j.status === "Wishlist")
+            toDisplayStatus(j.status) === column.id
           );
           
           return (
@@ -123,7 +128,7 @@ export default function KanbanBoard({ initialJobs, setJobs }) {
                       onDragEnd={handleDragEnd}
                       className="cursor-grab active:cursor-grabbing"
                     >
-                      <JobCard job={job} onDelete={handleDeleteJob} />
+                      <JobCard job={job} onDelete={handleDeleteJob} onUpdate={handleUpdateJob} />
                     </div>
                   ))
                 )}

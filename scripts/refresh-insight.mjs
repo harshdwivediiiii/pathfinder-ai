@@ -1,52 +1,64 @@
-import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-import { generateIndustryInsightData, getIndustryInsightRefreshTime } from '../lib/industry-insights.js';
+import { PrismaClient } from "@prisma/client";
+import { loadProjectEnv, requireDatabaseUrl } from "./load-env.mjs";
 
-const db = new PrismaClient();
-const industry = process.argv[2] || 'tech-software-development';
+function printUsage() {
+  console.log(`Usage: npm run refresh:insight -- [industry-slug]
 
-async function main(){
-  try{
+Examples:
+  npm run refresh:insight
+  npm run refresh:insight -- tech-software-development
+`);
+}
+
+async function main() {
+  const industryArg = process.argv[2];
+
+  if (industryArg === "--help" || industryArg === "-h") {
+    printUsage();
+    return;
+  }
+
+  loadProjectEnv();
+  requireDatabaseUrl("refresh:insight");
+
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!geminiKey || geminiKey === "undefined" || geminiKey === "null") {
+    console.warn(
+      "Warning: GEMINI_API_KEY is not set. Refresh will fall back to the default estimate snapshot."
+    );
+  }
+
+  const { refreshIndustryInsight } = await import(
+    "../lib/misc/industry-insight-refresh.js"
+  );
+
+  const industry = industryArg || "tech-software-development";
+  const db = new PrismaClient();
+
+  try {
     console.log(`Refreshing insights for: ${industry}`);
-    const insights = await generateIndustryInsightData(industry);
-    const nextUpdate = getIndustryInsightRefreshTime();
-
-    const industryInsight = await db.industryInsight.upsert({
-      where: { industry },
-      create: {
-        industry,
-        salaryRanges: insights.salaryRanges,
-        growthRate: insights.growthRate,
-        demandLevel: insights.demandLevel,
-        topSkills: insights.topSkills,
-        marketOutlook: insights.marketOutlook,
-        keyTrends: insights.keyTrends,
-        recommendedSkills: insights.recommendedSkills,
-        isGrounded: insights.isGrounded,
-        lastUpdated: new Date(),
-        nextUpdate,
-      },
-      update: {
-        salaryRanges: insights.salaryRanges,
-        growthRate: insights.growthRate,
-        demandLevel: insights.demandLevel,
-        topSkills: insights.topSkills,
-        marketOutlook: insights.marketOutlook,
-        keyTrends: insights.keyTrends,
-        recommendedSkills: insights.recommendedSkills,
-        isGrounded: insights.isGrounded,
-        lastUpdated: new Date(),
-        nextUpdate,
-      }
-    });
-
-    console.log(JSON.stringify({ industry, industryInsight }, null, 2));
-  }catch(e){
-    console.error('Error refreshing IndustryInsight:', e);
+    const { industryInsight, insights } = await refreshIndustryInsight(db, industry);
+    console.log(
+      JSON.stringify(
+        {
+          industry,
+          isGrounded: insights.isGrounded,
+          nextUpdate: industryInsight.nextUpdate,
+          topSkills: industryInsight.topSkills,
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    console.error("Error refreshing IndustryInsight:", error.message || error);
     process.exitCode = 1;
-  }finally{
+  } finally {
     await db.$disconnect();
   }
 }
 
-main();
+main().catch((error) => {
+  console.error(error.message || error);
+  process.exitCode = 1;
+});

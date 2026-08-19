@@ -6,12 +6,20 @@ const mocks = vi.hoisted(() => {
   return {
     cache,
     cacheStore: {
-      get: vi.fn(async (key) => cache.get(key) ?? null),
+      get: vi.fn(async (key) => {
+        const value = cache.get(key);
+        if (value === undefined) {
+          return { status: "miss", value: null, isSuccess: false, isMiss: true, isError: false };
+        }
+        return { status: "success", value, isSuccess: true, isMiss: false, isError: false };
+      }),
       set: vi.fn(async (key, value) => {
         cache.set(key, value);
+        return { status: "success", value: true, isSuccess: true, isMiss: false, isError: false };
       }),
       delete: vi.fn(async (key) => {
         cache.delete(key);
+        return { status: "success", value: true, isSuccess: true, isMiss: false, isError: false };
       }),
     },
     generateGeminiContent: vi.fn(),
@@ -22,7 +30,7 @@ vi.mock("../lib/cache/store.js", () => ({
   getCacheStore: () => mocks.cacheStore,
 }));
 
-vi.mock("../lib/gemini.js", () => ({
+vi.mock("../lib/ai/gemini.js", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
 }));
 

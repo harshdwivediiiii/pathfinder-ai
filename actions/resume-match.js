@@ -1,14 +1,34 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { validateInput, parseAIJson } from "@/lib/validate";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { validateInput, parseAIJson } from "@/lib/ai/validate";
 import { resumeMatchSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
-import { generateGeminiContent } from "@/lib/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { validateDevBypass } from "@/lib/auth/dev-bypass";
+
+/**
+ * Extracts the request hostname from the Host header (port stripped) or the
+ * first entry of X-Forwarded-For so the dev-auth bypass can enforce loopback
+ * only, mirroring the guard in middleware.
+ */
+function getRequestHostname(requestHeaders) {
+  const host = requestHeaders.get("host");
+  if (host) {
+    return host.split(":")[0].replace(/^\[|\]$/g, "");
+  }
+  const forwardedFor = requestHeaders.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return null;
+}
 
 /**
  * Helper to get the user ID, falling back to a dummy user for local development
@@ -19,17 +39,27 @@ async function getAuthenticatedUserId() {
   if (userId) return userId;
 
   // Fallback for local testing when auth is bypassed
-  if (process.env.NODE_ENV === "development") {
-    console.warn("Auth bypassed, using fallback user for local development");
-    return process.env.DEV_FALLBACK_USER_ID || "dummy_user_123";
+  if (process.env.NODE_ENV === "development" && process.env.SKIP_AUTH === "true") {
+    const requestHeaders = await headers();
+    const validation = validateDevBypass({
+      hostname: getRequestHostname(requestHeaders),
+      skipAuthEnabled: true,
+      reason: "resume-match dev fallback user",
+    });
+
+    if (validation.allowed) {
+      console.warn("Auth bypassed, using fallback user for local development");
+      return process.env.DEV_FALLBACK_USER_ID || "dummy_user_123";
+    }
   }
-  
+
   return null;
 }
 
 export async function analyzeResumeMatch(rawParams) {
+  let userId;
   try {
-    const userId = await getAuthenticatedUserId();
+    userId = await getAuthenticatedUserId();
 
     if (!userId) {
       return { success: false, errors: { _form: ["Sign-in required to analyze resume match."] } };
@@ -95,8 +125,8 @@ export async function analyzeResumeMatch(rawParams) {
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.`,
     });
 
-    const result = await generateGeminiContent(prompt);
-    const parsedAnalysis = parseAIJson(result.response.text());
+    const aiResult = await generateGeminiContent(prompt);
+    const parsedAnalysis = parseAIJson(aiResult.response.text());
 
     const record = await db.resumeMatchAnalysis.create({
       data: {
@@ -117,8 +147,8 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     revalidatePath("/resume-match");
     return { success: true, data: record };
   } catch (error) {
-    console.error("[Resume Match Action Error]:", error);
-    return { success: false, errors: { _form: ["An error occurred processing your request"] } };
+    if (userId) await decrementRateLimit(userId, "resume-match");
+    return handleServerError(error, "resume-match");
   }
 }
 
@@ -155,8 +185,7 @@ export async function getResumeMatchHistory() {
     });
     return { success: true, data: analyses || [] };
   } catch (error) {
-    console.error("Failed to query resume match history:", error);
-    return { success: false, data: [] };
+    return handleServerError(error, "resume-match");
   }
 }
 
@@ -197,7 +226,6 @@ export async function deleteResumeMatchAnalysis(id) {
     revalidatePath("/resume-match");
     return { success: true };
   } catch (error) {
-    console.error("Failed to safely delete resume match entry:", error);
-    return { success: false, errors: { _form: ["An error occurred processing your request"] } };
+    return handleServerError(error, "resume-match");
   }
 }

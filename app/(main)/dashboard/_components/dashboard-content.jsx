@@ -9,9 +9,10 @@ import { SalaryAnalytics } from "./salary-analytics";
 import { IndustryTrends } from "./industry-trends";
 import { SkillGap } from "./skill-gap";
 import { AiRecommendations } from "./ai-recommendations";
+import { WeeklySummary } from "./weekly-summary";
 import { QuickActions } from "./quick-actions";
-import { cn } from "@/lib/utils";
-import { Calendar } from "lucide-react";
+import { cn } from "@/lib/misc/utils";
+import { Calendar, Split } from "lucide-react";
 import Link from "next/link";
 
 const sectionDefs = [
@@ -21,6 +22,7 @@ const sectionDefs = [
   { id: "salary", label: "Salary" },
   { id: "trends", label: "Trends" },
   { id: "skillgap", label: "Skills" },
+  { id: "activity", label: "Weekly Summary" },
   { id: "recommendations", label: "Recommendations" },
   { id: "actions", label: "Actions" },
 ];
@@ -106,6 +108,8 @@ export function DashboardContent({
   skills,
   insight,
   upcomingInterviews = [],
+  recentDecisions = [],
+  weeklySummary = null,
 }) {
   const scores = useMemo(() => computeScores(insight), [insight]);
 
@@ -129,6 +133,7 @@ export function DashboardContent({
     { id: "salary", Component: SalaryAnalytics, props: { insight } },
     { id: "trends", Component: IndustryTrends, props: { insight } },
     { id: "skillgap", Component: SkillGap, props: { insight, userSkills: skills } },
+    { id: "activity", Component: WeeklySummary, props: { summary: weeklySummary } },
     { id: "recommendations", Component: AiRecommendations, props: { insight, currentRole, targetRole } },
     { id: "actions", Component: QuickActions, props: {} },
   ];
@@ -178,6 +183,34 @@ export function DashboardContent({
             >
               View Job Tracker
             </Link>
+          </motion.div>
+        )}
+
+        {recentDecisions && recentDecisions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-5 rounded-[2rem] bg-emerald-500/10 border border-emerald-500/20 shadow-lg backdrop-blur-md flex flex-col mb-8"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-emerald-500/20 text-emerald-500 rounded-xl">
+                <Link href="/career-decision-simulator" className="block">
+                  <Split className="w-5 h-5" />
+                </Link>
+              </div>
+              <h4 className="font-bold text-foreground text-base">
+                Recent Career Decisions
+              </h4>
+            </div>
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {recentDecisions.map((decision) => (
+                <Link key={decision.id} href="/career-decision-simulator" className="block bg-background/60 hover:bg-background/80 border border-emerald-500/20 rounded-2xl p-4 transition-colors shadow-sm">
+                  <div className="text-sm font-semibold truncate mb-1" title={decision.question}>{decision.question}</div>
+                  <div className="text-xs text-muted-foreground truncate mb-2">Recommended: <span className="font-medium text-foreground">{decision.analysis?.recommendedOption}</span></div>
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-500">View Analysis &rarr;</div>
+                </Link>
+              ))}
+            </div>
           </motion.div>
         )}
 

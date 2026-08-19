@@ -58,33 +58,39 @@ export function OpenSourceStats() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      try {
-        const repoRes = await fetch(
-          "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai"
-        );
-        const repoData = await repoRes.json();
+  try {
+    const repoRes = await fetch(
+      "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai"
+    );
+    const repoData = await repoRes.json();
 
-        const contribRes = await fetch(
-          "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai/contributors?per_page=1&anon=true"
-        );
-        let contributorCount = 0;
-        const linkHeader = contribRes.headers?.get?.("Link");
-        if (linkHeader) {
-          const match = linkHeader.match(/page=(\d+)>; rel="last"/);
-          if (match) contributorCount = parseInt(match[1]);
-        } else {
-          const contribData = await contribRes.json();
-          contributorCount = Array.isArray(contribData) ? contribData.length : 0;
-        }
+    const contribRes = await fetch(
+      "https://api.github.com/repos/harshdwivediiiii/pathfinder-ai/contributors?per_page=1&anon=true"
+    );
+    let contributorCount = 0;
+    const linkHeader = contribRes.headers?.get?.("Link");
+    if (linkHeader) {
+      const match = linkHeader.match(/page=(\d+)>; rel="last"/);
+      if (match) contributorCount = parseInt(match[1]);
+    } else {
+      const contribData = await contribRes.json();
+      contributorCount = Array.isArray(contribData) ? contribData.length : 0;
+    }
 
-        setStats({
-          stars: repoData.stargazers_count ?? 0,
-          forks: repoData.forks_count ?? 0,
-          openIssues: repoData.open_issues_count ?? 0,
-          contributors: contributorCount || 0,
-          pullRequests: repoData.open_issues_count ?? 0,
-        });
-      } catch {
+    const prRes = await fetch(
+      "https://api.github.com/search/issues?q=repo:harshdwivediiiii/pathfinder-ai+type:pr+state:open"
+    );
+    const prData = await prRes.json();
+    const pullRequestCount = prData.total_count ?? 0;
+
+    setStats({
+      stars: repoData.stargazers_count ?? 0,
+      forks: repoData.forks_count ?? 0,
+      openIssues: repoData.open_issues_count ?? 0,
+      contributors: contributorCount || 0,
+      pullRequests: pullRequestCount,
+    });
+  } catch {
         setStats({
           stars: 0,
           forks: 0,

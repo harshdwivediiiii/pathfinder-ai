@@ -1,24 +1,31 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { validateOutput } from "@/lib/validate";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildSecurePrompt, generateWithStructuredOutput } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { validateOutput } from "@/lib/ai/validate";
 import { founderReadinessOutputSchema, SCHEMA_DESCRIPTIONS } from "@/lib/schemas/outputs";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 const FOUNDER_SYSTEM_CONTEXT = `You are a top-tier venture capital partner and startup advisor. Your expertise is evaluating early-stage founders and giving blunt, actionable, and highly constructive feedback on their readiness to launch a startup. You identify blind spots, score their founder-market fit, and provide a 90-day transition roadmap.`;
 
 export async function generateFounderReadiness(formData) {
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const limit = await checkRateLimit(userId, "founder_readiness");
     if (!limit.allowed) {
-      throw new Error(`Founder readiness generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`);
+      return {
+        success: false,
+        errors: {
+          _form: [`Founder readiness generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+        },
+      };
     }
 
     const user = await db.user.findUnique({
@@ -65,7 +72,8 @@ Respond ONLY with a valid JSON object in this exact format:
     });
 
     const schemaDescription = SCHEMA_DESCRIPTIONS.founderReadiness;
-
+  
+    console.info("Starting founder readiness generation...");
     const result = await generateWithStructuredOutput({
       prompt,
       schemaDescription,
@@ -76,12 +84,15 @@ Respond ONLY with a valid JSON object in this exact format:
       },
       validateFn: validateOutput,
     });
+    
+    console.info("AI Result:", result);
 
     if (!result.success) {
       console.error("Founder readiness output validation failed:", result.errors);
       throw new Error("AI returned an unexpected format.");
     }
 
+    console.info("Saving to database...");
     const readiness = await db.founderReadiness.create({
       data: {
         userId: user.id,
@@ -91,17 +102,14 @@ Respond ONLY with a valid JSON object in this exact format:
         readinessData: result.data,
       },
     });
+    
+    console.info("Saved successfully.");
 
     return readiness;
   } catch (error) {
-    console.error("Error generating founder readiness:", error);
-    if (process.env.NODE_ENV === "test") {
-      throw error;
-    }
-    return {
-      success: false,
-      error: error?.message || "Failed to generate founder readiness analysis."
-    };
+    if (userId) await decrementRateLimit(userId, "founder_readiness");
+    console.error("Founder Readiness Error:", error);
+    return handleServerError(error, "founder-readiness");
   }
 }
 
@@ -122,10 +130,6 @@ export async function getFounderReadinesses() {
     
     return { readinesses, error: null };
   } catch (error) {
-    console.error("Error fetching founder readinesses:", error);
-    return { 
-      readinesses: [], 
-      error: error.message || "Failed to load founder readiness history." 
-    };
+    return handleServerError(error, "founder-readiness");
   }
 }

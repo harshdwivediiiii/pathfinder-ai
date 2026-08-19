@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   userUpdate: vi.fn(),
   industryInsightFindUnique: vi.fn(),
   industryInsightUpsert: vi.fn(),
+  industryInsightCreate: vi.fn(),
   generateAIInsights: vi.fn(),
 }));
 
@@ -15,7 +16,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: mocks.clerkClient,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.userFindUnique,
@@ -24,12 +25,14 @@ vi.mock("@/lib/prisma", () => ({
     industryInsight: {
       findUnique: mocks.industryInsightFindUnique,
       upsert: mocks.industryInsightUpsert,
+      create: mocks.industryInsightCreate,
     },
     $transaction: vi.fn((cb) =>
       cb({
         industryInsight: {
           upsert: mocks.industryInsightUpsert,
           findUnique: mocks.industryInsightFindUnique,
+          create: mocks.industryInsightCreate,
         },
         user: {
           update: mocks.userUpdate,
@@ -48,6 +51,9 @@ import { updateUser } from "../actions/user.js";
 describe("updateUser action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.industryInsightCreate.mockResolvedValue({
+      industry: "Quantum Computing",
+    });
   });
 
   const validProfileData = {
@@ -106,7 +112,8 @@ describe("updateUser action", () => {
       })
     );
     expect(result).toEqual({
-      updatedUser: mockUpdatedUser,
+      success: true,
+      user: mockUpdatedUser,
       industryInsight: {
         industry: "Quantum Computing",
         ...mockAiInsights,
@@ -157,7 +164,7 @@ describe("updateUser action", () => {
         }),
       })
     );
-    expect(result.updatedUser).toEqual(mockUpdatedUser);
+    expect(result.user).toEqual(mockUpdatedUser);
     expect(result.industryInsight.growthRate).toBe(0);
     expect(result.industryInsight.demandLevel).toBe("Medium");
   });

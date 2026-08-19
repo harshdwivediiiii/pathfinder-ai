@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Sparkles,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 const actions = [
   {

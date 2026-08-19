@@ -1,12 +1,21 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+function createVisaValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
 export async function generateVisaStrategy(visaType, targetRole, concerns) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
@@ -14,8 +23,20 @@ export async function generateVisaStrategy(visaType, targetRole, concerns) {
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
+  const limit = await checkRateLimit(userId, "visa");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Visa strategy generation limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
   if (!visaType || !targetRole) {
-    return { success: false, errors: { _form: ["Visa type and target role are required."] } };
+    return createVisaValidationResponse(
+  "Visa type and target role are required."
+);
   }
 
   const prompt = buildSecurePrompt({
@@ -53,8 +74,8 @@ export async function generateVisaStrategy(visaType, targetRole, concerns) {
     revalidatePath("/visa-guide");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Visa Strategy Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate strategy"] } };
+    await decrementRateLimit(userId, "visa");
+    return handleServerError(error, "visa");
   }
 }
 

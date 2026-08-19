@@ -1,15 +1,17 @@
 "use server";
-import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
-import { db } from "@/lib/prisma";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateSkillGapAnalysis(data) {
+  let userId;
   try {
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
     if (!userId) throw new Error("Unauthorized");
 
     const limit = await checkRateLimit(userId, "skill-gap");
@@ -79,8 +81,8 @@ export async function generateSkillGapAnalysis(data) {
 
     return { data: saved, error: null };
   } catch (error) {
-    console.error("Error generating skill gap analysis:", error);
-    return { data: null, error: error.message || "Failed to generate analysis" };
+    if (userId) await decrementRateLimit(userId, "skill-gap");
+    return handleServerError(error, "skill-gap");
   }
 }
 
@@ -100,7 +102,6 @@ export async function getSkillGapAnalysis() {
 
     return { data: analysis, error: null };
   } catch (error) {
-    console.error("Error fetching skill gap analysis:", error);
-    return { data: null, error: error.message };
+    return handleServerError(error, "skill-gap");
   }
 }

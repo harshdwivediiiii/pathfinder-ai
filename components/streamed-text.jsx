@@ -7,16 +7,31 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { useDebounce } from "use-debounce";
 import CitationRenderer from "@/components/chat/citation-renderer";
-import React, { useState } from "react";
-import { cn } from "@/lib/utils";
+import React, { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/misc/utils";
+
+const extractText = (children) =>
+  React.Children.toArray(children)
+    .map((child) => (typeof child === "string" ? child : extractText(child.props?.children)))
+    .join("");
 
 const CodeBlock = ({ children }) => {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const onCopy = () => {
-    navigator.clipboard.writeText(children);
+    navigator.clipboard.writeText(children).catch((err) => {
+      console.warn("Failed to copy text to clipboard:", err);
+    });
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -52,7 +67,8 @@ export const markdownComponents = {
   ),
   p: ({ children }) => (
     <div className="mb-4 leading-relaxed text-muted-foreground last:mb-0">
-      <CitationRenderer text={React.Children.toArray(children).join("")} />
+      <CitationRenderer text={String(children)} />
+      <CitationRenderer text={extractText(children)} />
     </div>
   ),
   ul: ({ children }) => (
@@ -88,10 +104,38 @@ function StreamedText({
   text,
   isLoading,
   error,
+  degraded = false,
   emptyMessage = "AI response will appear here...",
 }) {
   const [debouncedText] = useDebounce(text, 20);
   
+  if (degraded) {
+    return (
+      <div className="flex items-start gap-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 text-sm text-amber-400 shadow-sm">
+        <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center shrink-0">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="font-black uppercase tracking-widest text-[10px] mb-1">Degraded Mode</p>
+          <p className="text-amber-300/80 leading-relaxed font-medium">
+            The AI service is temporarily unavailable. Showing the most recent cached response instead.
+          </p>
+          {debouncedText && (
+            <div className="mt-4 break-words leading-relaxed relative">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={markdownComponents}
+              >
+                {debouncedText}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="flex items-start gap-4 rounded-3xl border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive shadow-sm">

@@ -1,33 +1,43 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { isFeatureEnabled } from "@/lib/ai-gating";
+import { isFeatureEnabled } from "@/lib/ai/ai-gating";
 import { ATS_ANALYSIS_CACHE_TTL_MS, cachedGenerateGeminiContent, generateCacheKey } from "@/lib/cache";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { validateInput, validateOutput, parseAIJson } from "@/lib/validate";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { validateInput, validateOutput, parseAIJson } from "@/lib/ai/validate";
 import { atsAnalysisSchema } from "@/lib/schemas/forms";
 import { atsAnalysisOutputSchema } from "@/lib/schemas";
-import { normalizeAtsSuggestions } from "@/lib/ats";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
-import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors";
-
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
+import { normalizeAtsSuggestions } from "@/lib/resume/ats";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { USER_NOT_FOUND_MESSAGE } from "@/lib/errors/errors";
+function revalidateAtsRoute() {
+  revalidatePath("/ats-analyzer");
+}
 /**
  * Runs an ATS analysis using Gemini AI and persists the result safely.
  */
 export async function analyzeATS(rawParams) {
+  let userId;
   try {
     if (!isFeatureEnabled("ats")) {
       return { success: false, errors: { _form: ["ATS analysis feature is currently disabled (missing configuration)."] } };
     }
 
-    const { userId } = await auth();
+    userId = (await auth())?.userId;
 
     if (!userId) {
       return { success: false, errors: { _form: ["Sign-in required to scan applications."] } };
+    }
+
+    const validation = validateInput(atsAnalysisSchema, rawParams);
+    if (!validation.success) {
+      return { success: false, errors: validation.errors };
     }
 
     const limit = await checkRateLimit(userId, "ats");
@@ -40,18 +50,13 @@ export async function analyzeATS(rawParams) {
       };
     }
 
-    const validation = validateInput(atsAnalysisSchema, rawParams);
-    if (!validation.success) {
-      return { success: false, errors: validation.errors };
-    }
-
     const { resumeContent, jobDescription, jobTitle, companyName } = validation.data;
 
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
     });
     if (!user) {
-      return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
+      return createErrorResponse(USER_NOT_FOUND_MESSAGE);
     }
 
     const prompt = buildSecurePrompt({
@@ -66,8 +71,8 @@ export async function analyzeATS(rawParams) {
       outputRules: `Provide your analysis in the following JSON format ONLY - no extra text, no markdown fences:
 {
   "atsScore": <number between 0 and 100>,
-  "matchedKeywords": [<array of keywords found in both>],
-  "missingKeywords": [<array of key missing keywords>],
+  "matchedKeywords": [<array of keywords found in both, formatted as "Keyword (Importance)", e.g. "React (High)", where Importance is Critical, High, Medium, or Low>],
+  "missingKeywords": [<array of key missing keywords, formatted as "Keyword (Importance)", e.g. "AWS (Critical)", where Importance is Critical, High, Medium, or Low>],
   "suggestions": [
     { "category": "Keywords", "tip": "Add missing technical terms from the job description" }
   ],
@@ -99,6 +104,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
 
     const cacheKey = generateCacheKey(
       "ats",
+      userId,
       resumeContent,
       jobDescription,
       jobTitle,
@@ -116,7 +122,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
     const outputValidation = validateOutput(atsAnalysisOutputSchema, result.response.text());
     if (!outputValidation.success) {
       console.error("ATS analysis output validation failed:", outputValidation.errors);
-      return { success: false, errors: { _form: ["AI returned an unexpected format. Please try again."] } };
+      return createErrorResponse("AI returned an unexpected format. Please try again.");
     }
     const parsedAnalysis = outputValidation.data;
 
@@ -149,11 +155,11 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation outside the JSON.
       },
     });
 
-    revalidatePath("/ats-analyzer");
+    revalidateAtsRoute();
     return { success: true, data: record };
   } catch (error) {
-    console.error("[ATS Action Error]:", error);
-    return { success: false, errors: { _form: [error.message || String(error)] } };
+    if (userId) await decrementRateLimit(userId, "ats");
+    return handleServerError(error, "ats");
   }
 }
 
@@ -180,13 +186,13 @@ export async function getATSAnalyses() {
     });
     return { success: true, data: analyses || [] };
   } catch (error) {
-    console.error("Failed to query ATS listings:", error);
-    return { success: false, data: [] };
+    return handleServerError(error, "ats");
   }
 }
 
 /**
  * Deletes a specific ATS analysis record with strict ownership validation.
+ * Prevents deletion if the analysis is referenced by any job applications.
  */
 export async function deleteATSAnalysis(id) {
   try {
@@ -203,7 +209,37 @@ export async function deleteATSAnalysis(id) {
       where: { clerkUserId: userId },
     });
     if (!user) {
-      return { success: false, errors: { _form: [USER_NOT_FOUND_MESSAGE] } };
+      return createErrorResponse(USER_NOT_FOUND_MESSAGE);
+    }
+
+    // Check if this analysis is referenced by any job applications
+    const referencedApplications = await db.jobApplication.findMany({
+      where: {
+        atsAnalysisId: id.trim(),
+        userId: user.id,
+      },
+      select: {
+        id: true,
+        jobTitle: true,
+        companyName: true,
+      },
+    });
+
+    if (referencedApplications.length > 0) {
+      const jobTitles = referencedApplications
+        .map(app => `${app.jobTitle} at ${app.companyName}`)
+        .slice(0, 3)
+        .join(", ");
+      const moreText = referencedApplications.length > 3 ? ` and ${referencedApplications.length - 3} more` : "";
+      
+      return {
+        success: false,
+        errors: {
+          _form: [
+            `Cannot delete: This ATS analysis is referenced by ${referencedApplications.length} job application(s) (${jobTitles}${moreText}). Please remove the association from those applications first.`,
+          ],
+        },
+      };
     }
 
     const { count } = await db.atsAnalysis.deleteMany({
@@ -222,10 +258,10 @@ export async function deleteATSAnalysis(id) {
       };
     }
 
-    revalidatePath("/ats-analyzer");
+    revalidateAtsRoute();
+    revalidatePath("/job-tracker");
     return { success: true };
   } catch (error) {
-    console.error("Failed to safely delete ATS entry:", error);
-    return { success: false, errors: { _form: [error.message || String(error)] } };
+    return handleServerError(error, "ats");
   }
 }

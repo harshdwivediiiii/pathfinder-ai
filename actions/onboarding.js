@@ -1,30 +1,63 @@
 "use server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
+import { createAiValidationError } from "@/lib/ai/ai-validation-response";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { validateOutput } from "@/lib/ai/validate";
+import { onboardingPlanOutputSchema } from "@/lib/schemas/outputs";
+function createOnboardingValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateOnboardingPlan(company, role) {
   const { userId } = await auth();
   if (!userId) return { success: false, errors: { _form: ["Unauthorized"] } };
 
+  const limit = await checkRateLimit(userId, "onboarding");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Onboarding plan limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
-  if (!company || !role) {
-    return { success: false, errors: { _form: ["Company and Role are required."] } };
+  const trimmedCompany = company?.trim();
+  const trimmedRole = role?.trim();
+
+  if (!companyName || companyName.length > 100) {
+    return createOnboardingValidationResponse(
+      "Company name is required and must be under 100 characters."
+    );
+  }
+  if (!jobTitle || jobTitle.length > 100) {
+    return createOnboardingValidationResponse(
+      "Job title is required and must be under 100 characters."
+    );
   }
 
   const prompt = buildSecurePrompt({
     context: "You are an expert executive coach and onboarding strategist.",
-    task: `Create a highly strategic 30-60-90 day onboarding plan for a candidate starting as a '${role}' at '${company}'.
+    task: `Create a highly strategic 30-60-90 day onboarding plan for a candidate starting as a '${trimmedRole}' at '${trimmedCompany}'.
     The plan should focus on learning the culture in the first 30 days, contributing in the first 60 days, and leading/innovating by 90 days.`,
     untrustedData: [
-      { label: "company", value: company, maxLength: 100 },
-      { label: "role", value: role, maxLength: 100 },
+      { label: "company", value: trimmedCompany, maxLength: 100 },
+      { label: "role", value: trimmedRole, maxLength: 100 },
     ],
     outputRules: `Provide the output in the following JSON format ONLY:
 {
@@ -45,22 +78,26 @@ export async function generateOnboardingPlan(company, role) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const validation = validateOutput(onboardingPlanOutputSchema, aiResult.response.text());
+
+    if (!validation.success) {
+      return createAiValidationError();
+    }
 
     const record = await db.onboardingPlan.create({
       data: {
         userId: user.id,
-        company,
-        role,
-        planContent: parsedData,
+        company: trimmedCompany,
+        role: trimmedRole,
+        planContent: validation.data,
       },
     });
 
     revalidatePath("/onboarding-plan");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Onboarding Plan Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate onboarding plan"] } };
+    await decrementRateLimit(userId, "onboarding");
+    return handleServerError(error, "onboarding");
   }
 }
 

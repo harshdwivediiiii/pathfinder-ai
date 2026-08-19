@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   isPublicRoute,
   isAuthedAppRoute,
@@ -7,8 +7,8 @@ import {
 } from "../lib/auth/routes.js";
 
 // Helper to create mock NextRequest-like objects
-function createMockRequest(path) {
-  const url = `http://localhost:3000${path}`;
+function createMockRequest(path, hostname = "localhost") {
+  const url = `http://${hostname}:3000${path}`;
   return {
     url,
     nextUrl: new URL(url),
@@ -16,6 +16,11 @@ function createMockRequest(path) {
 }
 
 describe("Auth Route Matchers", () => {
+  beforeEach(() => {
+    // Reset NODE_ENV to a safe default before each test
+    process.env.NODE_ENV = "test";
+  });
+
   describe("isPublicRoute", () => {
     it("matches public routes", () => {
       expect(isPublicRoute(createMockRequest("/"))).toBe(true);
@@ -23,11 +28,16 @@ describe("Auth Route Matchers", () => {
       expect(isPublicRoute(createMockRequest("/sign-in/callback"))).toBe(true);
       expect(isPublicRoute(createMockRequest("/sign-up"))).toBe(true);
       expect(isPublicRoute(createMockRequest("/api/dev/status"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/inngest"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/inngest/"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/health"))).toBe(true);
+      expect(isPublicRoute(createMockRequest("/api/health/ready"))).toBe(true);
     });
 
     it("does not match non-public routes", () => {
       expect(isPublicRoute(createMockRequest("/dashboard"))).toBe(false);
       expect(isPublicRoute(createMockRequest("/api/user"))).toBe(false);
+      expect(isPublicRoute(createMockRequest("/api/health/metrics"))).toBe(false);
     });
   });
 
@@ -69,6 +79,14 @@ describe("Auth Route Matchers", () => {
 
     it("does not match public api routes", () => {
       expect(isProtectedApiRoute(createMockRequest("/api/dev/status"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/inngest"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/inngest/"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/health"))).toBe(false);
+      expect(isProtectedApiRoute(createMockRequest("/api/health/ready"))).toBe(false);
+    });
+
+    it("matches protected health metrics route", () => {
+      expect(isProtectedApiRoute(createMockRequest("/api/health/metrics"))).toBe(true);
     });
 
     it("does not match non-api routes", () => {
@@ -81,6 +99,11 @@ describe("getAuthDecision", () => {
   const authed = async () => ({ userId: "user_123" });
   const unauthed = async () => ({ userId: null });
 
+  beforeEach(() => {
+    // Reset NODE_ENV to a safe default before each test
+    process.env.NODE_ENV = "test";
+  });
+
   it("returns public action for public routes regardless of authentication", async () => {
     const req1 = createMockRequest("/");
     const res1 = await getAuthDecision(req1, unauthed);
@@ -89,6 +112,22 @@ describe("getAuthDecision", () => {
     const req2 = createMockRequest("/api/dev/status");
     const res2 = await getAuthDecision(req2, authed);
     expect(res2).toEqual({ action: "public" });
+  });
+
+  it("returns public action for health probe routes", async () => {
+    const req1 = createMockRequest("/api/health");
+    const res1 = await getAuthDecision(req1, unauthed);
+    expect(res1).toEqual({ action: "public" });
+
+    const req2 = createMockRequest("/api/health/ready");
+    const res2 = await getAuthDecision(req2, unauthed);
+    expect(res2).toEqual({ action: "public" });
+  });
+
+  it("returns deny action for unauthenticated users accessing the metrics route", async () => {
+    const req = createMockRequest("/api/health/metrics");
+    const res = await getAuthDecision(req, unauthed);
+    expect(res).toEqual({ action: "deny", status: 401 });
   });
 
   it("returns redirect action for unauthenticated users accessing app routes", async () => {
@@ -147,5 +186,72 @@ describe("getAuthDecision", () => {
       expect(res.signInUrl).toContain("/sign-in");
       expect(res.signInUrl).toContain(`redirect_url=${encodeURIComponent(route)}`);
     }
+  });
+
+  describe("Video-Coach Development Bypass", () => {
+    it("allows bypass for video-coach route in development on localhost", async () => {
+      process.env.NODE_ENV = "development";
+      const req = createMockRequest("/interview/video-coach", "localhost");
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("next");
+    });
+
+    it("allows bypass for video-coach route in development on 127.0.0.1", async () => {
+      process.env.NODE_ENV = "development";
+      const req = createMockRequest("/interview/video-coach", "127.0.0.1");
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("next");
+    });
+
+    it("allows bypass for video-coach subroutes in development", async () => {
+      process.env.NODE_ENV = "development";
+      const req = createMockRequest("/interview/video-coach/session/123", "localhost");
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("next");
+    });
+
+    it("redirects unauthenticated video-coach request in production to sign-in", async () => {
+      process.env.NODE_ENV = "production";
+      const req = createMockRequest("/interview/video-coach", "localhost");
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
+    });
+
+    it("allows authenticated video-coach request in production", async () => {
+      process.env.NODE_ENV = "production";
+      const req = createMockRequest("/interview/video-coach", "localhost");
+
+      const res = await getAuthDecision(req, authed);
+      expect(res).toEqual({ action: "next" });
+    });
+
+    it("redirects unauthenticated video-coach request in non-development mode to sign-in", async () => {
+      process.env.NODE_ENV = "staging";
+      const req = createMockRequest("/interview/video-coach", "localhost");
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
+    });
+
+    it("redirects unauthenticated video-coach request on non-localhost in development to sign-in", async () => {
+      process.env.NODE_ENV = "development";
+      const req = createMockRequest("/interview/video-coach", "example.com");
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
+    });
+
+    it("redirects unauthenticated video-coach request on deployed environment to sign-in", async () => {
+      process.env.NODE_ENV = "development";
+      const req = createMockRequest("/interview/video-coach", "myapp.vercel.app");
+
+      const res = await getAuthDecision(req, unauthed);
+      expect(res.action).toBe("redirect");
+      expect(res.signInUrl).toContain("/sign-in");
+    });
   });
 });

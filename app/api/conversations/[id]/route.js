@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
-import { validateId } from "@/lib/validate";
+import { validateId } from "@/lib/ai/validate";
 
 export async function GET(request, context) {
   const params = await context.params;

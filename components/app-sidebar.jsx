@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -20,6 +20,7 @@ const ClerkUserButton = dynamic(
 import {
   LayoutDashboard,
   Bot,
+  Volume2,
   FileText,
   Mail,
   Mic,
@@ -57,6 +58,8 @@ import {
   HeartPulse,
   Rocket,
   Home,
+  Building2,
+  Github,
   Workflow,
   CalendarHeart,
   Globe,
@@ -71,10 +74,15 @@ import {
   Activity,
   RocketIcon,
   Crown,
-  PenLine
+  PenLine,
+  Split,
+  History,
+  FolderKanban,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
+import Image from "next/image";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 
 const MENU_GROUPS = [
@@ -82,6 +90,7 @@ const MENU_GROUPS = [
     title: "Intelligence",
     items: [
       { href: "/dashboard", label: "Overview", icon: <LayoutDashboard className="h-4 w-4" />, shortcut: "Alt+1" },
+      { href: "/workspace", label: "Project Workspaces", icon: <FolderKanban className="h-4 w-4 text-purple-500" />, shortcut: "" },
       { href: "/ats-analyzer", label: "ATS Analyzer", icon: <ScanSearch className="h-4 w-4 text-blue-500" />, shortcut: "" },
       { href: "/dashboard?tab=templates", label: "Templates", icon: <Copy className="h-4 w-4" />, shortcut: "" },
     ]
@@ -89,13 +98,16 @@ const MENU_GROUPS = [
   {
     title: "Resumes & Branding",
     items: [
+      { href: "/evidence-locker", label: "Evidence Locker", icon: <Lock className="h-4 w-4 text-emerald-500" />, shortcut: "" },
       { href: "/resume-builder", label: "Resume Builder", icon: <FileText className="h-4 w-4 text-amber-500" />, shortcut: "Alt+2" },
       { href: "/resume-roast", label: "Resume Roast", icon: <Flame className="h-4 w-4 text-red-500" />, shortcut: "" },
       { href: "/resume-match", label: "Job Match Score", icon: <Target className="h-4 w-4 text-green-500" />, shortcut: "" },
       { href: "/bullet-rewriter", label: "Bullet Rewriter", icon: <PenLine className="h-4 w-4 text-amber-500" />, shortcut: "" },
       { href: "/ai-cover-letter", label: "Cover Letters", icon: <Mail className="h-4 w-4 text-rose-500" />, shortcut: "Alt+3" },
       { href: "/linkedin-optimizer", label: "LinkedIn Optimizer", icon: <ScanSearch className="h-4 w-4 text-[#0A66C2]" />, shortcut: "" },
+      { href: "/github-analyzer", label: "GitHub Analyzer", icon: <Github className="h-4 w-4 text-foreground" />, shortcut: "" },
       { href: "/linkedin-post", label: "LinkedIn Posts", icon: <Linkedin className="h-4 w-4 text-[#0A66C2]" />, shortcut: "" },
+      { href: "/portfolio-builder", label: "Portfolio Builder", icon: <LayoutList className="h-4 w-4 text-teal-500" />, shortcut: "" },
     ]
   },
   {
@@ -107,6 +119,7 @@ const MENU_GROUPS = [
       { href: "/interview/star-builder", label: "STAR Builder", icon: <Star className="h-4 w-4 text-yellow-500" />, shortcut: "" },
       { href: "/interview/cheat-sheet", label: "Cheat Sheet", icon: <FileSearch className="h-4 w-4 text-zinc-500" />, shortcut: "" },
       { href: "/behavioral-prep", label: "Behavioral Prep", icon: <BrainCircuit className="h-4 w-4 text-rose-500" />, shortcut: "" },
+      { href: "/culture-matcher", label: "Culture Matcher", icon: <Building2 className="h-4 w-4 text-cyan-500" />, shortcut: "" },
       { href: "/coffee-chat", label: "Coffee Chat", icon: <Coffee className="h-4 w-4 text-amber-500" />, shortcut: "" },
       { href: "/assignment-grader", label: "Take-Home Grader", icon: <Code2 className="h-4 w-4 text-violet-500" />, shortcut: "" },
     ]
@@ -128,6 +141,7 @@ const MENU_GROUPS = [
     items: [
       { href: "/promotion-negotiator", label: "Promotion Coach", icon: <TrendingUp className="h-4 w-4 text-purple-500" />, shortcut: "" },
       { href: "/career-pivot", label: "Career Pivot", icon: <ArrowRightLeft className="h-4 w-4 text-orange-500" />, shortcut: "" },
+      { href: "/career-decision-simulator", label: "Decision Simulator", icon: <Split className="h-4 w-4 text-emerald-500" />, shortcut: "" },
       { href: "/onboarding-plan", label: "30-60-90 Plan", icon: <CalendarClock className="h-4 w-4 text-indigo-500" />, shortcut: "" },
       { href: "/freelance-proposal", label: "Freelance Proposals", icon: <FileSignature className="h-4 w-4 text-teal-500" />, shortcut: "" },
       { href: "/explore", label: "Explore Careers", icon: <Compass className="h-4 w-4 text-cyan-500" />, shortcut: "" },
@@ -154,8 +168,15 @@ const MENU_GROUPS = [
     ]
   },
   {
+    title: "Accessibility",
+    items: [
+      { href: "/ocr-reader", label: "OCR Reader", icon: <Volume2 className="h-4 w-4 text-primary" />, shortcut: "" },
+    ]
+  },
+  {
     title: "System",
     items: [
+      { href: "/agent-history", label: "Agent History", icon: <History className="h-4 w-4" />, shortcut: "" },
       { href: "/settings", label: "Settings", icon: <Settings className="h-4 w-4" />, shortcut: "" },
     ]
   }
@@ -169,7 +190,26 @@ export default function AppSidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
 
+  const openTriggerRef = useRef(null);
+  const drawerRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const previousIsOpenRef = useRef(isOpen);
+
   useScrollLock(isMobile && isOpen);
+
+  useEffect(() => {
+    if (isMobile) {
+      if (isOpen && !previousIsOpenRef.current) {
+        const timer = setTimeout(() => {
+          (closeButtonRef.current || drawerRef.current)?.focus();
+        }, 50);
+        return () => clearTimeout(timer);
+      } else if (!isOpen && previousIsOpenRef.current) {
+        openTriggerRef.current?.focus();
+      }
+    }
+    previousIsOpenRef.current = isOpen;
+  }, [isOpen, isMobile]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -189,40 +229,58 @@ export default function AppSidebar() {
   const sidebarContent = (
     <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border relative text-sidebar-foreground font-sans">
       {/* Brand Header */}
-      <div className={cn(
-        "pt-8 pb-6 px-6 flex items-center mb-4 transition-all duration-300",
-        isOpen || isMobile ? "gap-3" : "justify-center"
-      )}>
-        <div className="relative group shrink-0">
-          <div className="absolute -inset-1.5 bg-gradient-to-tr from-primary to-purple-500 rounded-xl blur opacity-40 group-hover:opacity-100 transition duration-500" />
-          <div className="relative h-9 w-9 bg-sidebar-primary rounded-xl flex items-center justify-center shadow-2xl">
-            <Diamond className="h-5 w-5 text-sidebar-primary-foreground fill-current" />
+        <div className={cn(
+          "pt-8 pb-6 px-6 flex items-center mb-4 transition-all duration-300",
+          isOpen || isMobile ? "gap-3" : "justify-center"
+        )}>
+          <div className="relative group shrink-0">
+            <div className="absolute -inset-1.5 bg-gradient-to-tr from-primary to-purple-500 rounded-xl blur opacity-40 group-hover:opacity-100 transition duration-500" />
+            <div className="relative h-9 w-9 rounded-xl flex items-center justify-center shadow-2xl overflow-hidden">
+              <Image src="/logo.png" alt="PathFinder AI" fill className="object-contain p-1" />
+            </div>
           </div>
-        </div>
-        
-        {(isOpen || isMobile) && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col flex-1 min-w-0"
-          >
-            <span className="font-black text-lg tracking-tighter text-foreground leading-none">PathFinder <span className="text-primary">AI</span></span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Enterprise Core</span>
-          </motion.div>
-        )}
+          
+          {(isOpen || isMobile) && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex flex-col flex-1 min-w-0"
+            >
+              <span className="font-black text-lg tracking-tighter text-foreground leading-none">PathFinder <span className="text-primary">AI</span></span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Enterprise Core</span>
+            </motion.div>
+          )}
 
-        {!isMobile && (
-          <button 
-            onClick={() => setIsOpen(!isOpen)}
-            className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden lg:block"
-          >
-            {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
-        )}
-      </div>
+          {!isMobile ? (
+            <button 
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+              aria-expanded={isOpen}
+              aria-controls="app-sidebar"
+              className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden lg:block"
+            >
+              {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          ) : (
+            <button
+              ref={closeButtonRef}
+              onClick={() => setIsOpen(false)}
+              aria-label="Close navigation menu"
+              aria-expanded={isOpen}
+              aria-controls="app-sidebar"
+              className="ml-auto p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground lg:hidden"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
 
       {/* Navigation Groups */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-8 custom-scrollbar">
+      <nav 
+        id="app-sidebar" 
+        aria-label="Primary navigation" 
+        className="flex-1 overflow-y-auto px-4 pb-8 space-y-8 custom-scrollbar"
+      >
         {MENU_GROUPS.map((group, idx) => (
           <div key={idx} className="space-y-3">
             {group.title && (isOpen || isMobile) && (
@@ -246,6 +304,7 @@ export default function AppSidebar() {
                     href={link.href} 
                     onClick={() => isMobile && setIsOpen(false)}
                     title={!isOpen && !isMobile ? link.label : undefined}
+                    aria-current={isActive ? "page" : undefined}
                   >
                     <div className={cn(
                       "flex items-center rounded-2xl transition-all duration-300 relative group",
@@ -307,7 +366,7 @@ export default function AppSidebar() {
             </div>
           </div>
         ))}
-      </div>
+      </nav>
 
       {/* User Section */}
       <div className="p-4 border-t border-sidebar-border bg-sidebar/50 backdrop-blur-md">
@@ -348,9 +407,13 @@ export default function AppSidebar() {
     <>
       {isMobile && !isOpen && (
         <Button
+          ref={openTriggerRef}
           variant="outline"
           size="icon"
           onClick={() => setIsOpen(true)}
+          aria-label="Open navigation menu"
+          aria-expanded={false}
+          aria-controls="app-sidebar"
           className="fixed bottom-6 left-6 z-[70] rounded-2xl h-14 w-14 shadow-2xl bg-primary text-primary-foreground border-none hover:scale-110 transition-all"
         >
           <Menu className="h-6 w-6" />
@@ -370,6 +433,10 @@ export default function AppSidebar() {
       </AnimatePresence>
 
       <motion.div
+        ref={drawerRef}
+        tabIndex={isMobile && isOpen ? -1 : undefined}
+        aria-hidden={isMobile && !isOpen ? true : undefined}
+        inert={isMobile && !isOpen ? "" : undefined}
         initial={false}
         animate={{ 
           width: isMobile ? (isOpen ? "85vw" : 0) : (isOpen ? 280 : 100), 

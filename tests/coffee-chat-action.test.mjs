@@ -7,13 +7,15 @@ const mocks = vi.hoisted(() => ({
   createSession: vi.fn(),
   updateSession: vi.fn(),
   generateGeminiContent: vi.fn(),
+  checkRateLimit: vi.fn(),
+  formatResetTime: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: mocks.findUniqueUser,
@@ -26,8 +28,13 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: mocks.generateGeminiContent,
+}));
+
+vi.mock("@/lib/security/rate-limit-actions", () => ({
+  checkRateLimit: mocks.checkRateLimit,
+  formatResetTime: mocks.formatResetTime,
 }));
 
 vi.mock("next/cache", () => ({
@@ -39,6 +46,7 @@ import { startCoffeeChat, sendCoffeeChatMessage, generateCoffeeChatFeedback } fr
 describe("coffee chat actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.checkRateLimit.mockResolvedValue({ allowed: true, resetAt: new Date() });
   });
 
   describe("startCoffeeChat", () => {
@@ -69,7 +77,7 @@ describe("coffee chat actions", () => {
 
       const result = await sendCoffeeChatMessage("session-1", "Hello");
       expect(result.success).toBe(false);
-      expect(result.errors._form).toContain("Session not found");
+      expect(result.errors._form).toContain("Session not found or unauthorized");
       expect(mocks.findFirstSession).toHaveBeenCalledWith({
         where: { id: "session-1", userId: "user-1" },
       });
@@ -114,7 +122,7 @@ describe("coffee chat actions", () => {
 
       const result = await generateCoffeeChatFeedback("session-1");
       expect(result.success).toBe(false);
-      expect(result.errors._form).toContain("Session not found");
+      expect(result.errors._form).toContain("Session not found or unauthorized");
       expect(mocks.findFirstSession).toHaveBeenCalledWith({
         where: { id: "session-1", userId: "user-1" },
       });

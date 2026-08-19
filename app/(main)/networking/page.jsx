@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { generateNetworkingEmail, getNetworkingEmails } from "@/actions/networking";
-import { Mail, Sparkles, Send, Copy, Building2, User, Target, MessageSquareText } from "lucide-react";
+import { Mail, Sparkles, Send, Copy, Building2, User, Target, MessageSquareText, Phone, Linkedin, Github, Globe } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,11 @@ export default function NetworkingPage() {
     company: "",
     goal: "Informational Interview",
     context: "",
+    senderName: "",
+    phoneNumber: "",
+    linkedIn: "",
+    github: "",
+    portfolio: "",
   });
 
   useEffect(() => {
@@ -85,6 +90,7 @@ export default function NetworkingPage() {
               
               <form onSubmit={handleGenerate} className="space-y-5">
                 <div className="space-y-4">
+                  {/* Recipient Name */}
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -95,6 +101,7 @@ export default function NetworkingPage() {
                     />
                   </div>
 
+                  {/* Target Company */}
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -105,6 +112,72 @@ export default function NetworkingPage() {
                     />
                   </div>
 
+                  {/* Your Name */}
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Your Name"
+                      className="pl-10 h-12 rounded-xl bg-background border-border focus-visible:ring-primary"
+                      value={formData.senderName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, senderName: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Phone Number"
+                      className="pl-10 h-12 rounded-xl bg-background border-border focus-visible:ring-primary"
+                      value={formData.phoneNumber}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phoneNumber: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {/* LinkedIn */}
+                  <div className="relative">
+                    <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="LinkedIn Profile URL"
+                      className="pl-10 h-12 rounded-xl bg-background border-border focus-visible:ring-primary"
+                      value={formData.linkedIn}
+                      onChange={(e) =>
+                        setFormData({ ...formData, linkedIn: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {/* GitHub */}
+                  <div className="relative">
+                    <Github className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="GitHub Profile URL"
+                      className="pl-10 h-12 rounded-xl bg-background border-border focus-visible:ring-primary"
+                      value={formData.github}
+                      onChange={(e) =>
+                        setFormData({ ...formData, github: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {/* Portfolio */}
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Portfolio Website (Optional)"
+                      className="pl-10 h-12 rounded-xl bg-background border-border focus-visible:ring-primary"
+                      value={formData.portfolio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, portfolio: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {/* Objective */}
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
                       <Target className="h-3.5 w-3.5" /> Objective
@@ -122,6 +195,7 @@ export default function NetworkingPage() {
                     </select>
                   </div>
 
+                  {/* Additional Context */}
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
                       <MessageSquareText className="h-3.5 w-3.5" /> Additional Context (Optional)

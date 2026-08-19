@@ -1,7 +1,9 @@
 "use server";
-
-import { db } from "@/lib/prisma";
-import { logActionError } from "@/lib/action-logger";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { getAiResponseText } from "@/lib/ai/ai-response";
+import { ACTION_CONTEXT } from "@/lib/action-helpers/action-context";
+import { db } from "@/lib/db/prisma";
+import { finalizeAiPersistence } from "@/lib/ai/ai-persistence";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { getHistoryRecords } from "@/lib/history-query";
@@ -12,6 +14,14 @@ import { generateGeminiContent } from "@/lib/gemini";
 import { USER_NOT_FOUND_RESPONSE } from "@/lib/user-not-found";
 import { CREATED_AT_DESC } from "@/lib/sort-config";
 import { EMPTY_HISTORY_RESPONSE } from "@/lib/history-response";
+import { getHistoryRecords } from "@/lib/history/history-query";
+import { buildUserLookup } from "@/lib/db/user-query";
+import { buildHistoryResponse } from "@/lib/history/history-loader";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
+import { USER_NOT_FOUND_RESPONSE } from "@/lib/errors/user-not-found";
+import { EMPTY_HISTORY_RESPONSE } from "@/lib/history/history-response";
 
 /** Assess burnout risk based on user survey responses. */
 export async function assessBurnout(symptoms, workload) {
@@ -20,6 +30,16 @@ export async function assessBurnout(symptoms, workload) {
 
   const user = await db.user.findUnique(buildUserLookup(userId));
   if (!user) return USER_NOT_FOUND_RESPONSE;
+
+  const limit = await checkRateLimit(userId, "burnout");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Burnout assessment limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
 
   if (!symptoms || !workload) {
     return { success: false, errors: { _form: ["Both symptoms and workload details are required."] } };
@@ -48,7 +68,7 @@ export async function assessBurnout(symptoms, workload) {
 
   try {
     const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const parsedData = parseAIJson(getAiResponseText(aiResult));
 
     const record = await db.burnoutAssessment.create({
       data: {
@@ -59,11 +79,11 @@ export async function assessBurnout(symptoms, workload) {
       },
     });
 
-    revalidatePath("/burnout-coach");
+    finalizeAiPersistence("/burnout-coach");
     return { success: true, data: record };
   } catch (error) {
-    console.error("Burnout Assessment Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to assess burnout"] } };
+    await decrementRateLimit(userId, "burnout");
+    return handleServerError(error, ACTION_CONTEXT.BURNOUT);
   }
 }
 /** Retrieve all burnout assessments for the current user. */
@@ -79,6 +99,9 @@ export async function getBurnoutAssessments() {
     db.burnoutAssessment,
     user.id
   );
+  db.burnoutAssessment,
+  user.id
+);
 
   return buildHistoryResponse(records);
 }

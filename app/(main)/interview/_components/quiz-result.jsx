@@ -4,7 +4,7 @@ import { Trophy, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { isValidQuizResult } from "@/lib/type-guards";
+import { isValidQuizResult } from "@/lib/auth/type-guards";
 
 export default function QuizResult({
   result,
@@ -69,7 +69,7 @@ export default function QuizResult({
               </div>
               <div className="text-sm text-muted-foreground">
                 <p>Your answer: {q.userAnswer}</p>
-                {!q.isCorrect && <p>Correct answer: {q.correctAnswer}</p>}
+                {q.isCorrect ? null : <p>Correct answer: {q.correctAnswer}</p>}
               </div>
               <div className="text-sm bg-muted p-2 rounded">
                 <p className="font-medium">Explanation:</p>

@@ -1,25 +1,15 @@
-import { db } from "@/lib/prisma";
-import { isAiEnabled } from "@/lib/ai-gating";
-import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
+import { checkHealth } from "@/lib/observability/health";
 
 export async function GET() {
-  const checks = {
-    database: false,
-    ai: isAiEnabled(),
-  };
+  const health = await checkHealth();
 
-  try {
-    await db.$queryRaw`SELECT 1`;
-    checks.database = true;
-  } catch {
-    checks.database = false;
-  }
+  const status = health.status === "healthy" ? 200 : 503;
 
-  const allHealthy = Object.values(checks).every(Boolean);
-
-  if (allHealthy) {
-    return Response.json({ status: "ok", checks });
-  }
-
-  return Response.json({ status: "degraded", checks }, { status: 503 });
+  return new Response(JSON.stringify(health, null, 2), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
+  });
 }

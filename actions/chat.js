@@ -1,17 +1,19 @@
 "use server";
+import { handleServerError } from "@/lib/errors/error-handler";
 
 import { auth } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
-import { db } from "@/lib/prisma";
-import { generateGeminiContent } from "@/lib/gemini";
-import { buildSecurePrompt } from "@/lib/prompt-safety";
-import { buildUserProfileContext } from "@/lib/ai-context";
-import { enforceRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
-import { validateInput } from "@/lib/validate";
+import { db } from "@/lib/db/prisma";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildSecurePrompt } from "@/lib/ai/prompt-safety";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
+import { enforceRateLimit, getRateLimitIdentifier } from "@/lib/security/rate-limit";
+import { validateInput } from "@/lib/ai/validate";
 import { chatPromptSchema } from "@/lib/schemas/forms";
-import { checkRateLimit, formatResetTime } from "@/lib/rate-limit-actions";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function chatWithGemini(prompt) {
+  let userId;
   try {
     const validation = validateInput(chatPromptSchema, { prompt });
     if (!validation.success) {
@@ -19,24 +21,12 @@ export async function chatWithGemini(prompt) {
     }
 
     const authResult = await auth();
-    const userId = authResult?.userId;
+    userId = authResult?.userId;
     const headerList = await headers();
 
-    const subject = getRateLimitIdentifier({ headers: headerList }, userId);
-    const rateLimit = await enforceRateLimit({
-      endpoint: "action:chatWithGemini",
-      subject,
-      limitPerMinute: userId ? 20 : 5,
-      burstCapacity: userId ? 10 : 5,
-    });
-
-    if (!rateLimit.allowed) {
-      return {
-        success: false,
-        errors: { _form: [`Rate limit exceeded. Try again in ${rateLimit.retryAfterSeconds}s.`] },
-      };
-    }
-
+    // Single enforcement per request: authenticated users are limited by the
+    // per-user hourly AiRateLimit bucket, anonymous users by the per-IP minute
+    // token bucket. Running both would double-consume quotas (regression of #1683).
     if (userId) {
       const limit = await checkRateLimit(userId, "chat");
       if (!limit.allowed) {
@@ -45,6 +35,21 @@ export async function chatWithGemini(prompt) {
           errors: {
             _form: [`Chat limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
           },
+        };
+      }
+    } else {
+      const subject = getRateLimitIdentifier({ headers: headerList }, userId);
+      const rateLimit = await enforceRateLimit({
+        endpoint: "action:chatWithGemini",
+        subject,
+        limitPerMinute: 5,
+        burstCapacity: 5,
+      });
+
+      if (!rateLimit.allowed) {
+        return {
+          success: false,
+          errors: { _form: [`Rate limit exceeded. Try again in ${rateLimit.retryAfterSeconds}s.`] },
         };
       }
     }
@@ -64,21 +69,12 @@ export async function chatWithGemini(prompt) {
 
     try {
       const { response } = await generateGeminiContent(securePrompt);
-      return response.text();
+      return { success: true, data: response.text() };
     } catch (err) {
-      const message =
-        err?.response?.error?.message || err?.message || "Unknown Gemini error";
-      console.error("Gemini API error:", message);
-      return {
-        success: false,
-        errors: { _form: ["Failed to get response from Gemini AI. Please try again."] },
-      };
+      return handleServerError(err, "chat");
     }
   } catch (error) {
-    console.error("Chat action error:", error);
-    return {
-      success: false,
-      errors: { _form: [error.message || "An unexpected error occurred."] },
-    };
+    if (userId) await decrementRateLimit(userId, "chat");
+    return handleServerError(error, "chat");
   }
 }

@@ -1,80 +1,124 @@
 "use server";
-
-import { db } from "@/lib/prisma";
-import { userExists } from "@/lib/user-guards";
+import { getAuthenticatedUser } from "@/lib/auth/authenticated-history";
+import { handleServerError } from "@/lib/errors/error-handler";
+import { DEFAULT_PROMPT_CONFIG } from "@/lib/ai/prompt-defaults";
+import { returnRecord } from "@/lib/action-helpers/record-response";
+import { runAiGeneration } from "@/lib/ai/ai-pipeline";
+import { createJsonOutputRules } from "@/lib/ai/output-rules";
+import { createValidationResponse } from "@/lib/errors/validation-response";
+import { executeAiLifecycle } from "@/lib/ai/ai-lifecycle";
+import { getUserHistory } from "@/lib/history/history-query";
+import { executeSecurePrompt } from "@/lib/ai/prompt-execution";
+import { executeAiWorkflow } from "@/lib/ai/ai-workflow";
+import { createSuccessResponse } from "@/lib/action-helpers/action-success";
+import { loadHistory } from "@/lib/history/history-loader";
+import { db } from "@/lib/db/prisma";
+import { parseAiResponse } from "@/lib/ai/ai-json";
+import { createPrompt } from "@/lib/ai/prompt-wrapper";
+import { createRecord } from "@/lib/db/record-create";
+import { completePersistence } from "@/lib/persistence/persistence-complete";
 import { auth } from "@clerk/nextjs/server";
-import { createErrorResponse } from "@/lib/action-errors";
+import { createErrorResponse } from "@/lib/action-helpers/action-errors";
 import { revalidatePath } from "next/cache";
-import { getAuthenticatedUserId } from "@/lib/auth-userid";
-import { buildSecurePrompt, parseAIJson } from "@/lib/prompt-safety";
-import { generateGeminiContent } from "@/lib/gemini";
-import { UNAUTHORIZED_RESPONSE } from "@/lib/auth-errors";
+import { getAuthenticatedUserId } from "@/lib/auth/auth-userid";
+import { createPromptConfig } from "@/lib/ai/prompt-config";
+import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
+import { generateGeminiContent } from "@/lib/ai/gemini";
+import { buildUserFilter } from "@/lib/db/user-filter";
+import { parseAiOutput } from "@/lib/ai/ai-output";
+import { UNAUTHORIZED_RESPONSE } from "@/lib/auth/auth-errors";
+import { createOutputRules } from "@/lib/ai/output-rules";
+import { createHistoryResponse } from "@/lib/history/history-response";
+import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
+import { buildParsedResult } from "@/lib/ai/parsed-ai";
+
+
+const EMPTY_CAREER_BREAK_HISTORY = {
+  success: false,
+  data: [],
+};
 /** Generate a career break plan based on user preferences. */
 export async function planCareerBreak(duration, reason, returnGoals) {
   const userId = await getAuthenticatedUserId(auth);
   if (!userId) return UNAUTHORIZED_RESPONSE;
 
+  const limit = await checkRateLimit(userId, "careerBreak");
+  if (!limit.allowed) {
+    return {
+      success: false,
+      errors: {
+        _form: [`Career break plan limit reached. Resets in ${formatResetTime(limit.resetAt)}.`],
+      },
+    };
+  }
+
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
   if (!user) return createErrorResponse("User not found");
 
   if (!duration || !reason || !returnGoals) {
-    return { success: false, errors: { _form: ["Duration, reason, and return goals are required."] } };
-  }
+  return createValidationResponse(
+    "Duration, reason, and return goals are required."
+  );
+}
 
-  const prompt = buildSecurePrompt({
-    context: "You are a Career Strategist who helps professionals take sabbaticals, parental leave, or health breaks without derailing their career.",
+  const prompt = createPrompt(
+  createPromptConfig({
+    context:
+      "You are a Career Strategist who helps professionals take sabbaticals, parental leave, or health breaks without derailing their career.",
+
     task: `Analyze the user's plan to take a career break.
+
     Generate a graceful exit plan for their current role, strategies to stay relevant during the break, and the exact wording to use on their resume and LinkedIn to explain the gap when they return to the workforce.`,
+
     untrustedData: [
       { label: "duration", value: duration, maxLength: 100 },
       { label: "reason", value: reason, maxLength: 1000 },
       { label: "returnGoals", value: returnGoals, maxLength: 1000 },
     ],
-    outputRules: `Provide the output in the following JSON format ONLY:
-{
+
+    outputRules: createOutputRules(
+  createJsonOutputRules(`{
   "handoffPlan": ["Action 1 for leaving gracefully", "Action 2"],
   "stayingRelevant": ["Tip 1 for during the break", "Tip 2"],
   "resumeExplanation": "A strong, unapologetic 1-2 sentence explanation to put on their resume.",
   "linkedinHeadline": "A suggested LinkedIn headline or summary addition.",
   "interviewScript": "How to answer 'Can you explain the gap in your resume?' in a future interview."
-}`,
-  });
+}`)),
+  })
+);
 
   try {
-    const aiResult = await generateGeminiContent(prompt);
-    const parsedData = parseAIJson(aiResult.response.text());
+    const aiResult = await runAiGeneration(prompt, { userId });
+    const parsedData = parseAiResponse(aiResult);
+    
 
-    const record = await db.careerBreakPlan.create({
-      data: {
-        userId: user.id,
-        duration,
-        reason,
-        returnGoals,
-        planData: parsedData,
-      },
-    });
+    const record = await createRecord(db.careerBreakPlan, {
+  userId: user.id,
+  duration,
+  reason,
+  returnGoals,
+  ...buildParsedResult("result", parsedData),
+});
 
     revalidatePath("/career-break");
-    return { success: true, data: record };
+    return createHistoryResponse(record);
   } catch (error) {
-    console.error("Career Break Error:", error);
-    return { success: false, errors: { _form: [error.message || "Failed to generate plan"] } };
+    await decrementRateLimit(userId, "careerBreak");
+    return handleServerError(error, "career-break");
   }
 }
 /** Retrieve all career break plans for the current user. */
 
 export async function getCareerBreakPlans() {
-  const userId = await getAuthenticatedUserId(auth);
-  if (!userId) return { success: false, data: [] };
+  const user = await getAuthenticatedUser();
+  if (!user) return EMPTY_CAREER_BREAK_HISTORY;
 
-  const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user) return { success: false, data: [] };
+  const records = await getUserHistory(
+    db.careerBreakPlan,
+    user.id,
+    { createdAt: "desc" }
+  );
 
-  const records = await db.careerBreakPlan.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return { success: true, data: records };
+  return createHistoryResponse(records);
 }

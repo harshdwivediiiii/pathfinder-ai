@@ -29,15 +29,15 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: mocks.db,
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContentStream: mocks.generateGeminiContentStream,
 }));
 
-vi.mock("@/lib/rate-limit", () => ({
+vi.mock("@/lib/security/rate-limit", () => ({
   getRateLimitIdentifier: () => ({ kind: "user", value: "user_test" }),
   enforceRateLimit: mocks.enforceRateLimit,
   buildRateLimitResponse: () => new Response("Rate limited", { status: 429 }),
@@ -46,20 +46,15 @@ vi.mock("@/lib/rate-limit", () => ({
 vi.mock("@/lib/cache/cache-service", () => ({
   getCachedResponse: mocks.getCachedResponse,
   cacheResponse: mocks.cacheResponse,
-  getPendingGenerationRequest: vi.fn(async () => null),
-  setPendingGenerationRequest: vi.fn(async () => {}),
-  deletePendingGenerationRequest: vi.fn(async () => {}),
   getPendingGenerationRequest: mocks.getPendingGenerationRequest,
   setPendingGenerationRequest: mocks.setPendingGenerationRequest,
   deletePendingGenerationRequest: mocks.deletePendingGenerationRequest,
-  getPendingGenerationRequest: vi.fn().mockResolvedValue(null),
-  setPendingGenerationRequest: vi.fn().mockResolvedValue(undefined),
-  deletePendingGenerationRequest: vi.fn().mockResolvedValue(undefined),
-  getPendingGenerationRequest: mocks.getPendingGenerationRequest,
-  setPendingGenerationRequest: mocks.setPendingGenerationRequest,
-  deletePendingGenerationRequest: mocks.deletePendingGenerationRequest,
-  setPendingGenerationRequest: vi.fn(),
-  deletePendingGenerationRequest: vi.fn(),
+  getOrCreatePendingGenerationRequest: vi.fn(() => ({
+    promise: Promise.resolve(),
+    isCreator: true,
+    resolve: vi.fn(),
+    reject: vi.fn(),
+  })),
 }));
 
 // We need to set up minimal env vars needed by the route
@@ -143,8 +138,8 @@ describe("Generate API Route Caching", () => {
     expect(mocks.cacheResponse).toHaveBeenCalledTimes(1);
 
     // The key used for cache storage (argument 2) should match the key queried in getCachedResponse
-    expect(mocks.getCachedResponse).toHaveBeenCalledTimes(2);
-    const lookupKey = mocks.getCachedResponse.mock.calls[1][1];
+    expect(mocks.getCachedResponse).toHaveBeenCalledTimes(1);
+    const lookupKey = mocks.getCachedResponse.mock.calls[0][1];
     expect(mocks.getCachedResponse.mock.calls.length).toBeGreaterThanOrEqual(1);
     const lookupKeys = mocks.getCachedResponse.mock.calls.map(call => call[1]);
     const storageKey = mocks.cacheResponse.mock.calls[0][1];

@@ -2,25 +2,25 @@
 
 import { useState, useTransition, useRef } from "react";
 import { analyzeATS } from "@/actions/ats";
-import { extractTextFromFile, ACCEPTED_RESUME_TYPES } from "@/lib/extract-resume-text";
-import { cn } from "@/lib/utils";
+import { extractTextFromFile, ACCEPTED_RESUME_TYPES } from "@/lib/resume/extract-resume-text";
+import { cn } from "@/lib/misc/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, FileText, Briefcase, Sparkles, ClipboardPaste, FileUp, CheckCircle2, RotateCcw } from "lucide-react";
+import { Loader2, FileText, Briefcase, Sparkles, ClipboardPaste, FileUp, CheckCircle2, RotateCcw, AlertCircle, MinusCircle } from "lucide-react";
 
 const RESUME_MAX = 5000;
 const JD_MAX = 8000;
 
 const getQualityHint = (length, max) => {
   if (length === 0) return null;
-  if (length > max) return { text: "🔴 Exceeds limit — please shorten", color: "text-destructive" };
-  if (length < 50) return { text: "🔴 Too short — AI needs more context", color: "text-destructive" };
-  if (length < 200) return { text: "🟡 Getting there...", color: "text-yellow-500" };
-  return { text: "🟢 Good length for AI generation", color: "text-green-500" };
+  if (length > max) return { text: "Exceeds limit — please shorten", color: "text-destructive", icon: "exceeds" };
+  if (length < 50) return { text: "Too short — AI needs more context", color: "text-destructive", icon: "short" };
+  if (length < 200) return { text: "Getting there...", color: "text-yellow-500", icon: "medium" };
+  return { text: "Good length for AI generation", color: "text-green-500", icon: "good" };
 };
 
 export default function ATSForm({ savedResumeContent, onComplete }) {
@@ -268,8 +268,12 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
               </span>
               <div className="flex items-center gap-3">
                 {resumeHint && (
-                  <span className={cn("transition-colors", resumeHint.color)}>
-                    {resumeHint.text}
+                  <span className={cn("flex items-center gap-1 transition-colors", resumeHint.color)}>
+                    {resumeHint.icon === "exceeds" ? <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" /> :
+                     resumeHint.icon === "short" ? <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" /> :
+                     resumeHint.icon === "medium" ? <MinusCircle className="h-3.5 w-3.5" aria-hidden="true" /> :
+                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                    <span>{resumeHint.text}</span>
                   </span>
                 )}
                 {uploadedFileName && (
@@ -319,8 +323,12 @@ export default function ATSForm({ savedResumeContent, onComplete }) {
                 {jobDescription.length} / {JD_MAX} characters
               </span>
               {jdHint && (
-                <span className={cn("transition-colors", jdHint.color)}>
-                  {jdHint.text}
+                <span className={cn("flex items-center gap-1 transition-colors", jdHint.color)}>
+                  {jdHint.icon === "exceeds" ? <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" /> :
+                   jdHint.icon === "short" ? <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" /> :
+                   jdHint.icon === "medium" ? <MinusCircle className="h-3.5 w-3.5" aria-hidden="true" /> :
+                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                  <span>{jdHint.text}</span>
                 </span>
               )}
             </div>

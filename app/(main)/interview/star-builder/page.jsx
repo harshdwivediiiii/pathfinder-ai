@@ -41,8 +41,7 @@ export default function StarBuilderPage() {
   };
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+    navigator.clipboard.writeText(text).catch(() => toast.error("Failed to copy"));
   };
 
   return (

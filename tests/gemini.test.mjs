@@ -41,14 +41,32 @@ import {
   GeminiError,
   generateGeminiContent,
   generateGeminiContentStream,
-} from "../lib/gemini.js";
+} from "../lib/ai/gemini.js";
 
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 
+let envCache = null;
+
 beforeEach(() => {
   vi.stubEnv("GEMINI_API_KEY", "test-api-key");
+  // Mock getEnv to return fresh environment values
+  vi.doMock("../lib/security/env.js", () => ({
+    getEnv: () => {
+      if (envCache) return envCache;
+      envCache = {
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+        GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+        NODE_ENV: process.env.NODE_ENV || "test",
+        DATABASE_URL: process.env.DATABASE_URL,
+      };
+      return envCache;
+    },
+    resetEnvCache: () => {
+      envCache = null;
+    },
+  }));
   // Wire the model lookup so every getGenerativeModel({model:…}) returns an
   // object whose methods point at our shared mock functions.
   mocks.getGenerativeModel.mockReturnValue({
@@ -59,6 +77,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  envCache = null;
 });
 
 // ---------------------------------------------------------------------------
@@ -237,11 +256,37 @@ describe("signal", () => {
 describe("config", () => {
   it("throws GeminiError when GEMINI_API_KEY is not configured", async () => {
     expect.assertions(2);
+    const { resetEnvCache } = await import("../lib/security/env.js");
 
     vi.stubEnv("GEMINI_API_KEY", "");
+    resetEnvCache();
+    vi.resetModules();
+    // Re-setup the mock after module reset
+    vi.doMock("../lib/security/env.js", () => ({
+      getEnv: () => {
+        if (envCache) return envCache;
+        envCache = {
+          GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+          GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+          NODE_ENV: process.env.NODE_ENV || "test",
+          DATABASE_URL: process.env.DATABASE_URL,
+        };
+        return envCache;
+      },
+      resetEnvCache: () => {
+        envCache = null;
+      },
+    }));
+    // Re-mock the Google AI module after reset
+    vi.mock("@google/generative-ai", () => ({
+      GoogleGenerativeAI: vi.fn(() => ({
+        getGenerativeModel: mocks.getGenerativeModel,
+      })),
+    }));
+    const { generateGeminiContent: generateGeminiContentFresh, GeminiError: GeminiErrorFresh } = await import("../lib/ai/gemini.js");
 
-    await expect(generateGeminiContent("Hi")).rejects.toThrow(GeminiError);
-    await expect(generateGeminiContent("Hi")).rejects.toMatchObject({
+    await expect(generateGeminiContentFresh("Hi")).rejects.toThrow(GeminiErrorFresh);
+    await expect(generateGeminiContentFresh("Hi")).rejects.toMatchObject({
       message: expect.stringContaining("GEMINI_API_KEY"),
       code: "UNKNOWN",
     });

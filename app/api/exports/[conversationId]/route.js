@@ -1,9 +1,10 @@
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/db/prisma";
 import { respondError, ERROR_CODES } from "@/lib/api/error-handler";
 import { generateJsonExport } from "@/lib/export/json-export";
 import { generateMarkdownExport } from "@/lib/export/markdown-export";
 import { getOwnedConversation } from "@/lib/conversation/getConversation";
-import { validateId } from "@/lib/validate";
+import { validateId } from "@/lib/ai/validate";
+import { sanitizeInput } from "@/lib/security/sanitize";
 
 
 /**
@@ -23,14 +24,15 @@ export async function GET(request, context) {
   if (!idValidation.success) {
     return respondError(ERROR_CODES.VALIDATION_ERROR, "Conversation ID is required", idValidation.errors);
   }
-  const format =
+  const rawFormat =
     new URL(request.url).searchParams.get("format") || "json";
-    if (!["json", "md"].includes(format)) {
-        return respondError(
-            ERROR_CODES.VALIDATION_ERROR,
-            "Supported formats are json and md"
-        );
-    }
+  const format = sanitizeInput(rawFormat).trim();
+  if (!["json", "md"].includes(format)) {
+    return respondError(
+      ERROR_CODES.VALIDATION_ERROR,
+      "Supported formats are json and md"
+    );
+  }
 
   try {
     const result = await getOwnedConversation(idValidation.data);
@@ -87,7 +89,7 @@ export async function GET(request, context) {
       }),
     ]);
 
-    console.log("Conversation exported", {
+    console.info("Conversation exported", {
       userId: user.id,
       conversationId: conversation.id,
       format,
@@ -96,6 +98,7 @@ export async function GET(request, context) {
     // Sanitize filename to remove unsafe characters
     const sanitizedTitle = conversation.title
       .replace(/[^a-zA-Z0-9_\- ]/g, '')
+      .replace(/\s+/g, '_')
       .substring(0, 100);
 
     return new Response(exportData, {

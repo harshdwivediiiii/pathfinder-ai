@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { updateUser } from "@/actions/user";
 import { updateUserSettings } from "@/actions/settings";
-import { buildUserProfileContext } from "@/lib/ai-context";
+import { buildUserProfileContext } from "@/lib/ai/ai-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";

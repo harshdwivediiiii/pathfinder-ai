@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { executivePresenceOutputSchema, SCHEMA_DESCRIPTIONS } from "../lib/schemas/outputs.js";
-import { validateOutput } from "../lib/validate.js";
-import { buildFormatCorrectionPrompt } from "../lib/prompt-safety.js";
+import { validateOutput } from "../lib/ai/validate.js";
+import { buildFormatCorrectionPrompt } from "../lib/ai/prompt-safety.js";
 
 // ── Output Schema Validation ───────────────────────────────────────────────
 
@@ -61,13 +61,14 @@ const actionMocks = vi.hoisted(() => ({
   generateGeminiContent: vi.fn(),
   checkRateLimit: vi.fn(),
   formatResetTime: vi.fn(),
+  decrementRateLimit: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: actionMocks.auth,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   db: {
     user: {
       findUnique: actionMocks.findUnique,
@@ -79,13 +80,18 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai/gemini", () => ({
   generateGeminiContent: actionMocks.generateGeminiContent,
 }));
 
-vi.mock("@/lib/rate-limit-actions", () => ({
+vi.mock("@/lib/security/rate-limit-actions", () => ({
   checkRateLimit: actionMocks.checkRateLimit,
   formatResetTime: actionMocks.formatResetTime,
+  decrementRateLimit: actionMocks.decrementRateLimit,
+}));
+
+vi.mock("@/lib/errors/error-handler", () => ({
+  handleServerError: (error) => ({ success: false, errors: { _form: [error.message] } }),
 }));
 
 describe("generateExecutivePresence", () => {
@@ -132,5 +138,24 @@ describe("generateExecutivePresence", () => {
     expect(actionMocks.generateGeminiContent).toHaveBeenCalled();
     expect(actionMocks.executivePresenceCreate).toHaveBeenCalled();
     expect(result.id).toBe("plan-1");
+  });
+
+  it("returns the reset message and does not refund the rate limit when denied", async () => {
+    const { generateExecutivePresence } = await import("../actions/executive-presence.js");
+
+    actionMocks.auth.mockResolvedValue({ userId: "user-1" });
+    actionMocks.checkRateLimit.mockResolvedValue({ allowed: false, resetAt: new Date(Date.now() + 3600000) });
+    actionMocks.formatResetTime.mockReturnValue("60 minutes");
+
+    const formData = new FormData();
+    formData.append("targetAudience", "Board");
+    formData.append("currentChallenge", "Nervous");
+
+    const result = await generateExecutivePresence(formData);
+
+    expect(result.success).toBe(false);
+    expect(result.errors._form[0]).toContain("limit reached");
+    expect(actionMocks.decrementRateLimit).not.toHaveBeenCalled();
+    expect(actionMocks.executivePresenceCreate).not.toHaveBeenCalled();
   });
 });

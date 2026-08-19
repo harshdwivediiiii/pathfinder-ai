@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { TrendingUp, Users, BarChart3, Lightbulb, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/misc/utils";
 
 const metrics = [
   {
