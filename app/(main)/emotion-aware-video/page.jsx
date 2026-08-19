@@ -169,8 +169,8 @@ export default function EmotionAwareVideoPage() {
                                         <div 
                                             key={i} 
                                             className={`flex-1 rounded-t-sm transition-all ${point.nervousMicroExpression ? 'bg-yellow-500' : 'bg-rose-500/70'}`}
-                                            style={{ height: \`\${Math.max(10, point.valence * 100)}%\` }}
-                                            title=\`Valence: \${(point.valence*100).toFixed(0)}%\`
+                                            style={{ height: `${Math.max(10, point.valence * 100)}%` }}
+                                            title={`Valence: ${(point.valence*100).toFixed(0)}%`}
                                         ></div>
                                     ))}
                                 </div>

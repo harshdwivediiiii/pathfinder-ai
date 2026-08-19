@@ -59,7 +59,7 @@ export default function SwarmIntelligencePage() {
   const getEdgeThickness = (pheromone) => {
     // Baseline is 1.0. Max theoretical is unbounded, but typically balances around 5-10
     const val = Math.min(Math.max(1, pheromone), 8);
-    return \`\${val}px\`;
+    return `${val}px`;
   };
 
   const getEdgeColor = (pheromone) => {
@@ -162,7 +162,7 @@ export default function SwarmIntelligencePage() {
                     <div className="space-y-3 p-4 bg-secondary/30 rounded-xl border relative">
                         <div className="absolute top-0 left-6 bottom-0 w-px bg-emerald-500/20"></div>
                         {recommendedPath.map((node, i) => (
-                            <div key={node} className="flex items-center gap-4 relative z-10 animate-in slide-in-from-left-4" style={{ animationDelay: \`\${i * 100}ms\`}}>
+                            <div key={node} className="flex items-center gap-4 relative z-10 animate-in slide-in-from-left-4" style={{ animationDelay: `${i * 100}ms`}}>
                                 <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] border-2 border-background"></div>
                                 <span className="font-mono font-bold">{node}</span>
                             </div>

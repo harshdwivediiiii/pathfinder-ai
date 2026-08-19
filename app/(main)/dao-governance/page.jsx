@@ -59,8 +59,8 @@ export default function DaoGovernancePage() {
   const calculateBarWidth = (forVotes, againstVotes, type) => {
       const total = forVotes + againstVotes;
       if (total === 0) return '0%';
-      if (type === 'for') return \`\${(forVotes / total) * 100}%\`;
-      return \`\${(againstVotes / total) * 100}%\`;
+      if (type === 'for') return `${(forVotes / total) * 100}%`;
+      return `${(againstVotes / total) * 100}%`;
   };
 
   return (

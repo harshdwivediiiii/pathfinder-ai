@@ -109,7 +109,7 @@ export default function EyeTrackingPage() {
               <Button 
                     variant={isTracking ? "destructive" : "default"}
                     onClick={toggleTracking} 
-                    className={\`gap-2 transition-all shadow-md \${!isTracking ? 'bg-indigo-600 hover:bg-indigo-700' : ''}\`}
+                    className={`gap-2 transition-all shadow-md \${!isTracking ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
               >
                   {isTracking ? <Webcam className="w-4 h-4 animate-pulse" /> : <Eye className="w-4 h-4" />}
                   {isTracking ? "Stop WebGazer Calibration" : "Start Eye Tracking"}

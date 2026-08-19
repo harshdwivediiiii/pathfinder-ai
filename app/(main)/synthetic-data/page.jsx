@@ -51,7 +51,7 @@ export default function SyntheticDataPage() {
       const a = document.createElement('a');
       a.setAttribute('hidden', '');
       a.setAttribute('href', url);
-      a.setAttribute('download', \`synthetic_dataset_\${dataset.metadata.schema}.csv\`);
+      a.setAttribute('download', `synthetic_dataset_${dataset.metadata.schema}.csv`);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -134,7 +134,7 @@ export default function SyntheticDataPage() {
                             Data Preview
                         </CardTitle>
                         <CardDescription>
-                            {dataset ? \`Generated \${dataset.metadata.rowCount} rows (\${(dataset.metadata.anomalyRate * 100).toFixed(0)}% anomalies)\` : 'Awaiting GAN initialization'}
+                            {dataset ? `Generated ${dataset.metadata.rowCount} rows (${(dataset.metadata.anomalyRate * 100).toFixed(0)}% anomalies)` : 'Awaiting GAN initialization'}
                         </CardDescription>
                     </div>
                     {dataset && (

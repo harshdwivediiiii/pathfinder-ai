@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 export default function WebGLVisualizerPage() {
   const [engine] = useState(new WebGLVisualizerEngine());
   
-  const sampleCode = \`function main() {
+  const sampleCode = `function main() {
     let obj = { data: 50 }; // Allocate memory
     calculate(obj);
 }
@@ -18,7 +18,7 @@ function calculate(ref) {
     // Operations...
 } // ref lost, garbage collection triggered
 
-main();\`;
+main();`;
 
   const [frames, setFrames] = useState([]);
   const [currentFrameIdx, setCurrentFrameIdx] = useState(0);
@@ -112,7 +112,7 @@ main();\`;
                     <div className="w-full bg-muted rounded-full h-2">
                         <div 
                             className="bg-sky-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: \`\${(currentFrameIdx / Math.max(frames.length - 1, 1)) * 100}%\` }}
+                            style={{ width: `\${(currentFrameIdx / Math.max(frames.length - 1, 1)) * 100}%` }}
                         ></div>
                     </div>
                     <p className="text-center text-xs font-mono text-muted-foreground">Frame {currentFrameIdx} / {frames.length - 1}</p>
