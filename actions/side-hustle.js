@@ -7,6 +7,14 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { buildSecurePrompt, parseAIJson } from "@/lib/ai/prompt-safety";
 import { generateGeminiContent } from "@/lib/ai/gemini";
+function createSideHustleValidationResponse(message) {
+  return {
+    success: false,
+    errors: {
+      _form: [message],
+    },
+  };
+}
 import { checkRateLimit, formatResetTime, decrementRateLimit } from "@/lib/security/rate-limit-actions";
 
 export async function generateSideHustles(skills, interests) {
@@ -27,7 +35,9 @@ export async function generateSideHustles(skills, interests) {
   if (!user) return createErrorResponse("User not found");
 
   if (!skills || !interests) {
-    return { success: false, errors: { _form: ["Both skills and interests are required."] } };
+    return createSideHustleValidationResponse(
+  "Both skills and interests are required."
+);
   }
 
   const prompt = buildSecurePrompt({
