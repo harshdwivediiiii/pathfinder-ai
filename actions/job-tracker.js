@@ -9,6 +9,10 @@ import { extractJobApplicationFromEmail } from "@/lib/ai/gemini";
 import { validateInput } from "@/lib/ai/validate";
 import { jobApplicationSchema, jobApplicationUpdateStatusSchema } from "@/lib/schemas/forms";
 import { toCanonicalStatus, toDisplayStatus } from "@/lib/constants/job-application-status";
+function revalidateJobTrackerRoutes() {
+  revalidatePath("/job-tracker");
+  revalidatePath("/dashboard");
+}
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -159,6 +163,8 @@ export async function createJobApplication(data) {
       },
     });
 
+    revalidateJobTrackerRoutes();
+    return { success: true, data: job };
     console.log("✅ Job application created:", job.id);
     
     revalidatePath("/job-tracker");
@@ -225,6 +231,7 @@ export async function updateJobApplicationStatus(id, status) {
       };
     }
 
+    revalidateJobTrackerRoutes();
     console.log(`✅ Job ${id} status updated successfully`);
     
     revalidatePath("/job-tracker");
@@ -272,6 +279,7 @@ export async function updateJobApplicationInterviewDate(id, interviewDate) {
       };
     }
 
+    revalidateJobTrackerRoutes();
     console.log(`✅ Interview date for job ${id} updated successfully`);
     
     revalidatePath("/job-tracker");
@@ -307,6 +315,7 @@ export async function deleteJobApplication(id) {
       };
     }
 
+    revalidateJobTrackerRoutes();
     console.log(`✅ Job ${id} deleted successfully`);
     
     revalidatePath("/job-tracker");
@@ -345,6 +354,7 @@ export async function disassociateAtsAnalysis(id) {
       };
     }
 
+    revalidateJobTrackerRoutes();
     console.log(`✅ ATS analysis disassociated from job ${id}`);
     
     revalidatePath("/job-tracker");
@@ -383,6 +393,7 @@ export async function disassociateCoverLetter(id) {
       };
     }
 
+    revalidateJobTrackerRoutes();
     console.log(`✅ Cover letter disassociated from job ${id}`);
     
     revalidatePath("/job-tracker");
@@ -704,6 +715,8 @@ export async function syncJobApplicationsFromEmail() {
       }
     }
 
+    revalidateJobTrackerRoutes();
+    return { success: true, message: `Synced! Added ${addedCount}, Updated ${updatedCount} applications.` };
     console.log(
       `✅ Sync complete: Added ${addedCount}, Updated ${updatedCount}, Errors ${errorCount}`
     );
