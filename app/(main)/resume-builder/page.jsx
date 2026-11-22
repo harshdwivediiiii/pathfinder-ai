@@ -17,8 +17,8 @@ export default function ResumeBuilderPage() {
   const [history, setHistory] = useState([]);
   const [activeResume, setActiveResume] = useState(null);
   const [jobDescription, setJobDescription] = useState("");
-  
-  const resumeRef = useRef(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const downloadInProgressRef = useRef(false);
 
   useEffect(() => {
     async function loadHistory() {
@@ -58,33 +58,38 @@ export default function ResumeBuilderPage() {
   };
 
   const downloadPDF = async () => {
-    if (typeof window === "undefined" || !resumeRef.current || !isValidResume(activeResume)) return;
-    
-    try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      const element = resumeRef.current;
-      const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5], // top, left, bottom, right
-        filename: `${(activeResume.personalInfo?.name || "Resume").replace(/ /g, '_')}_Resume.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
+    if (downloadInProgressRef.current || !isValidResume(activeResume)) return;
 
-      html2pdf().set(opt).from(element).save();
+    downloadInProgressRef.current = true;
+    setIsDownloading(true);
+    try {
+      const [{ jsPDF }, { createResumePdf }] = await Promise.all([
+        import("jspdf"),
+        import("@/lib/resume/generate-resume-pdf"),
+      ]);
+      const pdf = createResumePdf(activeResume, jsPDF);
+      const resumeName = activeResume.personalInfo?.name?.trim() || "Resume";
+      const filename = `${resumeName
+      .replace(/\s+/g, "_")
+      .replace(/[\\/:*?"<>|]/g, "")}_Resume.pdf`;
+
+      await pdf.save(filename, { returnPromise: true });
       toast.success("PDF downloaded!");
     } catch (err) {
       console.error(err);
       toast.error("Failed to generate PDF");
+    } finally {
+      downloadInProgressRef.current = false;
+      setIsDownloading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -z-10 translate-x-1/2 -translate-y-1/2" />
-      
+
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-10 md:py-16">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12"
@@ -111,18 +116,18 @@ export default function ResumeBuilderPage() {
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Import your LinkedIn profile PDF to automatically populate your base resume data before generating tailored ATS resumes.
                 </p>
-                <LinkedinImportButton 
-                  className="w-full" 
+                <LinkedinImportButton
+                  className="w-full"
                   onImportComplete={(data) => {
                     if (data?.resumeContent) {
                       setActiveResume(data.resumeContent);
                     }
-                  }} 
+                  }}
                 />
               </div>
 
               <h3 className="font-bold text-lg mb-4">Target Job</h3>
-              
+
               <form onSubmit={handleGenerate} className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-1.5">
@@ -175,21 +180,21 @@ export default function ResumeBuilderPage() {
                   </div>
                 </div>
               ) : (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="space-y-4"
                 >
                 <div className="flex justify-end">
-                  <Button onClick={downloadPDF} className="bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-500/20">
-                    <Download className="mr-2 h-4 w-4" /> Download PDF
+                  <Button onClick={downloadPDF} disabled={isDownloading} className="bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-500/20">
+                    <Download className="mr-2 h-4 w-4" /> {isDownloading ? "Generating PDF..." : "Download PDF"}
                   </Button>
                 </div>
 
                 <div className="bg-white text-black p-8 md:p-12 rounded-lg shadow-xl overflow-x-auto print:shadow-none print:p-0">
                   {/* The actual resume content that will be converted to PDF */}
-                  <div ref={resumeRef} className="w-[8.5in] min-h-[11in] mx-auto bg-white" style={{ fontFamily: "Arial, sans-serif" }}>
-                    
+                  <div className="w-[8.5in] min-h-[11in] mx-auto bg-white" style={{ fontFamily: "Arial, sans-serif" }}>
+
                     {/* Header */}
                     <div className="text-center border-b-2 border-black pb-4 mb-4">
                       <h1 className="text-3xl font-serif font-bold uppercase tracking-wide mb-2">{activeResume.personalInfo?.name}</h1>
